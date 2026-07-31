@@ -9,3 +9,4 @@ dist/
 # The derived fixture at src/calc/__fixtures__/ is committed instead.
 *.xlsx
 Icon-ref-links.txt
+card-example.png

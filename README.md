@@ -32,13 +32,16 @@ Icons are game assets from the [wiki](https://shminer.wiki.gg/), vendored into
 - **Levels** — every row takes your current level; costs update as remaining vs.
   full cost to max. Exchange upgrades show no cost, because the real prices are
   not documented in game — see [CORRECTIONS.md](CORRECTIONS.md).
-- **External Bonuses** — the Arcanist reads ~20 values from cards, pets,
-  obelisks, skills, the store, constructs and contracts. Defaults are zero, so
-  fill these in or the numbers will read low.
+- **Cards, Pets, Unlocks, Contracts** — what the rest of your account
+  contributes. Defaults are all zero, so fill these in or the numbers read low.
+  Cards are picked by tier; the tier total drives Essence Damage Per Arcane Card.
 - **Show the math** — the full derivation: crit/shiny/brittle probability
   tables, per-enemy stats, hits to kill, and where the essence goes.
 - Builds autosave locally. **Export** writes a JSON file; **Share link** puts
   the whole build in the URL.
+
+Everything you can change lives in the left column; the right column is
+read-only output.
 
 ## Development
 

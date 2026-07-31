@@ -18,8 +18,17 @@
 import type { ArcanistInput } from '../calc/types';
 import { packFields, unpackFields } from './schema';
 
-/** Format marker: plain base64url of the packed JSON array. */
-const PLAIN = 'p';
+/**
+ * Format marker: plain base64url of the packed JSON array.
+ *
+ * The packed array is positional, so a field-order change silently reinterprets
+ * every value after it. Bumping this letter makes old tokens fail the prefix
+ * check and surface "couldn't be read" instead.
+ *
+ *   p — v1 field order (flat external bonuses)
+ *   q — v2 field order (cards / pets / unlocks groups)
+ */
+const PACK_FORMAT = 'q';
 export const HASH_KEY = 'b';
 
 function bytesToBase64Url(bytes: Uint8Array): string {
@@ -39,12 +48,12 @@ function base64UrlToBytes(text: string): Uint8Array<ArrayBuffer> {
 /** Encode a build as an opaque, URL-safe token. */
 export function encodeBuild(input: ArcanistInput): string {
   const json = JSON.stringify(packFields(input));
-  return PLAIN + bytesToBase64Url(new TextEncoder().encode(json));
+  return PACK_FORMAT + bytesToBase64Url(new TextEncoder().encode(json));
 }
 
 /** Decode a token produced by encodeBuild. Returns null if it is not one. */
 export function decodeBuild(token: string): ArcanistInput | null {
-  if (!token || token[0] !== PLAIN) return null;
+  if (!token || token[0] !== PACK_FORMAT) return null;
 
   try {
     const bytes = base64UrlToBytes(token.slice(1));

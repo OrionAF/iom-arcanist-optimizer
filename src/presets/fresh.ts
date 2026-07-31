@@ -1,36 +1,43 @@
-﻿import type { ArcanistInput, ExternalBonuses } from '../calc/types';
+import type { ArcanistInput, ExternalBonuses } from '../calc/types';
 
-/** No external bonuses from other systems. */
+/** A fresh account: no cards, no pet, nothing unlocked. */
 export const FRESH_EXTERNAL: ExternalBonuses = {
-  cardSoftMaxLoot: 'none',
-  cardDenseMaxLoot: 'none',
-  cardJaggedMaxLoot: 'none',
-  cardAshCraft: 'none',
-  cardBrineCraft: 'none',
-  cardChasmCraft: 'none',
-  cardSpell: {
-    runicSurge: 'none',
-    rainbowRift: 'none',
-    manaflow: 'none',
-    radiancy: 'none',
-    prismism: 'none',
-    veinboyant: 'none',
+  cards: {
+    essence: { soft: 'none', dense: 'none', jagged: 'none' },
+    rune: { ash: 'none', brine: 'none', chasm: 'none' },
+    spell: {
+      runicSurge: 'none',
+      rainbowRift: 'none',
+      manaflow: 'none',
+      radiancy: 'none',
+      prismism: 'none',
+      veinboyant: 'none',
+    },
+    orb: {
+      white: 'none',
+      green: 'none',
+      purple: 'none',
+      orange: 'none',
+      red: 'none',
+      yellow: 'none',
+    },
   },
-  cardSuperShiny: 'none',
-  arcaneCardCount: 0,
-  petMaxEssence: false,
-  petBrittle: 0,
-  petShiny: 0,
-  petSpellPotency: 0,
-  obeliskShiny: false,
-  obeliskSuperShiny: false,
-  skillShiny: false,
-  skillBrittle: false,
-  storeShiny: false,
-  constructSuperShiny: 0,
-  contractRuneCraft: 0,
-  storeRuneCraft: 0,
-  spellDurationMulti: 1,
+  pets: {
+    rhinoLevel: 0,
+    rhinoSkin: false,
+    rhinoQuestSkin: false,
+    rhinoQuestLevel: 0,
+    rhinoCard: 'none',
+  },
+  unlocks: {
+    worldQuest25: false,
+    worldQuest29: false,
+    straightOuttaYanille: false,
+    arcanistBundle: false,
+    statueOfNatureGilded: false,
+    w4GildedStatues: 0,
+  },
+  contractRuneCraftLevel: 0,
 };
 
 /** A freshly unlocked Arcanist: nothing bought, nothing unlocked. */

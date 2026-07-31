@@ -88,6 +88,20 @@ Consequences:
 Costs are still shown for Essence Upgrades, Altar upgrades and unlocks, and
 Spell Potency ranks, all of which come from real in-game figures.
 
+## Renamed
+
+### The two obelisk shiny unlocks
+
+The workbook labels `Obelisks!H28` as **Obelisk 26**, requirement *"Reach Rhino
+Pet Level 3"*, and `H32` as **Obelisk 30**, requirement *"Reach Rhino Pet Level
+10"*.
+
+The app calls them **World Quest 25 completed** and **World Quest 29
+completed**, on the authority of a player. The effects are identical either way
+(+1% Essence Shiny Chance and +2% Essence Super Shiny Chance), so only the
+source name differs — the workbook appears to have attributed them to the wrong
+system.
+
 ## Confirmed correct — do not "fix"
 
 ### Altar essence routing

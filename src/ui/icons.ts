@@ -11,9 +11,11 @@
 
 import type {
   AltarId,
+  CardTier,
   EssenceType,
   EssenceUpgradeId,
   ExchangeUpgradeId,
+  OrbCardId,
   Resource,
   SpellId,
 } from '../calc/types';
@@ -33,6 +35,10 @@ export const SECTION_ICONS = {
   spells: icon('Spells.png'),
   altars: icon('Altars.png'),
   exchange: icon('Exchange_Wizard.png'),
+  cards: icon('Card_Backing_Polychrome.png'),
+  pets: icon('Rhino_Default.png'),
+  unlocks: icon('Spell_Unlock.png'),
+  contracts: icon('Rune_Craft_Multi.png'),
 } as const;
 
 /** Only resources the Arcanist can actually spend have icons. */
@@ -118,4 +124,53 @@ export const MISC_ICONS = {
   spellDuration: icon('Spell_Duration_Multi.png'),
   runeCraft: icon('Rune_Craft_Multi.png'),
   wizardLoot: icon('Exchange_Wizard_Loot_Multi.png'),
+  shinyChance: icon('Shiny_Essence_Chance.png'),
+  superShiny: icon('Shiny_Multiplier.png'),
+  brittleChance: icon('Brittle_Essence_Chance.png'),
+} as const;
+
+// ---------------------------------------------------------------------------
+// Cards
+// ---------------------------------------------------------------------------
+
+/** The frame a card is drawn in. Locked cards have none. */
+export const CARD_BACKINGS: Record<Exclude<CardTier, 'none'>, string> = {
+  normal: icon('Card_Backing_Standard.png'),
+  gilded: icon('Card_Backing_Gilded.png'),
+  polychrome: icon('Card_Backing_Polychrome.png'),
+};
+
+/** What each Orb Trade card depicts. */
+export const ORB_CARD_ICONS: Record<OrbCardId, string> = {
+  white: icon('White_Orb.png'),
+  green: icon('Green_Orb.png'),
+  purple: icon('Purple_Orb.png'),
+  orange: icon('Orange_Orb.png'),
+  red: icon('Red_Orb.png'),
+  yellow: icon('Yellow_Orb.png'),
+};
+
+/** Essence cards depict the max-loot icon for their essence type. */
+export const ESSENCE_CARD_ICONS: Record<EssenceType, string> = {
+  soft: icon('Soft_Essence_Multi.png'),
+  dense: icon('Dense_Essence_Multi.png'),
+  jagged: icon('Jagged_Essence_Multi.png'),
+};
+
+// ---------------------------------------------------------------------------
+// Pets and unlocks
+// ---------------------------------------------------------------------------
+
+export const PET_ICONS = {
+  rhino: icon('Rhino_Default.png'),
+  rhinoSkin: icon('Rhino_Skin.png'),
+  rhinoQuest: icon('Rhino_Quest.png'),
+} as const;
+
+export const UNLOCK_ICONS = {
+  worldQuest25: icon('Shiny_Essence_Chance.png'),
+  worldQuest29: icon('Shiny_Multiplier.png'),
+  straightOuttaYanille: icon('Straight_Outta_Yanille.png'),
+  arcanistBundle: icon('Arcanist_VP.png'),
+  statueOfNature: icon('22_Statue_Nature_Gilded.png'),
 } as const;

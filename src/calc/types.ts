@@ -259,52 +259,82 @@ export interface SpellInput {
   rank: number;
 }
 
+/** The six Orb Trade cards (Cards rows 446-451). */
+export type OrbCardId = 'white' | 'green' | 'purple' | 'orange' | 'red' | 'yellow';
+
+export const ORB_CARD_IDS: readonly OrbCardId[] = [
+  'white',
+  'green',
+  'purple',
+  'orange',
+  'red',
+  'yellow',
+];
+
 /**
- * Values Arcanist reads from other sheets in the workbook. Modelled as direct
- * input here rather than porting six more sheets.
+ * The Arcanist's own card collection (Cards rows 422-451).
+ *
+ * Only released slots are modelled. The workbook carries two more essence and
+ * four more rune slots marked "???"; they cannot be owned, so including them
+ * would only offer a tier picker for a card that does not exist.
+ *
+ * Orb Trade cards change no Arcanist maths, but they are Arcanist cards and so
+ * count toward Essence Damage Per Arcane Card — which is why they are here.
+ */
+export interface CardCollection {
+  /** Cards!K422/K423/K424 — max essence loot per type. */
+  essence: Record<EssenceType, CardTier>;
+  /** Cards!K429/K430/K431 — altar craft multiplier. */
+  rune: Record<AltarId, CardTier>;
+  /** Cards!K438..K443 — per-spell effect multiplier. */
+  spell: Record<SpellId, CardTier>;
+  /** Cards!K446..K451 — orb trade multiplier; no effect on the Arcanist. */
+  orb: Record<OrbCardId, CardTier>;
+}
+
+/** The Rhino, the Arcanist's pet (Pets rows 37-108, Cards!K282). */
+export interface PetBonuses {
+  /** Pets!A37, max 20. Each level is +1% Essence Brittle Chance. */
+  rhinoLevel: number;
+  /** Pets!A57 — the Rhino Skin, worth +1 Essence Max Loot. */
+  rhinoSkin: boolean;
+  /** Pets!A75 — whether the Rhino Quest Skin is unlocked at all. */
+  rhinoQuestSkin: boolean;
+  /** Pets!A108, max 11. Level 0 already grants the first step. */
+  rhinoQuestLevel: number;
+  /** Cards!K282 — the Rhino's card. Grants Essence Super Shiny Chance. */
+  rhinoCard: CardTier;
+}
+
+/** One-off account unlocks that feed the Arcanist. */
+export interface UnlockBonuses {
+  /** Obelisks!H28 — +1% Essence Shiny Chance. */
+  worldQuest25: boolean;
+  /** Obelisks!H32 — +2% Essence Super Shiny Chance. */
+  worldQuest29: boolean;
+  /** Skills!A157 — +1% shiny, +1% brittle (and mana regen, which is unmodelled). */
+  straightOuttaYanille: boolean;
+  /** Store!G111 — +1% shiny, +10% rune craft, +10% spell duration, +10% wizard loot. */
+  arcanistBundle: boolean;
+  /** Construct!I350 — enables the per-statue super shiny bonus below. */
+  statueOfNatureGilded: boolean;
+  /** Construct!E554 — W4 gilded statues owned; +1% super shiny each. */
+  w4GildedStatues: number;
+}
+
+/**
+ * Everything the Arcanist reads from elsewhere in the game.
+ *
+ * Modelled as the player-facing thing that grants the bonus — a pet level, an
+ * unlock, a card tier — rather than the derived number the workbook stored, so
+ * it can be filled in by looking at the game instead of at cell references.
  */
 export interface ExternalBonuses {
-  /** Cards!K422/K423/K424 — max essence loot per type. */
-  cardSoftMaxLoot: CardTier;
-  cardDenseMaxLoot: CardTier;
-  cardJaggedMaxLoot: CardTier;
-  /** Cards!K429/K430/K431 — altar craft multiplier. */
-  cardAshCraft: CardTier;
-  cardBrineCraft: CardTier;
-  cardChasmCraft: CardTier;
-  /** Cards!K438..K443 — per-spell potency multiplier. */
-  cardSpell: Record<SpellId, CardTier>;
-  /** Cards!K282 — essence super shiny chance (no rainbow tier in the source). */
-  cardSuperShiny: CardTier;
-  /** Cards!K456 — count of owned Arcanist card tiers across all four blocks. */
-  arcaneCardCount: number;
-
-  /** Pets!E57 — +1 max essence loot on every type. */
-  petMaxEssence: boolean;
-  /** Pets!E38 — brittle chance. */
-  petBrittle: number;
-  /** Pets!E108 — essence shiny chance. */
-  petShiny: number;
-  /** Pets!E109 — spell potency multiplier. */
-  petSpellPotency: number;
-
-  /** Obelisks!H28 / H32. */
-  obeliskShiny: boolean;
-  obeliskSuperShiny: boolean;
-  /** Skills!D158 / D159. */
-  skillShiny: boolean;
-  skillBrittle: boolean;
-  /** Store!J111. */
-  storeShiny: boolean;
-  /** Construct!M352. */
-  constructSuperShiny: number;
-
-  /** Contracts!D45 — feeds the rune craft multiplier. */
-  contractRuneCraft: number;
-  /** Store!J112 — feeds the rune craft multiplier. */
-  storeRuneCraft: number;
-  /** Statmath!C368 — spell duration multiplier. */
-  spellDurationMulti: number;
+  cards: CardCollection;
+  pets: PetBonuses;
+  unlocks: UnlockBonuses;
+  /** Contracts!A45, max 19. Each level is +0.5% Rune Craft Multi. */
+  contractRuneCraftLevel: number;
 }
 
 export interface ArcanistInput {
@@ -430,9 +460,39 @@ export interface CompletionRow {
   max: number;
 }
 
+/**
+ * External bonuses, resolved from what the player owns into the numbers the
+ * rest of the calculation consumes.
+ *
+ * The workbook stored these as opaque values (`petBrittle: 0.05`); here the
+ * input is the pet level and this is where it becomes a percentage, so a
+ * balance change is a constants edit rather than a hunt through the model.
+ */
+export interface DerivedBonuses {
+  /** Sum of owned card tiers across the Arcanist's blocks (Cards!K456). */
+  arcaneCardCount: number;
+  /** Pets!E38. */
+  petBrittle: number;
+  /** Pets!E108. */
+  petQuestShiny: number;
+  /** Pets!E109 — the Arcanist Spell Power multiplier. */
+  petSpellPower: number;
+  /** Pets!E57. */
+  petMaxEssenceLoot: number;
+  /** Construct!M352. */
+  statueSuperShiny: number;
+  /** Statmath!C368. */
+  spellDurationMulti: number;
+  /** The additive rune craft terms from outside the Arcanist. */
+  storeRuneCraft: number;
+  contractRuneCraft: number;
+}
+
 export interface ArcanistResult {
   stats: Stats;
   averages: Averages;
+  /** External bonuses resolved from owned levels/unlocks into usable numbers. */
+  derived: DerivedBonuses;
   /** Rune craft multiplier (Statmath!C372), resolved before altar output. */
   runeCraftMulti: number;
   essence: Record<EssenceType, EssenceOutcome>;

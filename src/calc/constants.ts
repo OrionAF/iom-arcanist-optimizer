@@ -116,9 +116,26 @@ export const CARD_SCALES = {
   altarCraft: cardScale(0.15, 0.3, 0.5),
   /** Cards!K438..K443 — Spell Cards, spell effect. */
   spell: cardScale(0.1, 0.2, 0.35),
-  /** Cards!K282 — a standalone card, not one of the Arcanist blocks. */
+  /** Cards!K446..K451 — Orb Cards, trade multiplier. Unused by the Arcanist. */
+  orbTrade: cardScale(0.15, 0.3, 0.5),
+  /** Cards!K282 — the Rhino's card. Not one of the counted Arcanist blocks. */
   superShiny: cardScale(0.01, 0.02, 0.04),
 } as const;
+
+/**
+ * How many owned tiers a card at this tier represents.
+ *
+ * Tiers are cumulative in game — a Polychrome card means you own Normal,
+ * Gilded and Polychrome — which is why the workbook's Cards!K456 counts each
+ * of the four tier flags separately. Summing this across the Arcanist's cards
+ * reproduces that count.
+ */
+export const CARD_TIER_COUNT: Record<CardTier, number> = {
+  none: 0,
+  normal: 1,
+  gilded: 2,
+  polychrome: 3,
+};
 
 export function cardValue(
   scale: (typeof CARD_SCALES)[keyof typeof CARD_SCALES],
@@ -646,3 +663,48 @@ export const EXCHANGE_PLACEHOLDERS = [
  * matches the workbook's 1048 (L99 adds a flat 180).
  */
 export const COMPLETION_RESERVED = 180;
+
+// ---------------------------------------------------------------------------
+// External bonuses
+// ---------------------------------------------------------------------------
+
+/** The Rhino, the Arcanist's pet. */
+export const PET = {
+  /** Pets!B37. */
+  maxLevel: 20,
+  /** Pets!E38 = A37 * 0.01 — Essence Brittle Chance per level. */
+  brittlePerLevel: 0.01,
+  /** Pets!E57 — the Rhino Skin's flat Essence Max Loot bonus. */
+  skinMaxLoot: 1,
+  /** Pets!B108. */
+  maxQuestLevel: 11,
+  /**
+   * Pets!E108/E109 = (level * step) + step, so level 0 already grants one
+   * step and level 11 grants twelve.
+   */
+  questShinyPerStep: 0.005,
+  questSpellPowerPerStep: 0.015,
+} as const;
+
+/** One-off account unlocks. */
+export const UNLOCKS = {
+  /** Obelisks!H28. */
+  worldQuest25Shiny: 0.01,
+  /** Obelisks!H32. */
+  worldQuest29SuperShiny: 0.02,
+  /** Skills!D158 / D159. Its mana regen bonus is not modelled. */
+  yanilleShiny: 0.01,
+  yanilleBrittle: 0.01,
+  /** Store!J111..J114. Its wizard loot bonus is not modelled. */
+  bundleShiny: 0.01,
+  bundleRuneCraft: 0.1,
+  bundleSpellDuration: 0.1,
+  /** Construct!M352 = 0.01 * E554, gated on the gilded Statue of Nature. */
+  statueSuperShinyPerStatue: 0.01,
+} as const;
+
+/** Contracts!A45 / D45 = A45 * 0.005. */
+export const CONTRACT_RUNE_CRAFT = {
+  maxLevel: 19,
+  perLevel: 0.005,
+} as const;

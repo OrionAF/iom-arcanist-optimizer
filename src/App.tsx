@@ -6,8 +6,9 @@ import { EXAMPLE_INPUT } from './presets/example';
 import { FRESH_INPUT } from './presets/fresh';
 import { exportToFile, importFromFile, loadBuild, saveBuild } from './state/storage';
 import { buildShareUrl, readBuildFromHash } from './state/url';
+import { Contracts, Pets, Unlocks } from './ui/sections/Account';
 import { Breakdown } from './ui/sections/Breakdown';
-import { ExternalBonuses } from './ui/sections/ExternalBonuses';
+import { Cards } from './ui/sections/Cards';
 import { Ledger } from './ui/sections/Ledger';
 import { Totals } from './ui/sections/Totals';
 import { Altars, Completion, EssenceUpgrades, Exchange, Spells, Stats } from './ui/sections/Upgrades';
@@ -111,17 +112,21 @@ export default function App() {
 
       <Ledger result={result} />
 
+      {/* Left column takes every input; the right is read-only output only. */}
       <div className="columns">
         <div className="stack">
           <EssenceUpgrades {...sectionProps} />
           <Altars {...sectionProps} />
           <Spells {...sectionProps} />
           <Exchange {...sectionProps} />
+          <Cards {...sectionProps} />
+          <Pets {...sectionProps} />
+          <Unlocks {...sectionProps} />
+          <Contracts {...sectionProps} />
         </div>
 
         <div className="stack">
           <Stats result={result} />
-          <ExternalBonuses input={input} update={update} />
           <Breakdown result={result} />
           <Totals result={result} />
           <Completion result={result} />

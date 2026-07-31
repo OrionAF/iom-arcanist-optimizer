@@ -234,11 +234,17 @@ describe('spells (E45:L66)', () => {
     expect(result.spells.runicSurge.primary).toBeCloseTo(0.4455, 9);
     expect(sheet('E45')).toBeCloseTo(0.4455, 9);
     // With no pet potency bonus the two forms coincide; prove they diverge when it is non-zero.
+    // Unlocking the Rhino Quest Skin is what grants Arcanist Spell Power.
     const withPet = compute({
       ...EXAMPLE_INPUT,
-      external: { ...EXAMPLE_INPUT.external, petSpellPotency: 0.1 },
+      external: {
+        ...EXAMPLE_INPUT.external,
+        pets: { ...EXAMPLE_INPUT.external.pets, rhinoQuestSkin: true, rhinoQuestLevel: 5 },
+      },
     });
-    const sheetForm = 0.15 * 1.2 * (1 + 13 * 0.05) * (1 + 10 * 0.05 * 1.1);
+    const power = withPet.derived.petSpellPower;
+    expect(power).toBeCloseTo(6 * 0.015, 9);
+    const sheetForm = 0.15 * 1.2 * (1 + 13 * 0.05) * (1 + 10 * 0.05 * (1 + power));
     expect(withPet.spells.runicSurge.primary).not.toBeCloseTo(sheetForm, 6);
   });
 
@@ -464,17 +470,152 @@ describe('card tiers', () => {
    * workbook's cached Cards K-column results, quoted here.)
    */
   it('reproduces the workbook values the example preset was read from', () => {
-    const ext = EXAMPLE_INPUT.external;
-    expect(cardValue(CARD_SCALES.essenceMaxLoot, ext.cardSoftMaxLoot)).toBe(4); // K422
-    expect(cardValue(CARD_SCALES.essenceMaxLoot, ext.cardDenseMaxLoot)).toBe(1); // K423
-    expect(cardValue(CARD_SCALES.essenceMaxLoot, ext.cardJaggedMaxLoot)).toBe(1); // K424
-    expect(cardValue(CARD_SCALES.altarCraft, ext.cardAshCraft)).toBeCloseTo(0.5, 10); // K429
-    expect(cardValue(CARD_SCALES.altarCraft, ext.cardBrineCraft)).toBeCloseTo(0.3, 10); // K430
-    expect(cardValue(CARD_SCALES.altarCraft, ext.cardChasmCraft)).toBe(0); // K431
-    expect(cardValue(CARD_SCALES.spell, ext.cardSpell.runicSurge)).toBeCloseTo(0.2, 10); // K438
-    expect(cardValue(CARD_SCALES.spell, ext.cardSpell.rainbowRift)).toBeCloseTo(0.2, 10); // K439
-    expect(cardValue(CARD_SCALES.spell, ext.cardSpell.manaflow)).toBeCloseTo(0.1, 10); // K440
-    expect(cardValue(CARD_SCALES.spell, ext.cardSpell.radiancy)).toBe(0); // K441
+    const { cards } = EXAMPLE_INPUT.external;
+    expect(cardValue(CARD_SCALES.essenceMaxLoot, cards.essence.soft)).toBe(4); // K422
+    expect(cardValue(CARD_SCALES.essenceMaxLoot, cards.essence.dense)).toBe(1); // K423
+    expect(cardValue(CARD_SCALES.essenceMaxLoot, cards.essence.jagged)).toBe(1); // K424
+    expect(cardValue(CARD_SCALES.altarCraft, cards.rune.ash)).toBeCloseTo(0.5, 10); // K429
+    expect(cardValue(CARD_SCALES.altarCraft, cards.rune.brine)).toBeCloseTo(0.3, 10); // K430
+    expect(cardValue(CARD_SCALES.altarCraft, cards.rune.chasm)).toBe(0); // K431
+    expect(cardValue(CARD_SCALES.spell, cards.spell.runicSurge)).toBeCloseTo(0.2, 10); // K438
+    expect(cardValue(CARD_SCALES.spell, cards.spell.rainbowRift)).toBeCloseTo(0.2, 10); // K439
+    expect(cardValue(CARD_SCALES.spell, cards.spell.manaflow)).toBeCloseTo(0.1, 10); // K440
+    expect(cardValue(CARD_SCALES.spell, cards.spell.radiancy)).toBe(0); // K441
+    expect(cardValue(CARD_SCALES.orbTrade, cards.orb.white)).toBeCloseTo(0.3, 10); // K446
+    expect(cardValue(CARD_SCALES.orbTrade, cards.orb.purple)).toBeCloseTo(0.15, 10); // K448
+  });
+});
+
+/**
+ * The arcane card count used to be typed in by hand. It is now derived from
+ * the card grid, so this pins the derivation against the workbook's Cards!K456
+ * with the workbook's own card collection.
+ */
+describe('derived external bonuses', () => {
+  it('reproduces Cards!K456 from the card tiers', () => {
+    expect(result.derived.arcaneCardCount).toBe(20);
+  });
+
+  it('counts cumulative tiers, since owning Polychrome means owning all three', () => {
+    const oneOfEach = compute({
+      ...EXAMPLE_INPUT,
+      external: {
+        ...EXAMPLE_INPUT.external,
+        cards: {
+          essence: { soft: 'normal', dense: 'gilded', jagged: 'polychrome' },
+          rune: { ash: 'none', brine: 'none', chasm: 'none' },
+          spell: {
+            runicSurge: 'none',
+            rainbowRift: 'none',
+            manaflow: 'none',
+            radiancy: 'none',
+            prismism: 'none',
+            veinboyant: 'none',
+          },
+          orb: {
+            white: 'none',
+            green: 'none',
+            purple: 'none',
+            orange: 'none',
+            red: 'none',
+            yellow: 'none',
+          },
+        },
+      },
+    });
+    expect(oneOfEach.derived.arcaneCardCount).toBe(1 + 2 + 3);
+  });
+
+  it('converts pet levels and unlocks into the workbook values', () => {
+    // Pets!E38 = A37 * 0.01, with the workbook's Rhino at level 5.
+    expect(result.derived.petBrittle).toBeCloseTo(0.05, 10);
+    // Contracts!D45 = A45 * 0.005, with the workbook at level 16.
+    expect(result.derived.contractRuneCraft).toBeCloseTo(0.08, 10);
+    // Nothing else is unlocked in the workbook's build.
+    expect(result.derived.petQuestShiny).toBe(0);
+    expect(result.derived.petSpellPower).toBe(0);
+    expect(result.derived.statueSuperShiny).toBe(0);
+    expect(result.derived.spellDurationMulti).toBe(1);
+    expect(result.derived.storeRuneCraft).toBe(0);
+  });
+
+  it('grants the first quest-skin step at level 0', () => {
+    const withQuest = compute({
+      ...EXAMPLE_INPUT,
+      external: {
+        ...EXAMPLE_INPUT.external,
+        pets: { ...EXAMPLE_INPUT.external.pets, rhinoQuestSkin: true, rhinoQuestLevel: 0 },
+      },
+    });
+    expect(withQuest.derived.petQuestShiny).toBeCloseTo(0.005, 10);
+    expect(withQuest.derived.petSpellPower).toBeCloseTo(0.015, 10);
+
+    const maxed = compute({
+      ...EXAMPLE_INPUT,
+      external: {
+        ...EXAMPLE_INPUT.external,
+        pets: { ...EXAMPLE_INPUT.external.pets, rhinoQuestSkin: true, rhinoQuestLevel: 11 },
+      },
+    });
+    expect(maxed.derived.petQuestShiny).toBeCloseTo(0.06, 10);
+    expect(maxed.derived.petSpellPower).toBeCloseTo(0.18, 10);
+  });
+
+  it('grants nothing from the quest skin until it is unlocked', () => {
+    const locked = compute({
+      ...EXAMPLE_INPUT,
+      external: {
+        ...EXAMPLE_INPUT.external,
+        pets: { ...EXAMPLE_INPUT.external.pets, rhinoQuestSkin: false, rhinoQuestLevel: 11 },
+      },
+    });
+    expect(locked.derived.petQuestShiny).toBe(0);
+    expect(locked.derived.petSpellPower).toBe(0);
+  });
+
+  it('drives all four Arcanist Bundle effects from one unlock', () => {
+    const bundled = compute({
+      ...EXAMPLE_INPUT,
+      external: {
+        ...EXAMPLE_INPUT.external,
+        unlocks: { ...EXAMPLE_INPUT.external.unlocks, arcanistBundle: true },
+      },
+    });
+    expect(bundled.derived.storeRuneCraft).toBeCloseTo(0.1, 10);
+    expect(bundled.derived.spellDurationMulti).toBeCloseTo(1.1, 10);
+    expect(bundled.stats.shinyChance - result.stats.shinyChance).toBeCloseTo(0.01, 10);
+    expect(bundled.runeCraftMulti).toBeGreaterThan(result.runeCraftMulti);
+  });
+
+  it('scales the statue bonus by the number of W4 gilded statues', () => {
+    const statues = compute({
+      ...EXAMPLE_INPUT,
+      external: {
+        ...EXAMPLE_INPUT.external,
+        unlocks: {
+          ...EXAMPLE_INPUT.external.unlocks,
+          statueOfNatureGilded: true,
+          w4GildedStatues: 7,
+        },
+      },
+    });
+    expect(statues.derived.statueSuperShiny).toBeCloseTo(0.07, 10);
+    expect(statues.stats.superShinyChance).toBeCloseTo(0.07, 10);
+  });
+
+  it('ignores the statue count while the statue is not gilded', () => {
+    const ungilded = compute({
+      ...EXAMPLE_INPUT,
+      external: {
+        ...EXAMPLE_INPUT.external,
+        unlocks: {
+          ...EXAMPLE_INPUT.external.unlocks,
+          statueOfNatureGilded: false,
+          w4GildedStatues: 7,
+        },
+      },
+    });
+    expect(ungilded.derived.statueSuperShiny).toBe(0);
   });
 });
 

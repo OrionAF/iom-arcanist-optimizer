@@ -572,9 +572,10 @@ button.action.primary:hover {
   image-rendering: -webkit-optimize-contrast;
 }
 
+/* Greyed, but still legible — for unlock rows the icon is the identifier. */
 .icon.dim {
-  opacity: 0.4;
-  filter: saturate(0.4);
+  opacity: 0.62;
+  filter: saturate(0.25);
 }
 
 /* Icon + label pairs that must stay on one line and align together. */
@@ -587,6 +588,169 @@ button.action.primary:hover {
 
 .named.tight {
   gap: 3px;
+}
+
+/* ---------------------------------------------------------------- cards -- */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 10px;
+  padding: 0 16px 14px;
+}
+
+.card-tile {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 8px;
+  background: var(--stratum-2);
+  border: 1px solid var(--seam);
+  border-radius: var(--r);
+  padding: 10px 8px 8px;
+  text-align: center;
+}
+
+.card-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.card-art {
+  display: grid;
+  place-items: center;
+  min-height: 92px;
+}
+
+.card-locked {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* The frame is 22-24px of pixel art; the inset art sits inside its window. */
+.card-frame {
+  position: relative;
+  display: inline-block;
+  height: 92px;
+}
+
+.card-backing,
+.card-inset {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.card-backing {
+  height: 92px;
+  width: auto;
+}
+
+.card-inset {
+  position: absolute;
+  left: 50%;
+  top: 32%;
+  transform: translate(-50%, -50%);
+  width: 62%;
+  height: auto;
+}
+
+.card-tile select {
+  width: 100%;
+  font-size: 12px;
+  text-align: center;
+  text-align-last: center;
+}
+
+/* Polychrome earns a faint glow; it is the top tier a card can reach. */
+.card-tile[data-tier='polychrome'] {
+  border-color: color-mix(in srgb, var(--chasm) 45%, var(--seam));
+}
+
+.card-tile[data-tier='gilded'] {
+  border-color: color-mix(in srgb, var(--gold) 35%, var(--seam));
+}
+
+.card-tile[data-tier='none'] {
+  opacity: 0.75;
+}
+
+/* ------------------------------------------------------- pets & unlocks -- */
+
+.pet-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 12px 16px 16px;
+  align-items: start;
+}
+
+.pet-main {
+  min-width: 0;
+}
+
+.pet-card {
+  width: 140px;
+}
+
+.pet-card .note {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.unlock-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.unlock {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--seam);
+  border-radius: var(--r);
+  background: var(--void);
+}
+
+/* A plate behind the icon so dark sprites still read against the panel. */
+.unlock > .icon {
+  background: var(--stratum-2);
+  border-radius: 3px;
+  padding: 2px;
+  box-sizing: content-box;
+}
+
+.unlock.on {
+  border-color: color-mix(in srgb, var(--brine) 35%, var(--seam));
+  background: color-mix(in srgb, var(--brine) 5%, var(--void));
+}
+
+.unlock-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.unlock-effects {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+.unlock.on .unlock-effects {
+  color: var(--text-dim);
+}
+
+.unlock-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
 /* ------------------------------------------------------------ resources -- */
@@ -803,6 +967,21 @@ button.action.primary:hover {
 
   .named {
     gap: 6px;
+  }
+
+  .pet-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pet-card {
+    width: 100%;
+    max-width: 160px;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 8px;
+    padding: 0 12px 12px;
   }
 }
 

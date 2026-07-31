@@ -55,34 +55,49 @@ export const EXAMPLE_INPUT: ArcanistInput = {
     runeCraftMulti: 0, // A81
   },
   external: {
-    cardSoftMaxLoot: 'polychrome', // Cards!K422 = 4
-    cardDenseMaxLoot: 'normal', // Cards!K423 = 1
-    cardJaggedMaxLoot: 'normal', // Cards!K424 = 1
-    cardAshCraft: 'polychrome', // Cards!K429 = 0.5
-    cardBrineCraft: 'gilded', // Cards!K430 = 0.3
-    cardChasmCraft: 'none', // Cards!K431 = 0
-    cardSpell: {
-      runicSurge: 'gilded', // Cards!K438 = 0.2
-      rainbowRift: 'gilded', // Cards!K439 = 0.2
-      manaflow: 'normal', // Cards!K440 = 0.1
-      radiancy: 'none', // Cards!K441 = 0
-      prismism: 'none', // Cards!K442 = 0
-      veinboyant: 'none', // Cards!K443 = 0
+    cards: {
+      essence: {
+        soft: 'polychrome', // Cards!K422 = 4
+        dense: 'normal', // Cards!K423 = 1
+        jagged: 'normal', // Cards!K424 = 1
+      },
+      rune: {
+        ash: 'polychrome', // Cards!K429 = 0.5
+        brine: 'gilded', // Cards!K430 = 0.3
+        chasm: 'none', // Cards!K431 = 0
+      },
+      spell: {
+        runicSurge: 'gilded', // Cards!K438 = 0.2
+        rainbowRift: 'gilded', // Cards!K439 = 0.2
+        manaflow: 'normal', // Cards!K440 = 0.1
+        radiancy: 'none', // Cards!K441 = 0
+        prismism: 'none', // Cards!K442 = 0
+        veinboyant: 'none', // Cards!K443 = 0
+      },
+      orb: {
+        white: 'gilded', // Cards!K446 = 0.3
+        green: 'gilded', // Cards!K447 = 0.3
+        purple: 'normal', // Cards!K448 = 0.15
+        orange: 'none', // Cards!K449 = 0
+        red: 'none', // Cards!K450 = 0
+        yellow: 'none', // Cards!K451 = 0
+      },
     },
-    cardSuperShiny: 'none', // Cards!K282 = 0
-    arcaneCardCount: 20, // Cards!K456
-    petMaxEssence: false, // Pets!E57 = 0
-    petBrittle: 0.05, // Pets!E38
-    petShiny: 0, // Pets!E108
-    petSpellPotency: 0, // Pets!E109
-    obeliskShiny: false, // Obelisks!H28 = 0
-    obeliskSuperShiny: false, // Obelisks!H32 = 0
-    skillShiny: false, // Skills!D158 = 0
-    skillBrittle: false, // Skills!D159 = 0
-    storeShiny: false, // Store!J111 = 0
-    constructSuperShiny: 0, // Construct!M352 = 0
-    contractRuneCraft: 0.08, // Contracts!D45 (Statmath!F372 = 1.08)
-    storeRuneCraft: 0, // Store!J112 (Statmath!J372 = 1)
-    spellDurationMulti: 1, // Statmath!C368
+    pets: {
+      rhinoLevel: 5, // Pets!A37 (E38 = 0.05 brittle)
+      rhinoSkin: false, // Pets!A57 = 0
+      rhinoQuestSkin: false, // Pets!A75 = 0
+      rhinoQuestLevel: 0, // Pets!A108
+      rhinoCard: 'none', // Cards!K282 = 0
+    },
+    unlocks: {
+      worldQuest25: false, // Obelisks!E28 = 0
+      worldQuest29: false, // Obelisks!E32 = 0
+      straightOuttaYanille: false, // Skills!A157 = 0
+      arcanistBundle: false, // Store!G111 = 0
+      statueOfNatureGilded: false, // Construct!I350 = 0
+      w4GildedStatues: 0, // Construct!E554 = 0
+    },
+    contractRuneCraftLevel: 16, // Contracts!A45 (D45 = 0.08)
   },
 };

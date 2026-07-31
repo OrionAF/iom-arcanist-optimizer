@@ -1,28 +1,44 @@
-﻿/**
+/**
  * Serialization for saved builds.
  *
  * Two representations, one source of truth:
- *  - JSON  (export/import, localStorage) — keyed and readable, tolerant of
- *    missing fields so older saves keep working as the schema grows.
+ *  - JSON  (export/import, localStorage) — keyed and readable, and migrated
+ *    forward when the shape changes so a saved build survives an upgrade.
  *  - packed array (share URLs) — a fixed-order list of numbers, which is what
- *    makes a link short enough to paste. FIELD_ORDER is append-only: never
- *    reorder or remove an entry, or existing links will decode to nonsense.
+ *    makes a link short enough to paste. FIELD_ORDER is append-only within a
+ *    version: never reorder or remove an entry, or existing links decode to
+ *    nonsense. When the order must change, bump PACK_FORMAT so old tokens are
+ *    rejected loudly instead.
  */
 
-import { ALTAR_IDS, ESSENCE_UPGRADES, EXCHANGE_UPGRADES, SPELL_IDS } from '../calc/constants';
-import { CARD_TIERS } from '../calc/types';
+import {
+  ALTAR_IDS,
+  CONTRACT_RUNE_CRAFT,
+  ESSENCE_UPGRADES,
+  EXCHANGE_UPGRADES,
+  PET,
+  SPELL_IDS,
+  UNLOCKS,
+} from '../calc/constants';
+import { CARD_TIERS, ESSENCE_TYPES, ORB_CARD_IDS } from '../calc/types';
 import type {
   AltarId,
   ArcanistInput,
   CardTier,
+  EssenceType,
   EssenceUpgradeId,
   ExchangeUpgradeId,
   ExternalBonuses,
+  OrbCardId,
   SpellId,
 } from '../calc/types';
 import { FRESH_INPUT } from '../presets/fresh';
 
-export const SCHEMA_VERSION = 1;
+/**
+ * 1 — original flat ExternalBonuses (raw numbers like `petBrittle: 0.05`).
+ * 2 — cards / pets / unlocks groups, with levels and unlocks as the input.
+ */
+export const SCHEMA_VERSION = 2;
 
 export interface SavedBuild {
   version: number;
@@ -49,6 +65,121 @@ const tier = (value: unknown, fallback: CardTier): CardTier =>
 const asRecord = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 
+const clamp = (value: number, max: number) => Math.min(Math.max(value, 0), max);
+
+// ---------------------------------------------------------------------------
+// Migration
+// ---------------------------------------------------------------------------
+
+/**
+ * Bring a v1 ExternalBonuses forward.
+ *
+ * v1 stored the derived numbers; v2 stores what the player owns. Every
+ * conversion here is exact — v1's values were themselves computed from these
+ * inputs by fixed formulas, so dividing back out recovers the original.
+ */
+function migrateExternalV1(raw: Record<string, unknown>): unknown {
+  const spellCards = asRecord(raw.cardSpell);
+
+  // Pets!E108 = (questLevel * step) + step, so level 0 already grants one step.
+  const questShiny = num(raw.petShiny, 0);
+  const questSteps = questShiny > 0 ? Math.round(questShiny / PET.questShinyPerStep) : 0;
+
+  const statueSuperShiny = num(raw.constructSuperShiny, 0);
+
+  return {
+    cards: {
+      essence: {
+        soft: raw.cardSoftMaxLoot,
+        dense: raw.cardDenseMaxLoot,
+        jagged: raw.cardJaggedMaxLoot,
+      },
+      rune: {
+        ash: raw.cardAshCraft,
+        brine: raw.cardBrineCraft,
+        chasm: raw.cardChasmCraft,
+      },
+      spell: spellCards,
+      // v1 had no orb cards; they were folded into the manual arcaneCardCount.
+      orb: {},
+    },
+    pets: {
+      rhinoLevel: Math.round(num(raw.petBrittle, 0) / PET.brittlePerLevel),
+      rhinoSkin: bool(raw.petMaxEssence, false),
+      rhinoQuestSkin: questSteps > 0,
+      rhinoQuestLevel: Math.max(questSteps - 1, 0),
+      rhinoCard: raw.cardSuperShiny,
+    },
+    unlocks: {
+      worldQuest25: bool(raw.obeliskShiny, false),
+      worldQuest29: bool(raw.obeliskSuperShiny, false),
+      // v1 tracked the two halves of this unlock separately.
+      straightOuttaYanille: bool(raw.skillShiny, false) || bool(raw.skillBrittle, false),
+      arcanistBundle: bool(raw.storeShiny, false),
+      statueOfNatureGilded: statueSuperShiny > 0,
+      w4GildedStatues: Math.round(statueSuperShiny / UNLOCKS.statueSuperShinyPerStatue),
+    },
+    contractRuneCraftLevel: Math.round(
+      num(raw.contractRuneCraft, 0) / CONTRACT_RUNE_CRAFT.perLevel,
+    ),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Coercion into the current shape
+// ---------------------------------------------------------------------------
+
+function coerceExternal(raw: unknown): ExternalBonuses {
+  let data = asRecord(raw);
+  // A v1 payload has no `cards` group but does have the old flat card fields.
+  if (!('cards' in data) && 'cardSoftMaxLoot' in data) {
+    data = asRecord(migrateExternalV1(data));
+  }
+
+  const cards = asRecord(data.cards);
+  const essenceCards = asRecord(cards.essence);
+  const runeCards = asRecord(cards.rune);
+  const spellCards = asRecord(cards.spell);
+  const orbCards = asRecord(cards.orb);
+  const pets = asRecord(data.pets);
+  const unlocks = asRecord(data.unlocks);
+
+  const essence = {} as Record<EssenceType, CardTier>;
+  for (const type of ESSENCE_TYPES) essence[type] = tier(essenceCards[type], 'none');
+
+  const rune = {} as Record<AltarId, CardTier>;
+  for (const id of ALTAR_IDS) rune[id] = tier(runeCards[id], 'none');
+
+  const spell = {} as Record<SpellId, CardTier>;
+  for (const id of SPELL_IDS) spell[id] = tier(spellCards[id], 'none');
+
+  const orb = {} as Record<OrbCardId, CardTier>;
+  for (const id of ORB_CARD_IDS) orb[id] = tier(orbCards[id], 'none');
+
+  return {
+    cards: { essence, rune, spell, orb },
+    pets: {
+      rhinoLevel: clamp(int(pets.rhinoLevel, 0), PET.maxLevel),
+      rhinoSkin: bool(pets.rhinoSkin, false),
+      rhinoQuestSkin: bool(pets.rhinoQuestSkin, false),
+      rhinoQuestLevel: clamp(int(pets.rhinoQuestLevel, 0), PET.maxQuestLevel),
+      rhinoCard: tier(pets.rhinoCard, 'none'),
+    },
+    unlocks: {
+      worldQuest25: bool(unlocks.worldQuest25, false),
+      worldQuest29: bool(unlocks.worldQuest29, false),
+      straightOuttaYanille: bool(unlocks.straightOuttaYanille, false),
+      arcanistBundle: bool(unlocks.arcanistBundle, false),
+      statueOfNatureGilded: bool(unlocks.statueOfNatureGilded, false),
+      w4GildedStatues: Math.max(int(unlocks.w4GildedStatues, 0), 0),
+    },
+    contractRuneCraftLevel: clamp(
+      int(data.contractRuneCraftLevel, 0),
+      CONTRACT_RUNE_CRAFT.maxLevel,
+    ),
+  };
+}
+
 /** Rebuild a complete, in-range ArcanistInput from arbitrary input. */
 export function coerceInput(raw: unknown): ArcanistInput {
   const data = asRecord(raw);
@@ -56,12 +187,10 @@ export function coerceInput(raw: unknown): ArcanistInput {
   const altarsRaw = asRecord(data.altars);
   const spellsRaw = asRecord(data.spells);
   const exchangeRaw = asRecord(data.exchange);
-  const externalRaw = asRecord(data.external);
-  const cardSpellRaw = asRecord(externalRaw.cardSpell);
 
   const essence = {} as Record<EssenceUpgradeId, number>;
   for (const def of ESSENCE_UPGRADES) {
-    essence[def.id] = Math.min(Math.max(int(essenceRaw[def.id], 0), 0), def.max);
+    essence[def.id] = clamp(int(essenceRaw[def.id], 0), def.max);
   }
 
   const altars = {} as Record<AltarId, ArcanistInput['altars'][AltarId]>;
@@ -71,9 +200,9 @@ export function coerceInput(raw: unknown): ArcanistInput {
     altars[id] = {
       unlocked: bool(src.unlocked, fallback.unlocked),
       active: bool(src.active, fallback.active),
-      capacity: Math.min(Math.max(int(src.capacity, 0), 0), 25),
-      travel: Math.min(Math.max(int(src.travel, 0), 0), 10),
-      craft: Math.min(Math.max(int(src.craft, 0), 0), 10),
+      capacity: clamp(int(src.capacity, 0), 25),
+      travel: clamp(int(src.travel, 0), 10),
+      craft: clamp(int(src.craft, 0), 10),
     };
   }
 
@@ -82,46 +211,17 @@ export function coerceInput(raw: unknown): ArcanistInput {
     const src = asRecord(spellsRaw[id]);
     spells[id] = {
       unlocked: bool(src.unlocked, false),
-      level: Math.min(Math.max(int(src.level, 0), 0), 50),
-      rank: Math.min(Math.max(int(src.rank, 0), 0), 10),
+      level: clamp(int(src.level, 0), 50),
+      rank: clamp(int(src.rank, 0), 10),
     };
   }
 
   const exchange = {} as Record<ExchangeUpgradeId, number>;
   for (const def of EXCHANGE_UPGRADES) {
-    exchange[def.id] = Math.min(Math.max(int(exchangeRaw[def.id], 0), 0), def.max);
+    exchange[def.id] = clamp(int(exchangeRaw[def.id], 0), def.max);
   }
 
-  const base = FRESH_INPUT.external;
-  const cardSpell = {} as Record<SpellId, CardTier>;
-  for (const id of SPELL_IDS) cardSpell[id] = tier(cardSpellRaw[id], 'none');
-
-  const external: ExternalBonuses = {
-    cardSoftMaxLoot: tier(externalRaw.cardSoftMaxLoot, base.cardSoftMaxLoot),
-    cardDenseMaxLoot: tier(externalRaw.cardDenseMaxLoot, base.cardDenseMaxLoot),
-    cardJaggedMaxLoot: tier(externalRaw.cardJaggedMaxLoot, base.cardJaggedMaxLoot),
-    cardAshCraft: tier(externalRaw.cardAshCraft, base.cardAshCraft),
-    cardBrineCraft: tier(externalRaw.cardBrineCraft, base.cardBrineCraft),
-    cardChasmCraft: tier(externalRaw.cardChasmCraft, base.cardChasmCraft),
-    cardSpell,
-    cardSuperShiny: tier(externalRaw.cardSuperShiny, base.cardSuperShiny),
-    arcaneCardCount: Math.max(int(externalRaw.arcaneCardCount, base.arcaneCardCount), 0),
-    petMaxEssence: bool(externalRaw.petMaxEssence, base.petMaxEssence),
-    petBrittle: num(externalRaw.petBrittle, base.petBrittle),
-    petShiny: num(externalRaw.petShiny, base.petShiny),
-    petSpellPotency: num(externalRaw.petSpellPotency, base.petSpellPotency),
-    obeliskShiny: bool(externalRaw.obeliskShiny, base.obeliskShiny),
-    obeliskSuperShiny: bool(externalRaw.obeliskSuperShiny, base.obeliskSuperShiny),
-    skillShiny: bool(externalRaw.skillShiny, base.skillShiny),
-    skillBrittle: bool(externalRaw.skillBrittle, base.skillBrittle),
-    storeShiny: bool(externalRaw.storeShiny, base.storeShiny),
-    constructSuperShiny: num(externalRaw.constructSuperShiny, base.constructSuperShiny),
-    contractRuneCraft: num(externalRaw.contractRuneCraft, base.contractRuneCraft),
-    storeRuneCraft: num(externalRaw.storeRuneCraft, base.storeRuneCraft),
-    spellDurationMulti: num(externalRaw.spellDurationMulti, base.spellDurationMulti),
-  };
-
-  return { essence, altars, spells, exchange, external };
+  return { essence, altars, spells, exchange, external: coerceExternal(data.external) };
 }
 
 // ---------------------------------------------------------------------------
@@ -132,7 +232,7 @@ export function toSavedBuild(input: ArcanistInput): SavedBuild {
   return { version: SCHEMA_VERSION, input };
 }
 
-/** Accepts a SavedBuild, a bare ArcanistInput, or junk. Never throws. */
+/** Accepts a SavedBuild of any version, a bare ArcanistInput, or junk. */
 export function fromSavedBuild(raw: unknown): ArcanistInput {
   const data = asRecord(raw);
   return coerceInput('input' in data ? data.input : data);
@@ -150,42 +250,46 @@ interface Field {
 const tierIndex = (t: CardTier) => Math.max(CARD_TIERS.indexOf(t), 0);
 const tierAt = (i: number): CardTier => CARD_TIERS[i] ?? 'none';
 
-function externalField<K extends keyof ExternalBonuses>(
-  key: K,
-  encode: (value: ExternalBonuses[K]) => number,
-  decode: (value: number) => ExternalBonuses[K],
-): Field {
-  return {
-    get: (input) => encode(input.external[key]),
-    set: (input, value) => {
-      input.external[key] = decode(value);
-    },
-  };
-}
-
-const numberField = (key: keyof ExternalBonuses): Field => ({
-  get: (input) => input.external[key] as number,
+const cardField = (
+  block: keyof ExternalBonuses['cards'],
+  key: string,
+): Field => ({
+  get: (input) =>
+    tierIndex((input.external.cards[block] as Record<string, CardTier>)[key] ?? 'none'),
   set: (input, value) => {
-    (input.external[key] as number) = value;
+    (input.external.cards[block] as Record<string, CardTier>)[key] = tierAt(value);
   },
 });
 
-const boolField = (key: keyof ExternalBonuses): Field => ({
-  get: (input) => (input.external[key] ? 1 : 0),
+const petField = (key: keyof ExternalBonuses['pets']): Field => ({
+  get: (input) => {
+    const value = input.external.pets[key];
+    return typeof value === 'boolean' ? (value ? 1 : 0) : typeof value === 'number' ? value : 0;
+  },
   set: (input, value) => {
-    (input.external[key] as boolean) = value === 1;
+    const current = input.external.pets[key];
+    if (typeof current === 'boolean') (input.external.pets[key] as boolean) = value === 1;
+    else if (typeof current === 'number') (input.external.pets[key] as number) = value;
+    else (input.external.pets[key] as CardTier) = tierAt(value);
   },
 });
 
-const cardField = (key: keyof ExternalBonuses): Field =>
-  externalField(key, (v) => tierIndex(v as CardTier), (v) => tierAt(v) as never);
-
-/** A retired slot. Holds its position so older links keep decoding. */
-const RESERVED: Field = { get: () => 0, set: () => {} };
+const unlockField = (key: keyof ExternalBonuses['unlocks']): Field => ({
+  get: (input) => {
+    const value = input.external.unlocks[key];
+    return typeof value === 'boolean' ? (value ? 1 : 0) : value;
+  },
+  set: (input, value) => {
+    const current = input.external.unlocks[key];
+    if (typeof current === 'boolean') (input.external.unlocks[key] as boolean) = value === 1;
+    else (input.external.unlocks[key] as number) = value;
+  },
+});
 
 /**
- * APPEND-ONLY. Adding a field at the end is safe: short arrays decode with
- * defaults for the missing tail. Reordering breaks every link ever shared.
+ * APPEND-ONLY within a pack format. Adding a field at the end is safe: short
+ * arrays decode with defaults for the missing tail. Reordering or removing
+ * requires bumping PACK_FORMAT.
  */
 const FIELD_ORDER: Field[] = [
   ...ESSENCE_UPGRADES.map(
@@ -256,39 +360,27 @@ const FIELD_ORDER: Field[] = [
       },
     }),
   ),
-  // Retired: was the Infernal card multiplier, before it turned out no
-  // Arcanist card can be Infernal. The slot stays so links made while it
-  // existed still decode; removing it would shift every field after it.
-  RESERVED,
-  cardField('cardSoftMaxLoot'),
-  cardField('cardDenseMaxLoot'),
-  cardField('cardJaggedMaxLoot'),
-  cardField('cardAshCraft'),
-  cardField('cardBrineCraft'),
-  cardField('cardChasmCraft'),
-  ...SPELL_IDS.map(
-    (id): Field => ({
-      get: (input) => tierIndex(input.external.cardSpell[id]),
-      set: (input, value) => {
-        input.external.cardSpell[id] = tierAt(value);
-      },
-    }),
-  ),
-  cardField('cardSuperShiny'),
-  numberField('arcaneCardCount'),
-  boolField('petMaxEssence'),
-  numberField('petBrittle'),
-  numberField('petShiny'),
-  numberField('petSpellPotency'),
-  boolField('obeliskShiny'),
-  boolField('obeliskSuperShiny'),
-  boolField('skillShiny'),
-  boolField('skillBrittle'),
-  boolField('storeShiny'),
-  numberField('constructSuperShiny'),
-  numberField('contractRuneCraft'),
-  numberField('storeRuneCraft'),
-  numberField('spellDurationMulti'),
+  ...ESSENCE_TYPES.map((type) => cardField('essence', type)),
+  ...ALTAR_IDS.map((id) => cardField('rune', id)),
+  ...SPELL_IDS.map((id) => cardField('spell', id)),
+  ...ORB_CARD_IDS.map((id) => cardField('orb', id)),
+  petField('rhinoLevel'),
+  petField('rhinoSkin'),
+  petField('rhinoQuestSkin'),
+  petField('rhinoQuestLevel'),
+  petField('rhinoCard'),
+  unlockField('worldQuest25'),
+  unlockField('worldQuest29'),
+  unlockField('straightOuttaYanille'),
+  unlockField('arcanistBundle'),
+  unlockField('statueOfNatureGilded'),
+  unlockField('w4GildedStatues'),
+  {
+    get: (input) => input.external.contractRuneCraftLevel,
+    set: (input, value) => {
+      input.external.contractRuneCraftLevel = value;
+    },
+  },
 ];
 
 export const PACKED_FIELD_COUNT = FIELD_ORDER.length;

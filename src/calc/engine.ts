@@ -17,14 +17,18 @@ import {
   ALTAR_TRAVEL_PER_LEVEL,
   BASE_STATS,
   CARD_SCALES,
+  CARD_TIER_COUNT,
   COMPLETION_RESERVED,
+  CONTRACT_RUNE_CRAFT,
   ENEMIES,
   ESSENCE_UPGRADES,
   EXCHANGE_UPGRADES,
+  PET,
   RESOURCES,
   SPELLS,
   SPELL_IDS,
   SPELL_LEVEL_PER_RANK,
+  UNLOCKS,
   cardValue,
 } from './constants';
 import { addBundle, curveCost, tieredCost } from './costs';
@@ -35,6 +39,8 @@ import type {
   ArcanistInput,
   ArcanistResult,
   Averages,
+  CardTier,
+  DerivedBonuses,
   EffectKey,
   EnemyDef,
   EssenceOutcome,
@@ -60,6 +66,39 @@ const emptyResourceRecord = (): Record<Resource, number> => {
   for (const r of RESOURCES) out[r] = 0;
   return out;
 };
+
+function deriveBonuses(ext: ExternalBonuses): DerivedBonuses {
+  const { cards, pets, unlocks } = ext;
+
+  // Cumulative tiers, matching how the workbook counts its four tier flags.
+  const countTiers = (tiers: Record<string, CardTier>) =>
+    Object.values(tiers).reduce((n, tier) => n + CARD_TIER_COUNT[tier], 0);
+
+  const rhinoLevel = clampLevel(pets.rhinoLevel, PET.maxLevel);
+  const questLevel = clampLevel(pets.rhinoQuestLevel, PET.maxQuestLevel);
+  // Level 0 already grants the first step, hence the +1.
+  const questSteps = pets.rhinoQuestSkin ? questLevel + 1 : 0;
+
+  return {
+    arcaneCardCount:
+      countTiers(cards.essence) +
+      countTiers(cards.rune) +
+      countTiers(cards.spell) +
+      countTiers(cards.orb),
+    petBrittle: rhinoLevel * PET.brittlePerLevel,
+    petQuestShiny: questSteps * PET.questShinyPerStep,
+    petSpellPower: questSteps * PET.questSpellPowerPerStep,
+    petMaxEssenceLoot: pets.rhinoSkin ? PET.skinMaxLoot : 0,
+    statueSuperShiny: unlocks.statueOfNatureGilded
+      ? Math.max(unlocks.w4GildedStatues, 0) * UNLOCKS.statueSuperShinyPerStatue
+      : 0,
+    spellDurationMulti: 1 + (unlocks.arcanistBundle ? UNLOCKS.bundleSpellDuration : 0),
+    storeRuneCraft: unlocks.arcanistBundle ? UNLOCKS.bundleRuneCraft : 0,
+    contractRuneCraft:
+      clampLevel(ext.contractRuneCraftLevel, CONTRACT_RUNE_CRAFT.maxLevel) *
+      CONTRACT_RUNE_CRAFT.perLevel,
+  };
+}
 
 /** Sum every essence upgrade's per-level effects at their current levels. */
 function collectEffects(input: ArcanistInput): Effects {
@@ -100,7 +139,7 @@ function spellEffect(
   );
 }
 
-function computeSpells(input: ArcanistInput, ext: ExternalBonuses) {
+function computeSpells(input: ArcanistInput, ext: ExternalBonuses, derived: DerivedBonuses) {
   const outcomes = {} as Record<SpellId, SpellOutcome>;
 
   for (const id of SPELL_IDS) {
@@ -109,21 +148,15 @@ function computeSpells(input: ArcanistInput, ext: ExternalBonuses) {
     const unlocked = raw.unlocked;
     const level = clampLevel(raw.level, def.maxLevel);
     const rank = clampLevel(raw.rank, def.maxRank);
-    const cardBonus = cardValue(CARD_SCALES.spell, ext.cardSpell[id]);
+    const cardBonus = cardValue(CARD_SCALES.spell, ext.cards.spell[id]);
+    const spellPower = derived.petSpellPower;
 
     outcomes[id] = {
       id,
       unlocked,
-      primary: spellEffect(def.primary.base, unlocked, level, rank, cardBonus, ext.petSpellPotency),
-      secondary: spellEffect(
-        def.secondary.base,
-        unlocked,
-        level,
-        rank,
-        cardBonus,
-        ext.petSpellPotency,
-      ),
-      duration: def.durationBase * (1 + rank * SPELL_LEVEL_PER_RANK) * ext.spellDurationMulti,
+      primary: spellEffect(def.primary.base, unlocked, level, rank, cardBonus, spellPower),
+      secondary: spellEffect(def.secondary.base, unlocked, level, rank, cardBonus, spellPower),
+      duration: def.durationBase * (1 + rank * SPELL_LEVEL_PER_RANK) * derived.spellDurationMulti,
       potencyCostRemaining: curveCost(def.potencyCurve, rank, def.maxRank),
       potencyCostTotal: curveCost(def.potencyCurve, 0, def.maxRank),
       potencyResource: def.potencyResource,
@@ -138,8 +171,10 @@ function computeStats(
   spells: Record<SpellId, SpellOutcome>,
   exchangeLevels: ArcanistInput['exchange'],
   ext: ExternalBonuses,
+  derived: DerivedBonuses,
 ): Stats {
-  const arcaneCardDamage = exchangeLevels.arcaneCardDamage >= 1 ? ext.arcaneCardCount : 0;
+  const { pets, unlocks } = ext;
+  const arcaneCardDamage = exchangeLevels.arcaneCardDamage >= 1 ? derived.arcaneCardCount : 0;
 
   const flatDamage =
     BASE_STATS.baseDamage +
@@ -163,21 +198,21 @@ function computeStats(
       effects.shinyChance1 +
       effects.shinyChance2 +
       spells.runicSurge.secondary +
-      (ext.obeliskShiny ? 0.01 : 0) +
-      (ext.skillShiny ? 0.01 : 0) +
-      ext.petShiny +
-      (ext.storeShiny ? 0.01 : 0),
+      (unlocks.worldQuest25 ? UNLOCKS.worldQuest25Shiny : 0) +
+      (unlocks.straightOuttaYanille ? UNLOCKS.yanilleShiny : 0) +
+      (unlocks.arcanistBundle ? UNLOCKS.bundleShiny : 0) +
+      derived.petQuestShiny,
     shinyBonus: BASE_STATS.shinyBonusBase + effects.shinyLoot,
     superShinyChance:
-      cardValue(CARD_SCALES.superShiny, ext.cardSuperShiny) +
-      ext.constructSuperShiny +
-      (ext.obeliskSuperShiny ? 0.02 : 0),
+      cardValue(CARD_SCALES.superShiny, pets.rhinoCard) +
+      derived.statueSuperShiny +
+      (unlocks.worldQuest29 ? UNLOCKS.worldQuest29SuperShiny : 0),
     superShinyBonus: BASE_STATS.superShinyBonus,
     brittleChance:
       effects.brittleChance1 +
       effects.brittleChance2 +
-      (ext.skillBrittle ? 0.01 : 0) +
-      ext.petBrittle,
+      (unlocks.straightOuttaYanille ? UNLOCKS.yanilleBrittle : 0) +
+      derived.petBrittle,
   };
 }
 
@@ -226,36 +261,26 @@ function lootRange(
   enemy: EnemyDef,
   effects: Effects,
   ext: ExternalBonuses,
+  derived: DerivedBonuses,
 ): { min: number; max: number } {
-  const petBonus = ext.petMaxEssence ? 1 : 0;
+  const shared =
+    derived.petMaxEssenceLoot + cardValue(CARD_SCALES.essenceMaxLoot, ext.cards.essence[type]);
 
   switch (type) {
     case 'soft':
       return {
         min: enemy.baseMinLoot,
-        max:
-          enemy.baseMaxLoot +
-          effects.softMaxLoot +
-          petBonus +
-          cardValue(CARD_SCALES.essenceMaxLoot, ext.cardSoftMaxLoot),
+        max: enemy.baseMaxLoot + effects.softMaxLoot + shared,
       };
     case 'dense':
       return {
         min: enemy.baseMinLoot,
-        max:
-          enemy.baseMaxLoot +
-          effects.denseMaxLoot +
-          petBonus +
-          cardValue(CARD_SCALES.essenceMaxLoot, ext.cardDenseMaxLoot),
+        max: enemy.baseMaxLoot + effects.denseMaxLoot + shared,
       };
     case 'jagged':
       return {
         min: enemy.baseMinLoot + effects.jaggedMinLoot,
-        max:
-          enemy.baseMaxLoot +
-          effects.jaggedMaxLoot +
-          petBonus +
-          cardValue(CARD_SCALES.essenceMaxLoot, ext.cardJaggedMaxLoot),
+        max: enemy.baseMaxLoot + effects.jaggedMaxLoot + shared,
       };
   }
 }
@@ -266,6 +291,7 @@ function computeEssence(
   averages: Averages,
   effects: Effects,
   ext: ExternalBonuses,
+  derived: DerivedBonuses,
   drain: number,
 ): EssenceOutcome {
   const enemy = ENEMIES[type];
@@ -288,7 +314,7 @@ function computeEssence(
   const cycleTime = timeToKill + enemy.respawn;
   const killsPerHour = unkillable ? 0 : 3600 / cycleTime;
 
-  const { min, max } = lootRange(type, enemy, effects, ext);
+  const { min, max } = lootRange(type, enemy, effects, ext, derived);
   const minLootAvg = min + averages.shinyBonus;
   const maxLootAvg = max + averages.shinyBonus;
   const trueLootAvg = (minLootAvg + maxLootAvg) / 2;
@@ -324,11 +350,6 @@ function computeAltars(
   runeCraftMulti: number,
 ): Record<AltarId, AltarOutcome> {
   const out = {} as Record<AltarId, AltarOutcome>;
-  const cardByAltar: Record<AltarId, keyof ExternalBonuses> = {
-    ash: 'cardAshCraft',
-    brine: 'cardBrineCraft',
-    chasm: 'cardChasmCraft',
-  };
 
   for (const id of ALTAR_IDS) {
     const def = ALTARS[id];
@@ -337,7 +358,7 @@ function computeAltars(
     const travel = clampLevel(raw.travel, 10);
     const craft = clampLevel(raw.craft, 10);
 
-    const cardBonus = cardValue(CARD_SCALES.altarCraft, ext[cardByAltar[id]] as never);
+    const cardBonus = cardValue(CARD_SCALES.altarCraft, ext.cards.rune[id]);
 
     const cycleTime = def.baseCycle * (1 - travel * ALTAR_TRAVEL_PER_LEVEL) * 2;
     const cyclesPerHour = 3600 / cycleTime;
@@ -557,8 +578,9 @@ function buildCompletion(input: ArcanistInput): ArcanistResult['completion'] {
 
 export function compute(input: ArcanistInput): ArcanistResult {
   const ext = input.external;
+  const derived = deriveBonuses(ext);
   const effects = collectEffects(input);
-  const spells = computeSpells(input, ext);
+  const spells = computeSpells(input, ext, derived);
 
   // Resolve the rune craft multiplier before altars (see module comment).
   const exchangeRuneCraft =
@@ -566,10 +588,10 @@ export function compute(input: ArcanistInput): ArcanistResult {
     (EXCHANGE_UPGRADES.find((d) => d.id === 'runeCraftMulti')?.perLevel ?? 0);
   const runeCraftMulti =
     (1 + spells.prismism.secondary + exchangeRuneCraft) *
-    (1 + ext.contractRuneCraft) *
-    (1 + ext.storeRuneCraft);
+    (1 + derived.contractRuneCraft) *
+    (1 + derived.storeRuneCraft);
 
-  const stats = computeStats(effects, spells, input.exchange, ext);
+  const stats = computeStats(effects, spells, input.exchange, ext, derived);
   const averages = computeAverages(stats);
   const altars = computeAltars(input, ext, runeCraftMulti);
 
@@ -583,7 +605,7 @@ export function compute(input: ArcanistInput): ArcanistResult {
 
   const essence = {} as Record<EssenceType, EssenceOutcome>;
   for (const type of ESSENCE_TYPES) {
-    essence[type] = computeEssence(type, stats, averages, effects, ext, drain[type]);
+    essence[type] = computeEssence(type, stats, averages, effects, ext, derived, drain[type]);
   }
 
   const rows = buildRows(input, spells);
@@ -591,6 +613,7 @@ export function compute(input: ArcanistInput): ArcanistResult {
   return {
     stats,
     averages,
+    derived,
     runeCraftMulti,
     essence,
     altars,
