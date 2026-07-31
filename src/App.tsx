@@ -10,6 +10,7 @@ import { Contracts, Pets, Unlocks } from './ui/sections/Account';
 import { Breakdown } from './ui/sections/Breakdown';
 import { Cards } from './ui/sections/Cards';
 import { Ledger } from './ui/sections/Ledger';
+import { Optimizer } from './ui/sections/Optimizer';
 import { Totals } from './ui/sections/Totals';
 import { Altars, Completion, EssenceUpgrades, Exchange, Spells, Stats } from './ui/sections/Upgrades';
 
@@ -126,6 +127,7 @@ export default function App() {
         </div>
 
         <div className="stack">
+          <Optimizer input={input} result={result} />
           <Stats result={result} />
           <Breakdown result={result} />
           <Totals result={result} />

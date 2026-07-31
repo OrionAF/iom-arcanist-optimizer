@@ -83,8 +83,32 @@ by editing that one file.
 Edge over the DevTools Protocol with a real wait, which `--screenshot
 --virtual-time-budget` cannot do.
 
+### The optimizer
+
+`src/calc/optimize.ts` answers "what should I buy next". It scores an upgrade by
+buying one level of it and running `compute` again — no formula is duplicated
+from the engine, so a balance patch moves the rankings on its own. A full
+ranking of every available upgrade is one `compute` per candidate and runs in a
+few milliseconds, which is what lets it refresh on every keystroke.
+
+It does not search for a best *build*: every upgrade is monotone-positive and
+eventually affordable, so the best build is trivially "max everything". The
+order is the real question.
+
+Two rankings are shown, because there are two goals — essence per hour and runes
+per hour — and altar throughput trades one for the other. Within each, upgrades
+are grouped by the resource they cost, since a white-orb price and a rune price
+cannot be compared without an exchange rate nobody has.
+
+The altars are the only place the two goals genuinely conflict. Capacity and
+travel speed scale rune output and essence drain by the same factor and cancel,
+so a single altar converts essence to runes at exactly its craft multiplier no
+matter how it is tuned. That cancellation is per altar, not across a set — the
+tests pin both halves of it.
+
 ## Not built yet
 
-Upgrade efficiency ranking, goal-seek (cheapest path to a target), time-to-afford
-projections, and importing the game's `EXPORTSTATS` JSON. The engine and the save
-schema are shaped to take them without restructuring.
+Goal-seek (cheapest path to a target), time-to-afford projections, and importing
+the game's `EXPORTSTATS` JSON. Time-to-afford needs per-resource income rates,
+which the Arcanist sheet does not model; supplying them would also let the
+per-resource queues merge into one ranked list.

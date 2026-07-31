@@ -935,6 +935,128 @@ button.action.primary:hover {
   z-index: 60;
 }
 
+/* -------------------------------------------------------------- optimizer -- */
+
+/* The two goals sit side by side so a tradeoff between them is visible in one
+   glance rather than by toggling.
+   `auto-fit` rather than a media query because this sits in the narrow right
+   column: its own width tracks the column, not the viewport, so a viewport
+   breakpoint would stack it at the wrong moment. Below two columns' worth of
+   room it collapses to one on its own. */
+.opt-goals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 18px 20px;
+}
+
+.opt-goal h3 {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.opt-queue + .opt-queue {
+  margin-top: 12px;
+}
+
+.opt-queue-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--seam);
+  margin-bottom: 4px;
+}
+
+.opt-queue-head .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--dot, var(--text-faint));
+}
+
+.opt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.opt-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 13px;
+}
+
+.opt-rank {
+  color: var(--text-faint);
+  font-size: 10px;
+  flex: none;
+  width: 1ch;
+}
+
+.opt-body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.opt-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.opt-level {
+  font-size: 10px;
+  color: var(--text-faint);
+  flex: none;
+}
+
+/* Only shown when the other objective moves the wrong way. */
+.opt-tradeoff {
+  font-size: 10px;
+  color: var(--ember);
+}
+
+.opt-gain {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: none;
+  text-align: right;
+  font-size: 12px;
+}
+
+.opt-gain .up {
+  color: var(--dense);
+}
+
+.opt-gain .down {
+  color: var(--ember);
+}
+
+.opt-cost {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.opt-empty {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 /* ------------------------------------------------------------ responsive -- */
 
 @media (max-width: 1040px) {
