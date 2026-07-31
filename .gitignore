@@ -8,5 +8,7 @@ dist/
 # Source workbook — a community binary, not ours to redistribute.
 # The derived fixture at src/calc/__fixtures__/ is committed instead.
 *.xlsx
+
+# Working references: the icon URL list and the card mockups.
 Icon-ref-links.txt
-card-example.png
+card-example*.png
