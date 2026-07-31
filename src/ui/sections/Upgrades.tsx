@@ -379,7 +379,7 @@ export function Stats({ result }: { result: ArcanistResult }) {
   return (
     <Section title="Arcanist Stats" eyebrow="derived" flush>
       <dl className="stats">
-        <Stat label="Damage" value={formatNumber(s.damage, 2)} />
+        <Stat label="Damage" value={formatNumber(Math.round(s.damage))} />
         <Stat label="Attack every" value={formatDuration(s.attackInterval)} />
         <Stat label="Crit chance" value={formatPercent(s.critChance)} />
         <Stat label="Crit damage" value={`×${formatNumber(s.critDamage, 2)}`} />
