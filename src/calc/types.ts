@@ -221,15 +221,15 @@ export interface ExchangeUpgradeDef {
   note?: string;
 }
 
-/** Per-essence enemy stat block. Game constants — not user input. */
-export interface EnemyDef {
+/** Stats of the essence block you mine, per essence. Game constants — not user input. */
+export interface BlockDef {
   health: number;
   armor: number;
   respawn: number;
   stunChance: number;
   stunDuration: number;
-  heal: number;
-  healInterval: number;
+  regen: number;
+  regenInterval: number;
   weakenChance: number;
   weakenMulti: number;
   weakenDuration: number;
@@ -345,7 +345,7 @@ export interface ArcanistInput {
 // Result
 // ---------------------------------------------------------------------------
 
-/** Arcanist combat stats — the sheet's M2:N17 panel. */
+/** Arcanist mining stats — the sheet's M2:N17 panel. */
 export interface Stats {
   damage: number;
   attackInterval: number;
@@ -373,7 +373,7 @@ export interface WeightedOutcome {
 
 export interface Averages {
   shinyTable: WeightedOutcome[];
-  /** Z10 — expected bonus loot per kill from shiny procs. */
+  /** Z10 — expected bonus loot per block from shiny procs. */
   shinyBonus: number;
   critTable: WeightedOutcome[];
   /** Z23 — expected damage multiplier. */
@@ -385,27 +385,27 @@ export interface Averages {
 
 export interface EssenceOutcome {
   type: EssenceType;
-  /** Enemy stats after upgrades and player mitigations. */
+  /** Block stats after upgrades and player mitigations. */
   armor: number;
   minLoot: number;
   maxLoot: number;
   avgStun: number;
   avgWeaken: number;
-  avgHeal: number;
+  avgRegen: number;
   effectiveDamagePerHit: number;
-  hitsToKill: number;
-  timeToKill: number;
+  hitsToMine: number;
+  timeToMine: number;
   cycleTime: number;
-  killsPerHour: number;
+  blocksPerHour: number;
   minLootAvg: number;
   maxLootAvg: number;
   trueLootAvg: number;
   essencePerHour: number;
-  brittleKillsPerHour: number;
+  brittleBlocksPerHour: number;
   altarDrain: number;
   netEssencePerHour: number;
-  /** True when damage output cannot outpace the enemy's healing. */
-  unkillable: boolean;
+  /** True when damage output cannot outpace the block's regeneration. */
+  unmineable: boolean;
 }
 
 export interface AltarOutcome {

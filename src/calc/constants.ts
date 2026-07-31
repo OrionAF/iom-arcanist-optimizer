@@ -8,8 +8,8 @@
 import type {
   AltarDef,
   AltarId,
+  BlockDef,
   CardTier,
-  EnemyDef,
   EssenceType,
   EssenceUpgradeDef,
   ExchangeUpgradeDef,
@@ -18,7 +18,7 @@ import type {
   SpellId,
 } from './types';
 
-/** Arcanist base combat stats — hardcoded in the sheet's M2:N17 panel. */
+/** Arcanist base mining stats — hardcoded in the sheet's M2:N17 panel. */
 export const BASE_STATS = {
   /** N3: damage is (10 + flat upgrades + arcane cards) * (1 + damage%). */
   baseDamage: 10,
@@ -36,7 +36,7 @@ export const BASE_STATS = {
   shinyBonusBase: 3,
   /** N16. */
   superShinyBonus: 5,
-  /** AA29: brittle enemies take this fraction of nominal health to kill. */
+  /** AA29: brittle blocks take this fraction of nominal health to break. */
   brittleMult: 0.2,
 } as const;
 
@@ -154,18 +154,18 @@ export function cardValue(
 }
 
 // ---------------------------------------------------------------------------
-// Enemies (AB2:AJ22)
+// Essence blocks (AB2:AJ22)
 // ---------------------------------------------------------------------------
 
-export const ENEMIES: Record<EssenceType, EnemyDef> = {
+export const BLOCKS: Record<EssenceType, BlockDef> = {
   soft: {
     health: 1000,
     armor: 0,
     respawn: 10,
     stunChance: 0,
     stunDuration: 0,
-    heal: 5,
-    healInterval: 10,
+    regen: 5,
+    regenInterval: 10,
     weakenChance: 0,
     weakenMulti: 1,
     weakenDuration: 0,
@@ -178,8 +178,8 @@ export const ENEMIES: Record<EssenceType, EnemyDef> = {
     respawn: 12,
     stunChance: 0.05,
     stunDuration: 2,
-    heal: 7,
-    healInterval: 10,
+    regen: 7,
+    regenInterval: 10,
     weakenChance: 0,
     weakenMulti: 1,
     weakenDuration: 0,
@@ -192,8 +192,8 @@ export const ENEMIES: Record<EssenceType, EnemyDef> = {
     respawn: 15,
     stunChance: 0.06,
     stunDuration: 3,
-    heal: 10,
-    healInterval: 10,
+    regen: 10,
+    regenInterval: 10,
     weakenChance: 0.02,
     weakenMulti: 0.5,
     weakenDuration: 8,

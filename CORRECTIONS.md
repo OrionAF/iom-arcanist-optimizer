@@ -12,13 +12,13 @@ slip.
 
 ## Corrected
 
-### 1. Jagged hits-to-kill ignored the enemy's healing (`AJ3`)
+### 1. Jagged hits-to-mine ignored the block's regeneration (`AJ3`)
 
-The Soft and Dense columns subtract their avg-heal cell (`AC18`, `AF18`). The
+The Soft and Dense columns subtract their avg-regen cell (`AC18`, `AF18`). The
 Jagged column subtracts `AI1` — an empty cell — instead of `AI18`.
 
 With the workbook's own inputs this reads **82** hits where the correct figure
-is **84**, and the error cascades into Jagged kills/hr, essence/hr and net
+is **84**, and the error cascades into Jagged blocks/hr, essence/hr and net
 essence/hr. The app reports Jagged income of 73.63/hr against the sheet's 75.27.
 
 ### 2. Runic Surge nested its pet bonus differently from every other spell (`E45`)
@@ -52,7 +52,7 @@ This also moves the super crit and ultra crit rows of the damage table
 (`AA18`, `AA19`, both derived from `N8`) and therefore the weighted average
 damage multiplier `Z23`. The shift is small — the super crit branch carries
 about 0.13% of the weight — so with the workbook's inputs it does not move any
-hits-to-kill figure, which is rounded up to a whole hit.
+hits-to-mine figure, which is rounded up to a whole hit.
 
 ## Not changed — needs in-game confirmation
 

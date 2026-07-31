@@ -24,40 +24,40 @@ export const HELP = {
 
   nextRemaining: {
     title: 'Next / Remaining',
-    body: 'Two prices for the same row. The left number buys exactly one more level — the decision in front of you right now. The right number is everything still owed to take the row from where it stands to its maximum.\n\nCosts climb per level, so the left number is what you save for and the right number is what the row costs for the rest of its life. At max level the next price is a dash and the remaining is zero.',
+    body: 'The left number buys exactly one more level — the decision in front of you right now. The right number is what\'s left to max it.',
   },
   potencyCost: {
     title: 'Potency next / remaining',
-    body: 'Runes to raise this spell\'s potency by one rank, then runes to carry it to rank 10. Each spell draws on one rune type only, and the cost multiplies by 1.25 every rank, so the last rank alone is most of the row.\n\nSpell level and potency are priced separately; only potency is priced here.',
+    body: 'Runes to raise this spell\'s potency by one rank, then runes to carry it to rank 10. Each spell requires one rune type only, and the cost multiplies by 1.25 every rank.\n\nSpell level and potency are priced separately; only potency is priced here.',
   },
 
   // ------------------------------------------------------------------ ledger
 
   ledgerNet: {
     title: 'Net essence / hour',
-    body: 'What actually lands in your pocket for this essence tier: everything your kills produce, minus everything the altars burn. This is the number the whole page exists to move.\n\nA negative net means the altars drawing on this tier consume faster than you can farm it, and the pool drains. That can still be the right call if the runes are worth more to you than the essence, but it is not sustainable indefinitely.',
+    body: 'What actually lands in your satchel for this essence: everything you mine, minus everything the altars burn. This is the number the whole page exists to move.\n\nA negative net means the altars drawing on this essence consume faster than you can mine it, and the pool drains. That can still be the right call if the runes are worth more to you than the essence, but it is not sustainable indefinitely.',
     formula: 'net = income − altar drain',
   },
   ledgerIncome: {
     title: 'Income',
-    body: 'Essence per hour from killing this tier\'s enemies, before any altar spends it. It is the kill rate multiplied by the average loot a kill drops, including the bonus loot that shiny procs add.',
-    formula: 'income = kills/hr × average loot per kill',
+    body: 'Essence per hour from mining this essence block, before any altar spends it. It is the mined block rate multiplied by the average loot an essence block drops, including the bonus loot that shiny procs add.',
+    formula: 'income = blocks mined/hr × average loot per essence block',
   },
   ledgerDrain: {
     title: 'Altar drain',
-    body: 'Essence per hour consumed by every altar that is unlocked and running on this tier. Ash and Brine altars both draw on Soft essence, Chasm draws on Dense, and nothing draws on Jagged.\n\nAn altar that is unlocked but not running drains nothing and produces nothing.',
+    body: 'Essence per hour consumed by every altar that is unlocked and running on this essence. Ash and Brine altars both draw on Soft essence, Chasm draws on Dense, and nothing draws on Jagged.\n\nAn altar that is unlocked but not running drains nothing and produces nothing.',
   },
-  ledgerKills: {
-    title: 'Kills / hour',
-    body: 'How many of this tier\'s enemies you kill in an hour. One kill takes the time to chew through the enemy\'s health plus its respawn delay, so past a certain point extra damage stops helping much — respawn becomes the floor.',
-    formula: 'kills/hr = 3600 ÷ (time to kill + respawn)',
+  ledgerBlocks: {
+    title: 'Essence blocks / hour',
+    body: 'How many of this essence block you mine in an hour. One mined block takes the time it takes for you to mine through the block\'s health plus its respawn delay, so past a certain point extra damage stops helping much — respawn becomes the floor.',
+    formula: 'mined blocks/hr = 3600 ÷ (time to mine + respawn)',
   },
 
   // ------------------------------------------------------------------ altars
 
   altarCycle: {
     title: 'Cycle',
-    body: 'How long one trip of the altar takes. Travel Speed shortens it by 5% of the base per level. Shorter cycles mean more runes per hour and more essence burned per hour, in the same proportion.',
+    body: 'How long one trip of the altar takes. Travel Speed shortens it by 5% of the base per level. Shorter cycles mean more runes per hour and more essence used per hour, in the same proportion.',
     formula: 'cycle = base × (1 − 0.05 × travel) × 2',
   },
   altarRunesPerCycle: {
@@ -71,7 +71,7 @@ export const HELP = {
   },
   altarEssencePerHour: {
     title: 'Essence per hour (altar)',
-    body: 'What this altar costs you per hour while it runs, taken out of the essence tier it draws on. This is the drain side of the Net figure at the top of the page.\n\nCapacity and cycle time appear in both this number and the rune output and cancel out, so tuning one altar does not change its exchange rate — it only changes how fast it trades.',
+    body: 'What this altar costs you per hour while it runs, taken out of the essence it draws on. This is the drain side of the Net figure at the top of the page.\n\nCapacity and cycle time appear in both this number and the rune output and cancel out, so tuning one altar does not change its exchange rate — it only changes how fast it trades.',
   },
   runeCraftMulti: {
     title: 'Rune craft multiplier',
@@ -82,11 +82,11 @@ export const HELP = {
 
   statDamage: {
     title: 'Damage',
-    body: 'Your nominal hit before the enemy is involved. Enemy armour is subtracted from it and crits multiply it, so what actually lands is the Damage per hit figure under Show the math.',
+    body: 'Your nominal hit before essence block armour. Essence block armour is subtracted from it and crits multiply it, so what actually lands is the Damage per hit figure under Show the math.',
   },
   statAttackInterval: {
     title: 'Attack every',
-    body: 'Seconds between your attacks. Combined with damage per hit, this sets how fast an enemy dies — and whether it dies at all, since enemies heal on a timer of their own.',
+    body: 'Seconds between your attacks. Combined with damage per hit, this sets how fast you mine an essence block.',
   },
   statCritChance: {
     title: 'Crit chance',
@@ -106,34 +106,34 @@ export const HELP = {
   },
   statArmorPen: {
     title: 'Armour penetration',
-    body: 'Flat armour ignored on every hit. Enemy armour is subtracted from your damage before anything else, so against a heavily armoured tier a point of penetration can be worth far more than a point of damage.',
+    body: 'Flat armour ignored on every hit. Essence block armour is subtracted from your damage before anything else, so against a heavily armoured essence a point of penetration can be worth far more than a point of damage.',
   },
   statStunNegate: {
     title: 'Stun negate',
-    body: 'Chance to shrug off an enemy stun. A stun costs you attack time, so negating it raises your effective kill rate without touching damage at all.',
+    body: 'Chance to shrug off the essence block\'s stun. A stun costs you attack time, so negating it raises your effective mine rate without touching damage at all.',
   },
   statShinyChance: {
     title: 'Shiny chance',
-    body: 'Chance for a kill to drop bonus loot. Super shiny is rolled on top of it, so the expected bonus per kill is the Shiny proc table under Show the math rather than this number times the bonus.',
+    body: 'Chance for a mined essence block to drop bonus loot. Super shiny is rolled on top of it, so the expected bonus per mined essence block is the Shiny proc table under Show the math rather than this number times the bonus.',
   },
   statShinyBonus: {
     title: 'Shiny bonus',
-    body: 'Extra essence a shiny kill drops, on top of its normal loot roll.',
+    body: 'Extra essence a shiny essence block drops, on top of its normal roll.',
   },
   statSuperShiny: {
     title: 'Super shiny',
-    body: 'Chance for a kill that already went shiny to go shiny again, dropping the bonus a second time. Fed mostly by world quests, gilded statues and the Rhino card.',
+    body: 'Chance for a mined essence block that already went shiny to go shiny again, dropping the bonus a second time. Fed mostly by world quests, gilded statues and the Rhino card.',
   },
   statBrittleChance: {
     title: 'Brittle chance',
-    body: 'Chance for a kill to leave the next enemy brittle, so it needs less than its nominal health. It shows up as the expected health fraction under Show the math and as brittle kills per hour.',
+    body: 'Chance for a mined essence block to leave the next essence block brittle, so it needs less than its nominal health. It shows up as the expected health fraction under Show the math and as brittle essence blocks per hour.',
   },
 
   // -------------------------------------------------------- show the math --
 
   mathShinyTable: {
     title: 'Shiny proc table',
-    body: 'Every way a kill\'s loot roll can turn out, with the chance of each and the bonus loot it adds. The rows are exclusive and their chances sum to one.\n\nThe last line is the average across all of them — that is the number the income calculation actually uses, not the headline shiny chance.',
+    body: 'Every way one block\'s loot roll can turn out, with the chance of each and the bonus loot it adds. The rows are exclusive and their chances sum to one.\n\nThe last line is the average across all of them — that is the number the income calculation actually uses, not the headline shiny chance.',
   },
   mathCritTable: {
     title: 'Crit tier table',
@@ -141,72 +141,72 @@ export const HELP = {
   },
   mathBrittleTable: {
     title: 'Brittle table',
-    body: 'How much of an enemy\'s nominal health you actually have to deal, weighted by how often it is brittle. A value below 1 means the average enemy dies to less damage than its health bar claims.',
+    body: 'How much of a block\'s nominal health you actually have to work through, weighted by how often it is brittle. A value below 1 means the average block breaks to less damage than its health bar claims.',
   },
   mathHealth: {
     title: 'Health',
-    body: 'The enemy\'s health for this tier. A game constant — no upgrade on this page changes it.',
+    body: 'The essence block\'s health. A game constant — no upgrade on this page changes it.',
   },
   mathArmor: {
     title: 'Armour (after pen)',
-    body: 'What is left of the enemy\'s armour once your penetration is subtracted, shown against the full value. Armour comes off every hit before crits are applied, so if it meets or beats your damage the tier is unkillable no matter how fast you attack.',
+    body: 'What is left of the block\'s armour once your penetration is subtracted, shown against the full value. Armour comes off every hit before crits are applied, so if it meets or beats your damage you cannot mine this essence at all, no matter how fast you attack.',
   },
   mathStun: {
     title: 'Average stun factor',
-    body: 'The share of your attack time that survives the enemy\'s stuns, after your stun negation. 1 means you are never stunned; lower means some of your attacks never happen.',
+    body: 'The share of your attack time that survives the block\'s stuns, after your stun negation. 1 means you are never stunned; lower means some of your attacks never happen.',
   },
   mathWeaken: {
     title: 'Average weaken factor',
-    body: 'The average multiplier the enemy\'s weaken debuff applies to your damage, weighted by how often it lands and how long it lasts. Below 1 means you are weakened some of the time.',
+    body: 'The average multiplier the block\'s weaken debuff applies to your damage, weighted by how often it lands and how long it lasts. Below 1 means you are weakened some of the time.',
   },
-  mathHeal: {
-    title: 'Heal per hit',
-    body: 'Health the enemy regenerates, expressed per attack of yours so it can be set directly against your damage. If it matches your damage after armour, the enemy heals as fast as you hurt it and never dies.',
+  mathRegen: {
+    title: 'Regen per hit',
+    body: 'Health the block regenerates, expressed per attack of yours so it can be set directly against your damage. If it matches your damage after armour, the block repairs itself as fast as you break it and never yields.',
   },
   mathDamagePerHit: {
     title: 'Damage per hit',
-    body: 'What one attack really removes from an enemy: your damage less its armour, scaled by the expected crit multiplier and the weaken factor, less the health it heals back.',
-    formula: 'per hit = (damage − armour) × crit multi × weaken − heal',
+    body: 'What one hit really takes off a block: your damage less its armour, scaled by the expected crit multiplier and the weaken factor, less the health it regenerates back.',
+    formula: 'per hit = (damage − armour) × crit multi × weaken − regen',
   },
-  mathHitsToKill: {
-    title: 'Hits to kill',
-    body: 'Attacks needed to clear one enemy, using the brittle-adjusted health rather than the nominal figure. A dash means the enemy out-heals you and the count is infinite.',
+  mathHitsToMine: {
+    title: 'Hits to mine',
+    body: 'Attacks needed to break one block, using the brittle-adjusted health rather than the nominal figure. A dash means the block regenerates faster than you break it and the count is infinite.',
     formula: 'hits = health × brittle multi ÷ damage per hit',
   },
-  mathTimeToKill: {
-    title: 'Time to kill',
-    body: 'Hits to kill spread over your attack interval, stretched by the time stuns take away from you.',
+  mathTimeToMine: {
+    title: 'Time to mine',
+    body: 'Hits to mine spread over your attack interval, stretched by the time stuns take away from you.',
     formula: 'time = hits × attack interval ÷ stun factor',
   },
   mathRespawn: {
     title: 'Respawn',
-    body: 'Dead time between one enemy dying and the next appearing. A game constant, and the hard ceiling on kills per hour — once time to kill is small next to respawn, more damage buys you almost nothing.',
+    body: 'Idle time between one block breaking and the next appearing. A game constant, and the hard ceiling on blocks per hour — once time to mine is small next to respawn, more damage buys you almost nothing.',
   },
   mathLootRange: {
     title: 'Loot range',
-    body: 'The minimum and maximum essence a single ordinary kill can drop, after the Max Loot upgrades, cards and pet skin have been applied.',
+    body: 'The minimum and maximum essence a single ordinary block can drop, after the Max Loot upgrades, cards and pet skin have been applied.',
   },
   mathAvgLoot: {
     title: 'Average loot (with shiny)',
-    body: 'The mean of the loot range plus the expected shiny bonus from the table above. This is the per-kill figure income is built from.',
+    body: 'The mean of the loot range plus the expected shiny bonus from the table above. This is the per-block figure income is built from.',
   },
-  mathKillsPerHour: {
-    title: 'Kills / hour',
-    body: 'One hour divided by a full kill cycle — the time to kill an enemy plus the time to wait for the next one.',
-    formula: 'kills/hr = 3600 ÷ (time to kill + respawn)',
+  mathBlocksPerHour: {
+    title: 'Blocks / hour',
+    body: 'One hour divided by a full mining cycle — the time to break a block plus the time to wait for the next one to appear.',
+    formula: 'blocks/hr = 3600 ÷ (time to mine + respawn)',
   },
-  mathBrittleKills: {
-    title: 'Brittle kills / hour',
-    body: 'How many of those kills land on an enemy that was left brittle by the previous one. Shown separately because it is the part of your kill rate that brittle chance is buying.',
+  mathBrittleBlocks: {
+    title: 'Brittle blocks / hour',
+    body: 'How many of those blocks were left brittle by the one before. Shown separately because it is the part of your mining rate that brittle chance is buying.',
   },
   mathEssencePerHour: {
     title: 'Essence / hour',
-    body: 'Gross essence income for the tier, before any altar spends it.',
-    formula: 'essence/hr = kills/hr × average loot',
+    body: 'Gross essence income for this essence, before any altar spends it.',
+    formula: 'essence/hr = blocks/hr × average loot',
   },
   mathAltarDrain: {
     title: 'Altar drain / hour',
-    body: 'Essence per hour taken out of this tier by running altars. Ash and Brine draw on Soft, Chasm draws on Dense, Jagged is never drained.',
+    body: 'Essence per hour taken out of this essence by running altars. Ash and Brine draw on Soft, Chasm draws on Dense, Jagged is never drained.',
   },
   mathNet: {
     title: 'Net / hour',

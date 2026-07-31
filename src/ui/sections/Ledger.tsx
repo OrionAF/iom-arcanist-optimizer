@@ -27,14 +27,14 @@ function LedgerCell({ type, result }: { type: EssenceType; result: ArcanistResul
         {ESSENCE_LABELS[type]}
       </div>
 
-      {outcome.unkillable ? (
+      {outcome.unmineable ? (
         <div className="ledger-blocked">
-          <strong>No kill</strong>
+          <strong>Can't mine</strong>
           {outcome.armor >= result.stats.damage
             ? `Armour ${formatNumber(outcome.armor)} meets or beats your ${formatNumber(
                 result.stats.damage,
               )} damage.`
-            : `Healing ${formatNumber(outcome.avgHeal)}/hit outpaces your damage after armour.`}
+            : `Regen ${formatNumber(outcome.avgRegen)}/hit outpaces your damage after armour.`}
         </div>
       ) : (
         <>
@@ -72,9 +72,9 @@ function LedgerCell({ type, result }: { type: EssenceType; result: ArcanistResul
             </div>
             <div>
               <span>
-                Kills / hr <Help id="ledgerKills" />
+                Blocks / hr <Help id="ledgerBlocks" />
               </span>
-              <span className="num">{formatNumber(outcome.killsPerHour, 2)}</span>
+              <span className="num">{formatNumber(outcome.blocksPerHour, 2)}</span>
             </div>
           </div>
         </>

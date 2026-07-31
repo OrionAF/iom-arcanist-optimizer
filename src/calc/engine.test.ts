@@ -117,48 +117,48 @@ describe('probability tables (Y3:AA33)', () => {
   });
 });
 
-describe('per-essence combat (AB3:AJ22, V9:X13)', () => {
+describe('per-essence mining (AB3:AJ22, V9:X13)', () => {
   const columns = {
-    soft: { armor: 'AC11', min: 'AC4', max: 'AC5', stun: 'AC15', weaken: 'AC22', heal: 'AC18' },
-    dense: { armor: 'AF11', min: 'AF4', max: 'AF5', stun: 'AF15', weaken: 'AF22', heal: 'AF18' },
-    jagged: { armor: 'AI11', min: 'AI4', max: 'AI5', stun: 'AI15', weaken: 'AI22', heal: 'AI18' },
+    soft: { armor: 'AC11', min: 'AC4', max: 'AC5', stun: 'AC15', weaken: 'AC22', regen: 'AC18' },
+    dense: { armor: 'AF11', min: 'AF4', max: 'AF5', stun: 'AF15', weaken: 'AF22', regen: 'AF18' },
+    jagged: { armor: 'AI11', min: 'AI4', max: 'AI5', stun: 'AI15', weaken: 'AI22', regen: 'AI18' },
   } as const;
 
   for (const [type, refs] of Object.entries(columns) as [
     keyof typeof columns,
     (typeof columns)[keyof typeof columns],
   ][]) {
-    it(`${type}: enemy stats after mitigation`, () => {
+    it(`${type}: block stats after mitigation`, () => {
       const outcome = result.essence[type];
       expectMatchesSheet(outcome.armor, refs.armor, `${type} armor`);
       expectMatchesSheet(outcome.minLoot, refs.min, `${type} min loot`);
       expectMatchesSheet(outcome.maxLoot, refs.max, `${type} max loot`);
       expectMatchesSheet(outcome.avgStun, refs.stun, `${type} avg stun`);
       expectMatchesSheet(outcome.avgWeaken, refs.weaken, `${type} avg weaken`);
-      expectMatchesSheet(outcome.avgHeal, refs.heal, `${type} avg heal`);
+      expectMatchesSheet(outcome.avgRegen, refs.regen, `${type} avg regen`);
     });
   }
 
-  it('soft: kill cycle and yield (AD3:AD5, W11, X11, Y11)', () => {
+  it('soft: mining cycle and yield (AD3:AD5, W11, X11, Y11)', () => {
     const soft = result.essence.soft;
-    expectMatchesSheet(soft.hitsToKill, 'AD3', 'soft hits to kill');
-    expectMatchesSheet(soft.timeToKill, 'AD4', 'soft time to kill');
+    expectMatchesSheet(soft.hitsToMine, 'AD3', 'soft hits to mine');
+    expectMatchesSheet(soft.timeToMine, 'AD4', 'soft time to mine');
     expectMatchesSheet(soft.cycleTime, 'AD5', 'soft cycle time');
-    expectMatchesSheet(soft.killsPerHour, 'W11', 'soft kills/hr');
+    expectMatchesSheet(soft.blocksPerHour, 'W11', 'soft blocks/hr');
     expectMatchesSheet(soft.trueLootAvg, 'AC9', 'soft true loot avg');
     expectMatchesSheet(soft.essencePerHour, 'X11', 'soft essence/hr');
-    expectMatchesSheet(soft.brittleKillsPerHour, 'Y11', 'soft brittle kills/hr');
+    expectMatchesSheet(soft.brittleBlocksPerHour, 'Y11', 'soft brittle blocks/hr');
   });
 
-  it('dense: kill cycle and yield (AG3:AG5, W12, X12, Y12)', () => {
+  it('dense: mining cycle and yield (AG3:AG5, W12, X12, Y12)', () => {
     const dense = result.essence.dense;
-    expectMatchesSheet(dense.hitsToKill, 'AG3', 'dense hits to kill');
-    expectMatchesSheet(dense.timeToKill, 'AG4', 'dense time to kill');
+    expectMatchesSheet(dense.hitsToMine, 'AG3', 'dense hits to mine');
+    expectMatchesSheet(dense.timeToMine, 'AG4', 'dense time to mine');
     expectMatchesSheet(dense.cycleTime, 'AG5', 'dense cycle time');
-    expectMatchesSheet(dense.killsPerHour, 'W12', 'dense kills/hr');
+    expectMatchesSheet(dense.blocksPerHour, 'W12', 'dense blocks/hr');
     expectMatchesSheet(dense.trueLootAvg, 'AF9', 'dense true loot avg');
     expectMatchesSheet(dense.essencePerHour, 'X12', 'dense essence/hr');
-    expectMatchesSheet(dense.brittleKillsPerHour, 'Y12', 'dense brittle kills/hr');
+    expectMatchesSheet(dense.brittleBlocksPerHour, 'Y12', 'dense brittle blocks/hr');
   });
 
   it('net essence per hour (P16 for Soft, X28/X29)', () => {
@@ -170,19 +170,19 @@ describe('per-essence combat (AB3:AJ22, V9:X13)', () => {
 
   /**
    * The sheet's AJ3 subtracts the empty cell AI1 instead of AI18 (Jagged avg
-   * heal), so Jagged reads 82 hits where the corrected math gives 84. Assert the
+   * regen), so Jagged reads 82 hits where the corrected math gives 84. Assert the
    * corrected value AND that it really does differ from the sheet, so this stays
    * an intentional deviation rather than a silent transcription slip.
    */
-  it('jagged: corrected for the AJ3 heal-reference bug', () => {
+  it('jagged: corrected for the AJ3 regen-reference bug', () => {
     const jagged = result.essence.jagged;
-    expect(jagged.hitsToKill).toBe(84);
+    expect(jagged.hitsToMine).toBe(84);
     expect(sheet('AJ3'), 'sheet still has the buggy value').toBe(82);
     expectMatchesSheet(jagged.armor, 'AI11', 'jagged armor');
     expectMatchesSheet(jagged.avgStun, 'AI15', 'jagged avg stun');
     expectMatchesSheet(jagged.avgWeaken, 'AI22', 'jagged avg weaken');
     // Downstream values inherit the correction.
-    expect(jagged.timeToKill).toBe(168);
+    expect(jagged.timeToMine).toBe(168);
     expect(jagged.cycleTime).toBe(183);
   });
 });
@@ -652,15 +652,15 @@ describe('fresh preset', () => {
     expect(fresh.drain.soft).toBe(0);
   });
 
-  it('still kills soft essence with base damage', () => {
-    expect(fresh.essence.soft.unkillable).toBe(false);
-    expect(fresh.essence.soft.killsPerHour).toBeGreaterThan(0);
+  it('still mines soft essence with base damage', () => {
+    expect(fresh.essence.soft.unmineable).toBe(false);
+    expect(fresh.essence.soft.blocksPerHour).toBeGreaterThan(0);
   });
 
-  it('reports jagged as unkillable when damage cannot beat armour and healing', () => {
+  it('reports jagged as unmineable when damage cannot beat armour and regen', () => {
     // Base damage 10, jagged armour 10 -> zero effective damage.
-    expect(fresh.essence.jagged.unkillable).toBe(true);
-    expect(fresh.essence.jagged.killsPerHour).toBe(0);
+    expect(fresh.essence.jagged.unmineable).toBe(true);
+    expect(fresh.essence.jagged.blocksPerHour).toBe(0);
     expect(fresh.essence.jagged.essencePerHour).toBe(0);
   });
 

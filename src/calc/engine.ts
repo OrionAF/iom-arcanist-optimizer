@@ -16,10 +16,10 @@ import {
   ALTAR_IDS,
   ALTAR_TRAVEL_PER_LEVEL,
   BASE_STATS,
+  BLOCKS,
   CARD_SCALES,
   CARD_TIER_COUNT,
   CONTRACT_RUNE_CRAFT,
-  ENEMIES,
   ESSENCE_UPGRADES,
   EXCHANGE_UPGRADES,
   PET,
@@ -38,10 +38,10 @@ import type {
   ArcanistInput,
   ArcanistResult,
   Averages,
+  BlockDef,
   CardTier,
   DerivedBonuses,
   EffectKey,
-  EnemyDef,
   EssenceOutcome,
   EssenceType,
   ExternalBonuses,
@@ -258,7 +258,7 @@ function computeAverages(stats: Stats): Averages {
 
 function lootRange(
   type: EssenceType,
-  enemy: EnemyDef,
+  block: BlockDef,
   effects: Effects,
   ext: ExternalBonuses,
   derived: DerivedBonuses,
@@ -269,18 +269,18 @@ function lootRange(
   switch (type) {
     case 'soft':
       return {
-        min: enemy.baseMinLoot,
-        max: enemy.baseMaxLoot + effects.softMaxLoot + shared,
+        min: block.baseMinLoot,
+        max: block.baseMaxLoot + effects.softMaxLoot + shared,
       };
     case 'dense':
       return {
-        min: enemy.baseMinLoot,
-        max: enemy.baseMaxLoot + effects.denseMaxLoot + shared,
+        min: block.baseMinLoot,
+        max: block.baseMaxLoot + effects.denseMaxLoot + shared,
       };
     case 'jagged':
       return {
-        min: enemy.baseMinLoot + effects.jaggedMinLoot,
-        max: enemy.baseMaxLoot + effects.jaggedMaxLoot + shared,
+        min: block.baseMinLoot + effects.jaggedMinLoot,
+        max: block.baseMaxLoot + effects.jaggedMaxLoot + shared,
       };
   }
 }
@@ -294,31 +294,31 @@ function computeEssence(
   derived: DerivedBonuses,
   drain: number,
 ): EssenceOutcome {
-  const enemy = ENEMIES[type];
+  const block = BLOCKS[type];
 
-  const armor = Math.max(enemy.armor - stats.armorPen, 0);
-  const avgStun = 1 - enemy.stunChance * (1 - stats.stunNegate) * enemy.stunDuration;
+  const armor = Math.max(block.armor - stats.armorPen, 0);
+  const avgStun = 1 - block.stunChance * (1 - stats.stunNegate) * block.stunDuration;
   const avgWeaken =
-    1 - enemy.weakenChance * enemy.weakenDuration + enemy.weakenChance * enemy.weakenDuration * enemy.weakenMulti;
-  const avgHeal = enemy.heal / enemy.healInterval;
+    1 - block.weakenChance * block.weakenDuration + block.weakenChance * block.weakenDuration * block.weakenMulti;
+  const avgRegen = block.regen / block.regenInterval;
 
   const effectiveDamagePerHit =
-    (stats.damage - armor) * averages.critMult * avgStun * avgWeaken - avgHeal;
+    (stats.damage - armor) * averages.critMult * avgStun * avgWeaken - avgRegen;
 
-  const unkillable = effectiveDamagePerHit <= 0;
-  const hitsToKill = unkillable
+  const unmineable = effectiveDamagePerHit <= 0;
+  const hitsToMine = unmineable
     ? Infinity
-    : Math.ceil((enemy.health * averages.brittleMult) / effectiveDamagePerHit);
+    : Math.ceil((block.health * averages.brittleMult) / effectiveDamagePerHit);
 
-  const timeToKill = hitsToKill * stats.attackInterval;
-  const cycleTime = timeToKill + enemy.respawn;
-  const killsPerHour = unkillable ? 0 : 3600 / cycleTime;
+  const timeToMine = hitsToMine * stats.attackInterval;
+  const cycleTime = timeToMine + block.respawn;
+  const blocksPerHour = unmineable ? 0 : 3600 / cycleTime;
 
-  const { min, max } = lootRange(type, enemy, effects, ext, derived);
+  const { min, max } = lootRange(type, block, effects, ext, derived);
   const minLootAvg = min + averages.shinyBonus;
   const maxLootAvg = max + averages.shinyBonus;
   const trueLootAvg = (minLootAvg + maxLootAvg) / 2;
-  const essencePerHour = killsPerHour * trueLootAvg;
+  const essencePerHour = blocksPerHour * trueLootAvg;
 
   return {
     type,
@@ -327,20 +327,20 @@ function computeEssence(
     maxLoot: max,
     avgStun,
     avgWeaken,
-    avgHeal,
+    avgRegen,
     effectiveDamagePerHit,
-    hitsToKill,
-    timeToKill,
+    hitsToMine,
+    timeToMine,
     cycleTime,
-    killsPerHour,
+    blocksPerHour,
     minLootAvg,
     maxLootAvg,
     trueLootAvg,
     essencePerHour,
-    brittleKillsPerHour: killsPerHour * stats.brittleChance,
+    brittleBlocksPerHour: blocksPerHour * stats.brittleChance,
     altarDrain: drain,
     netEssencePerHour: essencePerHour - drain,
-    unkillable,
+    unmineable,
   };
 }
 

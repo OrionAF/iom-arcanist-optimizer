@@ -1,4 +1,4 @@
-import { ENEMIES, ESSENCE_LABELS } from '../../calc/constants';
+import { BLOCKS, ESSENCE_LABELS } from '../../calc/constants';
 import { formatDuration, formatNumber, formatPercent } from '../../calc/format';
 import type { ArcanistResult, WeightedOutcome } from '../../calc/types';
 import { ESSENCE_TYPES } from '../../calc/types';
@@ -9,7 +9,7 @@ import type { HelpId } from '../help';
  * The workbook's off-screen scratch columns (U3:AJ33), made visible.
  *
  * This is where a calculator earns trust: every headline number can be traced
- * back to the weights and enemy stats that produced it. Every row carries a "?"
+ * back to the weights and block stats that produced it. Every row carries a "?"
  * for the same reason — a derivation nobody can read is not a derivation.
  */
 function WeightTable({
@@ -112,12 +112,12 @@ export function Breakdown({ result }: { result: ArcanistResult }) {
             <Row
               label="Health"
               help="mathHealth"
-              render={(t) => formatNumber(ENEMIES[t].health)}
+              render={(t) => formatNumber(BLOCKS[t].health)}
             />
             <Row
               label="Armour (after pen)"
               help="mathArmor"
-              render={(t) => `${formatNumber(result.essence[t].armor)} of ${ENEMIES[t].armor}`}
+              render={(t) => `${formatNumber(result.essence[t].armor)} of ${BLOCKS[t].armor}`}
             />
             <Row
               label="Avg stun factor"
@@ -130,9 +130,9 @@ export function Breakdown({ result }: { result: ArcanistResult }) {
               render={(t) => formatNumber(result.essence[t].avgWeaken, 4)}
             />
             <Row
-              label="Heal per hit"
-              help="mathHeal"
-              render={(t) => formatNumber(result.essence[t].avgHeal, 2)}
+              label="Regen per hit"
+              help="mathRegen"
+              render={(t) => formatNumber(result.essence[t].avgRegen, 2)}
             />
             <Row
               label="Damage per hit"
@@ -140,23 +140,23 @@ export function Breakdown({ result }: { result: ArcanistResult }) {
               render={(t) => formatNumber(result.essence[t].effectiveDamagePerHit, 3)}
             />
             <Row
-              label="Hits to kill"
-              help="mathHitsToKill"
+              label="Hits to mine"
+              help="mathHitsToMine"
               render={(t) =>
-                result.essence[t].unkillable ? '—' : formatNumber(result.essence[t].hitsToKill)
+                result.essence[t].unmineable ? '—' : formatNumber(result.essence[t].hitsToMine)
               }
             />
             <Row
-              label="Time to kill"
-              help="mathTimeToKill"
+              label="Time to mine"
+              help="mathTimeToMine"
               render={(t) =>
-                result.essence[t].unkillable ? '—' : formatDuration(result.essence[t].timeToKill)
+                result.essence[t].unmineable ? '—' : formatDuration(result.essence[t].timeToMine)
               }
             />
             <Row
               label="Respawn"
               help="mathRespawn"
-              render={(t) => formatDuration(ENEMIES[t].respawn)}
+              render={(t) => formatDuration(BLOCKS[t].respawn)}
             />
             <Row
               label="Loot range"
@@ -169,14 +169,14 @@ export function Breakdown({ result }: { result: ArcanistResult }) {
               render={(t) => formatNumber(result.essence[t].trueLootAvg, 4)}
             />
             <Row
-              label="Kills / hr"
-              help="mathKillsPerHour"
-              render={(t) => formatNumber(result.essence[t].killsPerHour, 3)}
+              label="Blocks / hr"
+              help="mathBlocksPerHour"
+              render={(t) => formatNumber(result.essence[t].blocksPerHour, 3)}
             />
             <Row
-              label="Brittle kills / hr"
-              help="mathBrittleKills"
-              render={(t) => formatNumber(result.essence[t].brittleKillsPerHour, 3)}
+              label="Brittle blocks / hr"
+              help="mathBrittleBlocks"
+              render={(t) => formatNumber(result.essence[t].brittleBlocksPerHour, 3)}
             />
             <Row
               label="Essence / hr"
@@ -201,7 +201,7 @@ export function Breakdown({ result }: { result: ArcanistResult }) {
       </div>
 
       <p className="note" style={{ marginTop: 12 }}>
-        Enemy stats are game constants, not inputs. Ash and Brine altars draw from Soft essence;
+        Essence block stats are game constants, not inputs. Ash and Brine altars draw from Soft essence;
         the Chasm altar draws from Dense. Nothing draws from Jagged.
       </p>
     </Section>

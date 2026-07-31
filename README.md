@@ -1,7 +1,7 @@
 # IOM Arcanist Optimizer
 
 A planner for the **Arcanist** (Ob70) content in *Idle Obelisk Miner*: essence
-upgrades, the three rune altars, six spells, exchange upgrades, and the combat
+upgrades, the three rune altars, six spells, exchange upgrades, and the mining
 math that turns all of it into essence per hour.
 
 **→ https://OrionAF.github.io/iom-arcanist-optimizer/**
@@ -41,7 +41,7 @@ Icons are game assets from the [wiki](https://shminer.wiki.gg/), vendored into
   contributes. Defaults are all zero, so fill these in or the numbers read low.
   Cards are picked by tier; the tier total drives Essence Damage Per Arcane Card.
 - **Show the math** — the full derivation: crit/shiny/brittle probability
-  tables, per-enemy stats, hits to kill, and where the essence goes.
+  tables, per-block stats, hits to mine, and where the essence goes.
 - Builds autosave locally. **Export** writes a JSON file; **Share link** puts
   the whole build in the URL.
 
