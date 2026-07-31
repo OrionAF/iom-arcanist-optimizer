@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Serialization for saved builds.
  *
  * Two representations, one source of truth:
@@ -97,7 +97,6 @@ export function coerceInput(raw: unknown): ArcanistInput {
   for (const id of SPELL_IDS) cardSpell[id] = tier(cardSpellRaw[id], 'none');
 
   const external: ExternalBonuses = {
-    cardRainbowMultiplier: num(externalRaw.cardRainbowMultiplier, base.cardRainbowMultiplier),
     cardSoftMaxLoot: tier(externalRaw.cardSoftMaxLoot, base.cardSoftMaxLoot),
     cardDenseMaxLoot: tier(externalRaw.cardDenseMaxLoot, base.cardDenseMaxLoot),
     cardJaggedMaxLoot: tier(externalRaw.cardJaggedMaxLoot, base.cardJaggedMaxLoot),
@@ -181,6 +180,9 @@ const boolField = (key: keyof ExternalBonuses): Field => ({
 const cardField = (key: keyof ExternalBonuses): Field =>
   externalField(key, (v) => tierIndex(v as CardTier), (v) => tierAt(v) as never);
 
+/** A retired slot. Holds its position so older links keep decoding. */
+const RESERVED: Field = { get: () => 0, set: () => {} };
+
 /**
  * APPEND-ONLY. Adding a field at the end is safe: short arrays decode with
  * defaults for the missing tail. Reordering breaks every link ever shared.
@@ -254,7 +256,10 @@ const FIELD_ORDER: Field[] = [
       },
     }),
   ),
-  numberField('cardRainbowMultiplier'),
+  // Retired: was the Infernal card multiplier, before it turned out no
+  // Arcanist card can be Infernal. The slot stays so links made while it
+  // existed still decode; removing it would shift every field after it.
+  RESERVED,
   cardField('cardSoftMaxLoot'),
   cardField('cardDenseMaxLoot'),
   cardField('cardJaggedMaxLoot'),

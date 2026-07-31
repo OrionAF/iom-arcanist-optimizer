@@ -1,4 +1,4 @@
-import { SPELLS, SPELL_IDS } from '../../calc/constants';
+﻿import { SPELLS, SPELL_IDS } from '../../calc/constants';
 import type { ArcanistInput, CardTier, SpellId } from '../../calc/types';
 import { CARD_TIERS } from '../../calc/types';
 import { Collapsible, Field, NumberField, Subhead, Switch } from '../components';
@@ -17,27 +17,23 @@ interface Props {
 
 const TIER_LABELS: Record<CardTier, string> = {
   none: 'None',
-  bronze: 'Bronze',
-  silver: 'Silver',
-  gold: 'Gold',
-  rainbow: 'Rainbow',
+  normal: 'Normal',
+  gilded: 'Gilded',
+  polychrome: 'Polychrome',
 };
 
 function TierSelect({
   value,
   onChange,
   label,
-  allowRainbow = true,
 }: {
   value: CardTier;
   onChange: (next: CardTier) => void;
   label: string;
-  allowRainbow?: boolean;
 }) {
-  const options = allowRainbow ? CARD_TIERS : CARD_TIERS.filter((t) => t !== 'rainbow');
   return (
     <select value={value} aria-label={label} onChange={(e) => onChange(e.target.value as CardTier)}>
-      {options.map((tier) => (
+      {CARD_TIERS.map((tier) => (
         <option key={tier} value={tier}>
           {TIER_LABELS[tier]}
         </option>
@@ -69,14 +65,10 @@ export function ExternalBonuses({ input, update }: Props) {
       </p>
 
       <Subhead>Cards</Subhead>
-      <Field label="Rainbow multiplier" hint="Scales rainbow-tier cards">
-        <NumberField
-          value={ext.cardRainbowMultiplier}
-          step={0.01}
-          label="Rainbow multiplier"
-          onChange={(v) => set('cardRainbowMultiplier', v)}
-        />
-      </Field>
+      <p className="note" style={{ marginBottom: 6 }}>
+        Pick the highest tier you own. Arcanist cards stop at Polychrome — they cannot be
+        transformed to Infernal.
+      </p>
       <Field label="Soft Essence max loot">
         <TierSelect
           value={ext.cardSoftMaxLoot}
@@ -128,15 +120,17 @@ export function ExternalBonuses({ input, update }: Props) {
           />
         </Field>
       ))}
-      <Field label="Essence super shiny" hint="No rainbow tier for this one">
+      <Field label="Essence super shiny">
         <TierSelect
           value={ext.cardSuperShiny}
           label="Essence super shiny card"
-          allowRainbow={false}
           onChange={(t) => set('cardSuperShiny', t)}
         />
       </Field>
-      <Field label="Arcane card tiers owned" hint="Total across all four Arcanist card blocks">
+      <Field
+        label="Arcane card tiers owned"
+        hint="Every tier of every Arcanist card, including Orb Trade cards"
+      >
         <NumberField
           value={ext.arcaneCardCount}
           step={1}
@@ -144,6 +138,10 @@ export function ExternalBonuses({ input, update }: Props) {
           onChange={(v) => set('arcaneCardCount', Math.max(0, Math.round(v)))}
         />
       </Field>
+      <p className="note" style={{ marginTop: 6 }}>
+        Orb Trade cards have no other effect here — the Arcanist does not use orb trade rates — but
+        they do count toward the total above, which drives Essence Damage Per Arcane Card.
+      </p>
 
       <Subhead>Pets</Subhead>
       <div style={{ padding: '4px 0 8px' }}>

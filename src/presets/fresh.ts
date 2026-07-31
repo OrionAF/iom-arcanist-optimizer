@@ -1,8 +1,7 @@
-import type { ArcanistInput, ExternalBonuses } from '../calc/types';
+﻿import type { ArcanistInput, ExternalBonuses } from '../calc/types';
 
 /** No external bonuses from other systems. */
 export const FRESH_EXTERNAL: ExternalBonuses = {
-  cardRainbowMultiplier: 1,
   cardSoftMaxLoot: 'none',
   cardDenseMaxLoot: 'none',
   cardJaggedMaxLoot: 'none',

@@ -101,40 +101,38 @@ export const ESSENCE_LABELS: Record<EssenceType, string> = {
 // ---------------------------------------------------------------------------
 
 /**
- * Card cells read `IF(H, gold*rainbow, IF(F, gold, IF(D, silver, IF(B, bronze, 0))))`,
- * so B/D/F/H map to bronze/silver/gold/rainbow and the rainbow tier scales the
- * gold value by Cards!X13.
+ * Card cells read
+ * `IF(H, polychrome * X13, IF(F, polychrome, IF(D, gilded, IF(B, normal, 0))))`.
+ * The B/D/F owned-flags are Normal/Gilded/Polychrome. The H branch is Infernal,
+ * which no Arcanist card can be transformed to, so it never fires here.
  */
-const cardScale = (bronze: number, silver: number, gold: number, rainbowScales = true) =>
-  ({ bronze, silver, gold, rainbowScales }) as const;
+const cardScale = (normal: number, gilded: number, polychrome: number) =>
+  ({ normal, gilded, polychrome }) as const;
 
 export const CARD_SCALES = {
-  /** Cards!K422/K423/K424 — max essence loot. */
+  /** Cards!K422/K423/K424 — Essence Cards, max essence loot. */
   essenceMaxLoot: cardScale(1, 2, 4),
-  /** Cards!K429/K430/K431 — altar craft multiplier. */
+  /** Cards!K429/K430/K431 — Rune Cards, altar craft multiplier. */
   altarCraft: cardScale(0.15, 0.3, 0.5),
-  /** Cards!K438..K443 — spell potency. */
+  /** Cards!K438..K443 — Spell Cards, spell effect. */
   spell: cardScale(0.1, 0.2, 0.35),
-  /** Cards!K282 — has no rainbow branch in the source formula. */
-  superShiny: cardScale(0.01, 0.02, 0.04, false),
+  /** Cards!K282 — a standalone card, not one of the Arcanist blocks. */
+  superShiny: cardScale(0.01, 0.02, 0.04),
 } as const;
 
 export function cardValue(
   scale: (typeof CARD_SCALES)[keyof typeof CARD_SCALES],
   tier: CardTier,
-  rainbowMultiplier: number,
 ): number {
   switch (tier) {
     case 'none':
       return 0;
-    case 'bronze':
-      return scale.bronze;
-    case 'silver':
-      return scale.silver;
-    case 'gold':
-      return scale.gold;
-    case 'rainbow':
-      return scale.rainbowScales ? scale.gold * rainbowMultiplier : scale.gold;
+    case 'normal':
+      return scale.normal;
+    case 'gilded':
+      return scale.gilded;
+    case 'polychrome':
+      return scale.polychrome;
   }
 }
 

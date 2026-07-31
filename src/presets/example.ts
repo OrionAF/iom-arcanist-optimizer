@@ -1,4 +1,4 @@
-/**
+﻿/**
  * The state of the Arcanist sheet in the source workbook.
  *
  * This doubles as the golden-test input: engine.test.ts asserts that computing
@@ -55,17 +55,16 @@ export const EXAMPLE_INPUT: ArcanistInput = {
     runeCraftMulti: 0, // A81
   },
   external: {
-    cardRainbowMultiplier: 3.9159538438466259, // Cards!X13
-    cardSoftMaxLoot: 'gold', // Cards!K422 = 4
-    cardDenseMaxLoot: 'bronze', // Cards!K423 = 1
-    cardJaggedMaxLoot: 'bronze', // Cards!K424 = 1
-    cardAshCraft: 'gold', // Cards!K429 = 0.5
-    cardBrineCraft: 'silver', // Cards!K430 = 0.3
+    cardSoftMaxLoot: 'polychrome', // Cards!K422 = 4
+    cardDenseMaxLoot: 'normal', // Cards!K423 = 1
+    cardJaggedMaxLoot: 'normal', // Cards!K424 = 1
+    cardAshCraft: 'polychrome', // Cards!K429 = 0.5
+    cardBrineCraft: 'gilded', // Cards!K430 = 0.3
     cardChasmCraft: 'none', // Cards!K431 = 0
     cardSpell: {
-      runicSurge: 'silver', // Cards!K438 = 0.2
-      rainbowRift: 'silver', // Cards!K439 = 0.2
-      manaflow: 'bronze', // Cards!K440 = 0.1
+      runicSurge: 'gilded', // Cards!K438 = 0.2
+      rainbowRift: 'gilded', // Cards!K439 = 0.2
+      manaflow: 'normal', // Cards!K440 = 0.1
       radiancy: 'none', // Cards!K441 = 0
       prismism: 'none', // Cards!K442 = 0
       veinboyant: 'none', // Cards!K443 = 0

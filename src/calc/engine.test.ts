@@ -11,10 +11,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { compute } from './engine';
+import { CARD_SCALES, cardValue } from './constants';
 import { curveCost } from './costs';
 import { formatCompact, formatShortScale } from './format';
 import { EXAMPLE_INPUT } from '../presets/example';
 import { FRESH_INPUT } from '../presets/fresh';
+import { CARD_TIERS } from './types';
 import fixture from './__fixtures__/arcanist-sheet.json';
 
 const cells = fixture.cells as Record<string, { v: number | string | boolean | null; f?: string }>;
@@ -369,6 +371,51 @@ describe('per-row costs match the sheet cell for cell', () => {
     expect(armorPen!.total.purpleOrb).toBe(75);
     const timer = result.rows.exchange.find((r) => r.id === 'exchangeTimer');
     expect(timer!.total.blueCow).toBe(232500);
+  });
+});
+
+describe('card tiers', () => {
+  /**
+   * Pinned against the in-game values. Arcanist cards go up to Polychrome
+   * only; the sheet's fourth branch (Infernal, column G) cannot fire for these
+   * cards, so it is not modelled.
+   */
+  it.each([
+    { scale: 'essenceMaxLoot', normal: 1, gilded: 2, polychrome: 4 },
+    { scale: 'altarCraft', normal: 0.15, gilded: 0.3, polychrome: 0.5 },
+    { scale: 'spell', normal: 0.1, gilded: 0.2, polychrome: 0.35 },
+    { scale: 'superShiny', normal: 0.01, gilded: 0.02, polychrome: 0.04 },
+  ] as const)('$scale tiers', ({ scale, normal, gilded, polychrome }) => {
+    const table = CARD_SCALES[scale];
+    expect(cardValue(table, 'none')).toBe(0);
+    expect(cardValue(table, 'normal')).toBeCloseTo(normal, 10);
+    expect(cardValue(table, 'gilded')).toBeCloseTo(gilded, 10);
+    expect(cardValue(table, 'polychrome')).toBeCloseTo(polychrome, 10);
+  });
+
+  it('offers exactly the four states an Arcanist card can be in', () => {
+    expect(CARD_TIERS).toEqual(['none', 'normal', 'gilded', 'polychrome']);
+  });
+
+  /**
+   * The example preset's tiers were read back from the workbook's computed K
+   * values, so these pin the tier names to those numbers: a renamed or
+   * reordered tier cannot silently change what the preset means. (Only the
+   * Arcanist sheet is in the fixture, so the expected values are the
+   * workbook's cached Cards K-column results, quoted here.)
+   */
+  it('reproduces the workbook values the example preset was read from', () => {
+    const ext = EXAMPLE_INPUT.external;
+    expect(cardValue(CARD_SCALES.essenceMaxLoot, ext.cardSoftMaxLoot)).toBe(4); // K422
+    expect(cardValue(CARD_SCALES.essenceMaxLoot, ext.cardDenseMaxLoot)).toBe(1); // K423
+    expect(cardValue(CARD_SCALES.essenceMaxLoot, ext.cardJaggedMaxLoot)).toBe(1); // K424
+    expect(cardValue(CARD_SCALES.altarCraft, ext.cardAshCraft)).toBeCloseTo(0.5, 10); // K429
+    expect(cardValue(CARD_SCALES.altarCraft, ext.cardBrineCraft)).toBeCloseTo(0.3, 10); // K430
+    expect(cardValue(CARD_SCALES.altarCraft, ext.cardChasmCraft)).toBe(0); // K431
+    expect(cardValue(CARD_SCALES.spell, ext.cardSpell.runicSurge)).toBeCloseTo(0.2, 10); // K438
+    expect(cardValue(CARD_SCALES.spell, ext.cardSpell.rainbowRift)).toBeCloseTo(0.2, 10); // K439
+    expect(cardValue(CARD_SCALES.spell, ext.cardSpell.manaflow)).toBeCloseTo(0.1, 10); // K440
+    expect(cardValue(CARD_SCALES.spell, ext.cardSpell.radiancy)).toBe(0); // K441
   });
 });
 

@@ -94,9 +94,23 @@ export type EffectKey =
   | 'armorPen'
   | 'stunNegate';
 
-export type CardTier = 'none' | 'bronze' | 'silver' | 'gold' | 'rainbow';
+/**
+ * Card tiers, named as the game names them.
+ *
+ * The workbook encodes these as independent owned-flags per card (columns
+ * A/C/E on the Cards sheet, labelled Card / Gild / Polychrome) and takes the
+ * highest owned. A single tier picker assumes you own every tier up to the one
+ * selected, which is how the source workbook's own data is filled in.
+ *
+ * The sheet also carries a fourth branch (column G, Infernal, worth the
+ * Polychrome value scaled by Cards!X13). No Arcanist card can be transformed
+ * to Infernal, so that branch can never fire here and is not modelled — the
+ * Infernal cards a player owns come from other parts of the game.
+ */
+export type CardTier = 'none' | 'normal' | 'gilded' | 'polychrome';
 
-export const CARD_TIERS: readonly CardTier[] = ['none', 'bronze', 'silver', 'gold', 'rainbow'];
+/** Order matters: the index is what share links encode. */
+export const CARD_TIERS: readonly CardTier[] = ['none', 'normal', 'gilded', 'polychrome'];
 
 // ---------------------------------------------------------------------------
 // Cost curves
@@ -244,8 +258,6 @@ export interface SpellInput {
  * input here rather than porting six more sheets.
  */
 export interface ExternalBonuses {
-  /** Cards!X13 — multiplier applied to rainbow-tier card effects. */
-  cardRainbowMultiplier: number;
   /** Cards!K422/K423/K424 — max essence loot per type. */
   cardSoftMaxLoot: CardTier;
   cardDenseMaxLoot: CardTier;

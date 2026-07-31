@@ -1,4 +1,4 @@
-/**
+﻿/**
  * The Arcanist calculator.
  *
  * `compute` is a pure function of its inputs with no allocation-heavy work
@@ -109,7 +109,7 @@ function computeSpells(input: ArcanistInput, ext: ExternalBonuses) {
     const unlocked = raw.unlocked;
     const level = clampLevel(raw.level, def.maxLevel);
     const rank = clampLevel(raw.rank, def.maxRank);
-    const cardBonus = cardValue(CARD_SCALES.spell, ext.cardSpell[id], ext.cardRainbowMultiplier);
+    const cardBonus = cardValue(CARD_SCALES.spell, ext.cardSpell[id]);
 
     outcomes[id] = {
       id,
@@ -169,7 +169,7 @@ function computeStats(
       (ext.storeShiny ? 0.01 : 0),
     shinyBonus: BASE_STATS.shinyBonusBase + effects.shinyLoot,
     superShinyChance:
-      cardValue(CARD_SCALES.superShiny, ext.cardSuperShiny, ext.cardRainbowMultiplier) +
+      cardValue(CARD_SCALES.superShiny, ext.cardSuperShiny) +
       ext.constructSuperShiny +
       (ext.obeliskSuperShiny ? 0.02 : 0),
     superShinyBonus: BASE_STATS.superShinyBonus,
@@ -228,7 +228,6 @@ function lootRange(
   ext: ExternalBonuses,
 ): { min: number; max: number } {
   const petBonus = ext.petMaxEssence ? 1 : 0;
-  const rainbow = ext.cardRainbowMultiplier;
 
   switch (type) {
     case 'soft':
@@ -238,7 +237,7 @@ function lootRange(
           enemy.baseMaxLoot +
           effects.softMaxLoot +
           petBonus +
-          cardValue(CARD_SCALES.essenceMaxLoot, ext.cardSoftMaxLoot, rainbow),
+          cardValue(CARD_SCALES.essenceMaxLoot, ext.cardSoftMaxLoot),
       };
     case 'dense':
       return {
@@ -247,7 +246,7 @@ function lootRange(
           enemy.baseMaxLoot +
           effects.denseMaxLoot +
           petBonus +
-          cardValue(CARD_SCALES.essenceMaxLoot, ext.cardDenseMaxLoot, rainbow),
+          cardValue(CARD_SCALES.essenceMaxLoot, ext.cardDenseMaxLoot),
       };
     case 'jagged':
       return {
@@ -256,7 +255,7 @@ function lootRange(
           enemy.baseMaxLoot +
           effects.jaggedMaxLoot +
           petBonus +
-          cardValue(CARD_SCALES.essenceMaxLoot, ext.cardJaggedMaxLoot, rainbow),
+          cardValue(CARD_SCALES.essenceMaxLoot, ext.cardJaggedMaxLoot),
       };
   }
 }
@@ -338,11 +337,7 @@ function computeAltars(
     const travel = clampLevel(raw.travel, 10);
     const craft = clampLevel(raw.craft, 10);
 
-    const cardBonus = cardValue(
-      CARD_SCALES.altarCraft,
-      ext[cardByAltar[id]] as never,
-      ext.cardRainbowMultiplier,
-    );
+    const cardBonus = cardValue(CARD_SCALES.altarCraft, ext[cardByAltar[id]] as never);
 
     const cycleTime = def.baseCycle * (1 - travel * ALTAR_TRAVEL_PER_LEVEL) * 2;
     const cyclesPerHour = 3600 / cycleTime;

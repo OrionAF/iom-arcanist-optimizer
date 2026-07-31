@@ -36,6 +36,20 @@ describe('packed round trip', () => {
     expect(compute(restored)).toEqual(compute(EXAMPLE_INPUT));
   });
 
+  /**
+   * The Infernal card multiplier used to occupy a slot in FIELD_ORDER. It was
+   * retired rather than deleted, so a link created while it existed must still
+   * decode — every field after it would otherwise shift by one.
+   */
+  it('still decodes a link made before the Infernal multiplier was retired', () => {
+    const legacy = packFields(EXAMPLE_INPUT);
+    const retiredSlot = 15 + 15 + 18 + 13; // essence + altars + spells + exchange
+    expect(legacy[retiredSlot]).toBe(0);
+    legacy[retiredSlot] = 3.9159538438466259; // what an old link carried there
+
+    expect(unpackFields(legacy)).toEqual(EXAMPLE_INPUT);
+  });
+
   it('fills the tail with defaults when a link predates a new field', () => {
     const truncated = packFields(EXAMPLE_INPUT).slice(0, 20);
     const restored = unpackFields(truncated);
