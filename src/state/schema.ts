@@ -37,8 +37,14 @@ import { FRESH_INPUT } from '../presets/fresh';
 /**
  * 1 — original flat ExternalBonuses (raw numbers like `petBrittle: 0.05`).
  * 2 — cards / pets / unlocks groups, with levels and unlocks as the input.
+ * 3 — Exchange trimmed to the two upgrades the Arcanist reads.
+ *
+ * JSON needs no migration for 3: parsing walks EXCHANGE_UPGRADES and ignores
+ * keys it does not recognise, so a v2 export loads with the eleven dropped
+ * levels quietly discarded. The packed share format is positional and cannot
+ * absorb that, which is why PACK_FORMAT moves with it.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export interface SavedBuild {
   version: number;

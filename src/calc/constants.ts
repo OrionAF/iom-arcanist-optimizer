@@ -544,100 +544,22 @@ export const SPELL_LEVEL_PER_RANK = 0.05;
 // ---------------------------------------------------------------------------
 
 /**
- * Exchange upgrades carry no costs — see ExchangeUpgradeDef for why. The
- * workbook's prices for these were invented, so they are not carried over.
+ * Only the Exchange upgrades that change an Arcanist number — see
+ * ExchangeUpgradeId for why the other eleven are not here.
+ *
+ * `row` is still the workbook's row so the two that remain stay traceable to
+ * the sheet; the gap between 71 and 81 is the eleven that were dropped.
+ *
+ * These carry no costs — see ExchangeUpgradeDef. The workbook's prices for them
+ * were invented, so they are not carried over.
  */
 export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
-  {
-    id: 'exchangeWizards',
-    row: 69,
-    label: 'Exchange Wizards',
-    max: 3,
-  },
-  {
-    id: 'exchangeTimer',
-    row: 70,
-    label: 'Exchange Timer',
-    max: 30,
-    perLevel: 2,
-    display: 'flat',
-  },
   {
     id: 'arcaneCardDamage',
     row: 71,
     label: 'Essence Damage Per Arcane Card',
     max: 1,
     note: 'Grants flat damage equal to your total Arcane card count (External Bonuses).',
-  },
-  {
-    id: 'rainbowFloorMulti',
-    row: 72,
-    label: 'Rainbow Floor Multiplier',
-    max: 20,
-    perLevel: 0.02,
-    display: 'percent',
-  },
-  {
-    id: 'lootbugBankedCap',
-    row: 73,
-    label: 'Lootbug Banked Cap',
-    max: 10,
-    perLevel: 1,
-    display: 'flat',
-  },
-  {
-    id: 'goldenPortalChance',
-    row: 74,
-    label: 'Golden Portal Chance',
-    max: 25,
-    perLevel: 0.002,
-    display: 'percent',
-  },
-  {
-    id: 'starSupergiantMulti',
-    row: 75,
-    label: 'Star Supergiant Multiplier',
-    max: 25,
-    perLevel: 0.01,
-    display: 'percent',
-  },
-  {
-    id: 'wizardLootMulti',
-    row: 76,
-    label: 'Wizard Loot Multiplier',
-    max: 10,
-    perLevel: 0.03,
-    display: 'percent',
-  },
-  {
-    id: 'geminiStarCap',
-    row: 77,
-    label: 'Gemini Star Cap',
-    max: 10,
-    perLevel: 2,
-    display: 'flat',
-  },
-  {
-    id: 'unlockVeinboyant',
-    row: 78,
-    label: 'Unlock Spell: Veinboyant',
-    max: 1,
-  },
-  {
-    id: 'prismaticFloorChance',
-    row: 79,
-    label: 'Prismatic Floor Chance',
-    max: 15,
-    perLevel: 0.005,
-    display: 'percent',
-  },
-  {
-    id: 'shinyFishMulti',
-    row: 80,
-    label: 'Shiny Fish Multiplier',
-    max: 20,
-    perLevel: 0.02,
-    display: 'percent',
   },
   {
     id: 'runeCraftMulti',
@@ -648,21 +570,6 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     display: 'percent',
   },
 ];
-
-/** Rows 82-86 on the sheet are unreleased placeholders. */
-export const EXCHANGE_PLACEHOLDERS = [
-  'Wouldnt you like to know',
-  'wait and see',
-  'not gonna happen',
-  'eventually this will be added',
-  'Coming Soon',
-];
-
-/**
- * Levels the sheet reserves for unreleased content, so the completion total
- * matches the workbook's 1048 (L99 adds a flat 180).
- */
-export const COMPLETION_RESERVED = 180;
 
 // ---------------------------------------------------------------------------
 // External bonuses

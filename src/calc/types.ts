@@ -55,20 +55,16 @@ export type EssenceUpgradeId =
   | 'critChance2'
   | 'jaggedLoot';
 
-export type ExchangeUpgradeId =
-  | 'exchangeWizards'
-  | 'exchangeTimer'
-  | 'arcaneCardDamage'
-  | 'rainbowFloorMulti'
-  | 'lootbugBankedCap'
-  | 'goldenPortalChance'
-  | 'starSupergiantMulti'
-  | 'wizardLootMulti'
-  | 'geminiStarCap'
-  | 'unlockVeinboyant'
-  | 'prismaticFloorChance'
-  | 'shinyFishMulti'
-  | 'runeCraftMulti';
+/**
+ * Only the two Exchange upgrades the Arcanist's own maths reads.
+ *
+ * The Exchange sells thirteen; the other eleven buy portal chances, wizard
+ * loot, star caps and the like — real upgrades, but ones that move nothing on
+ * this page. Carrying them here meant a section of levels a player could tune
+ * all day without a single number changing, which is worse than not offering
+ * them: it implies they matter. They are tracked in the game, not here.
+ */
+export type ExchangeUpgradeId = 'arcaneCardDamage' | 'runeCraftMulti';
 
 /** Effects granted by essence upgrades. Several upgrades grant two. */
 export type EffectKey =
@@ -430,6 +426,8 @@ export interface SpellOutcome {
   primary: number;
   secondary: number;
   duration: number;
+  /** Cost of the next potency rank alone. Zero at max rank. */
+  potencyCostNext: number;
   potencyCostRemaining: number;
   potencyCostTotal: number;
   potencyResource: Resource;
@@ -443,6 +441,13 @@ export interface UpgradeCost {
   max: number;
   /** Undefined for tiered rune costs, which span several resources. */
   resource?: Resource;
+  /**
+   * Cost of the single next level, `level` to `level + 1`.
+   *
+   * The number a player can act on today, as distinct from `remaining`, which
+   * is the whole run to max. Empty at max level, where there is no next level.
+   */
+  next: ResourceBundle;
   /** Empty for rows with no known cost (every Exchange upgrade). */
   remaining: ResourceBundle;
   total: ResourceBundle;
@@ -452,12 +457,6 @@ export interface UpgradeCost {
   effectText: string;
   note?: string;
   available: boolean;
-}
-
-export interface CompletionRow {
-  label: string;
-  current: number;
-  max: number;
 }
 
 /**
@@ -513,12 +512,5 @@ export interface ArcanistResult {
     total: Record<Resource, number>;
     /** Resources that some priced upgrade actually costs, in canonical order. */
     spendable: Resource[];
-  };
-  completion: {
-    rows: CompletionRow[];
-    current: number;
-    max: number;
-    /** Levels reserved on the sheet for unreleased content. */
-    reserved: number;
   };
 }

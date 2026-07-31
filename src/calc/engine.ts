@@ -18,7 +18,6 @@ import {
   BASE_STATS,
   CARD_SCALES,
   CARD_TIER_COUNT,
-  COMPLETION_RESERVED,
   CONTRACT_RUNE_CRAFT,
   ENEMIES,
   ESSENCE_UPGRADES,
@@ -157,6 +156,7 @@ function computeSpells(input: ArcanistInput, ext: ExternalBonuses, derived: Deri
       primary: spellEffect(def.primary.base, unlocked, level, rank, cardBonus, spellPower),
       secondary: spellEffect(def.secondary.base, unlocked, level, rank, cardBonus, spellPower),
       duration: def.durationBase * (1 + rank * SPELL_LEVEL_PER_RANK) * derived.spellDurationMulti,
+      potencyCostNext: rank >= def.maxRank ? 0 : curveCost(def.potencyCurve, rank, rank + 1),
       potencyCostRemaining: curveCost(def.potencyCurve, rank, def.maxRank),
       potencyCostTotal: curveCost(def.potencyCurve, 0, def.maxRank),
       potencyResource: def.potencyResource,
@@ -395,13 +395,15 @@ function costRow(
   note?: string,
 ): UpgradeCost {
   const common = { id, label, level, max, effectText, note, available: level < max };
+  const maxed = level >= max;
 
   // No cost data for this row (every Exchange upgrade). Distinct from free.
-  if (!cost) return { ...common, remaining: {}, total: {}, priced: false };
+  if (!cost) return { ...common, next: {}, remaining: {}, total: {}, priced: false };
 
   if (cost.kind === 'tiered') {
     return {
       ...common,
+      next: maxed ? {} : tieredCost(cost.tiers, level, level + 1),
       remaining: tieredCost(cost.tiers, level, max),
       total: tieredCost(cost.tiers, 0, max),
       priced: true,
@@ -411,6 +413,7 @@ function costRow(
   return {
     ...common,
     resource: cost.resource,
+    next: maxed ? {} : { [cost.resource]: curveCost(cost.curve, level, level + 1) },
     remaining: { [cost.resource]: curveCost(cost.curve, level, max) },
     total: { [cost.resource]: curveCost(cost.curve, 0, max) },
     priced: true,
@@ -460,6 +463,7 @@ function buildRows(
         label: `Unlock ${def.label}`,
         level: raw.unlocked ? 1 : 0,
         max: 1,
+        next: raw.unlocked ? {} : { ...def.unlockCost },
         remaining: raw.unlocked ? {} : { ...def.unlockCost },
         total: { ...def.unlockCost },
         effectText: raw.unlocked ? 'Unlocked' : 'Locked',
@@ -479,6 +483,8 @@ function buildRows(
       level: rank,
       max: def.maxRank,
       resource: def.potencyResource,
+      next:
+        rank >= def.maxRank ? {} : { [def.potencyResource]: outcome.potencyCostNext },
       remaining: { [def.potencyResource]: outcome.potencyCostRemaining },
       total: { [def.potencyResource]: outcome.potencyCostTotal },
       effectText: `${def.primary.label} ${formatEffect(outcome.primary, def.primary.display)} · ${
@@ -532,48 +538,6 @@ function sumTotals(rows: ArcanistResult['rows']): ArcanistResult['totals'] {
   return { remaining, total, spendable: RESOURCES.filter((r) => spendable.has(r)) };
 }
 
-function buildCompletion(input: ArcanistInput): ArcanistResult['completion'] {
-  const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
-
-  const essenceCur = sum(
-    ESSENCE_UPGRADES.map((d) => clampLevel(input.essence[d.id], d.max)),
-  );
-  const essenceMax = sum(ESSENCE_UPGRADES.map((d) => d.max));
-
-  const altarCur = sum(
-    ALTAR_IDS.flatMap((id) =>
-      ALTARS[id].upgrades.map((up) => clampLevel(input.altars[id][up.key], up.max)),
-    ),
-  );
-  const altarMax = sum(ALTAR_IDS.flatMap((id) => ALTARS[id].upgrades.map((up) => up.max)));
-
-  const spellLevelCur = sum(
-    SPELL_IDS.map((id) => clampLevel(input.spells[id].level, SPELLS[id].maxLevel)),
-  );
-  const spellLevelMax = sum(SPELL_IDS.map((id) => SPELLS[id].maxLevel));
-
-  const rankCur = sum(SPELL_IDS.map((id) => clampLevel(input.spells[id].rank, SPELLS[id].maxRank)));
-  const rankMax = sum(SPELL_IDS.map((id) => SPELLS[id].maxRank));
-
-  const exchangeCur = sum(EXCHANGE_UPGRADES.map((d) => clampLevel(input.exchange[d.id], d.max)));
-  const exchangeMax = sum(EXCHANGE_UPGRADES.map((d) => d.max));
-
-  const rows = [
-    { label: 'Essence Upgrades', current: essenceCur, max: essenceMax },
-    { label: 'Altar Upgrades', current: altarCur, max: altarMax },
-    { label: 'Spell Levels', current: spellLevelCur, max: spellLevelMax },
-    { label: 'Spell Potency Ranks', current: rankCur, max: rankMax },
-    { label: 'Exchange Upgrades', current: exchangeCur, max: exchangeMax },
-  ];
-
-  return {
-    rows,
-    current: sum(rows.map((r) => r.current)),
-    max: sum(rows.map((r) => r.max)) + COMPLETION_RESERVED,
-    reserved: COMPLETION_RESERVED,
-  };
-}
-
 // ---------------------------------------------------------------------------
 
 export function compute(input: ArcanistInput): ArcanistResult {
@@ -621,6 +585,5 @@ export function compute(input: ArcanistInput): ArcanistResult {
     drain,
     rows,
     totals: sumTotals(rows),
-    completion: buildCompletion(input),
   };
 }

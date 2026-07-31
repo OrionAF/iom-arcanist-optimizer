@@ -77,16 +77,52 @@ number gets planned around, which is worse than nothing in a planning tool.
 
 Consequences:
 
-- The Exchange table has no Remaining / Total columns.
+- The Exchange table has no cost column.
 - Resources that **only** Exchange consumed no longer appear in Total Resources:
   Blue Cow, Scorpio / Lynx / Aquarius Star, Superstars, Prestige Points, Stone
   Vein, and Soft / Dense Essence. Red Orb drops out too — nothing costs it.
 - The Ash, Brine and Chasm Rune totals are lower than the sheet's `C95`/`C96`/
   `C97`, which included Exchange costs. Orb totals still match the sheet exactly.
-- Exchange levels still count toward completion, unchanged.
 
 Costs are still shown for Essence Upgrades, Altar upgrades and unlocks, and
 Spell Potency ranks, all of which come from real in-game figures.
+
+### Eleven of the thirteen Exchange upgrades
+
+Only two Exchange upgrades change anything the Arcanist computes:
+
+- **Essence Damage Per Arcane Card** (`A71`) — flat damage equal to the Arcane
+  card count.
+- **Rune Craft Multiplier** (`A81`) — +1% per level into `Statmath!C372`.
+
+The other eleven buy portal chances, wizard loot, star caps, lootbug capacity
+and a spell unlock the Spells section already tracks with its own toggle. Not
+one of them appears in any Arcanist formula. Carried here they were a section a
+player could tune all evening without a single number moving, which is worse
+than not offering them: it implies they matter to this page. They are tracked in
+the game, not here. The five unreleased placeholder rows (`A82:A86`) go with
+them.
+
+Share links from before the change no longer decode. The packed format is
+positional, so its marker moved from `q` to `r` and old tokens are rejected
+loudly rather than silently reinterpreted. JSON exports still load — parsing
+walks the known upgrades and drops the rest.
+
+### The completion tracker
+
+The workbook's `K87:L99` block counts levels owned against levels available,
+per section and overall, up to a grand total of 1048 (`L99`, which includes a
+flat 180 reserved for unreleased content).
+
+That is a completionist's scoreboard, and this is a planner. Nothing else on the
+page reads it, no decision turns on it, and it counts levels rather than value —
+a three-level row weighs the same as a twenty-five-level one. It belonged to the
+sheet and does not belong here. Removed along with `COMPLETION_RESERVED`, so no
+part of the app now depends on the reserved-levels fudge.
+
+Everything the tracker summarised is still visible where it is actionable: each
+row shows its own level against its maximum, and Total Resources shows what is
+left to buy.
 
 ## Renamed
 

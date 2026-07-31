@@ -27,8 +27,9 @@ import { packFields, unpackFields } from './schema';
  *
  *   p — v1 field order (flat external bonuses)
  *   q — v2 field order (cards / pets / unlocks groups)
+ *   r — v3 field order (Exchange down to two upgrades)
  */
-const PACK_FORMAT = 'q';
+const PACK_FORMAT = 'r';
 export const HASH_KEY = 'b';
 
 function bytesToBase64Url(bytes: Uint8Array): string {

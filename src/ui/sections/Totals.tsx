@@ -21,7 +21,7 @@ export function Totals({ result }: { result: ArcanistResult }) {
   })).filter((group) => group.resources.length > 0);
 
   return (
-    <Section title="Total Resources" eyebrow="to max everything" flush>
+    <Section title="Total Resources" help="totalsPanel" eyebrow="to max everything" flush>
       <div className="scroll-x">
         <table className="matrix">
           <thead>

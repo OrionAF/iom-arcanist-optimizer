@@ -2,7 +2,6 @@ import {
   ALTARS,
   ALTAR_IDS,
   ESSENCE_UPGRADES,
-  EXCHANGE_PLACEHOLDERS,
   EXCHANGE_UPGRADES,
   RESOURCE_LABELS,
   SPELLS,
@@ -10,7 +9,17 @@ import {
 } from '../../calc/constants';
 import { formatDuration, formatNumber, formatPercent } from '../../calc/format';
 import type { AltarId, ArcanistInput, ArcanistResult, UpgradeCost } from '../../calc/types';
-import { BundleAmount, Icon, LevelInput, Meter, Section, Stat, Subhead, Switch } from '../components';
+import {
+  BundleAmount,
+  CostPair,
+  Help,
+  Icon,
+  LevelInput,
+  Section,
+  Stat,
+  Subhead,
+  Switch,
+} from '../components';
 import {
   ALTAR_ICONS,
   ESSENCE_UPGRADE_ICONS,
@@ -34,8 +43,9 @@ function RowsHead() {
         <th>Upgrade</th>
         <th>Level</th>
         <th>Effect</th>
-        <th style={{ textAlign: 'right' }}>Remaining</th>
-        <th style={{ textAlign: 'right' }}>Total</th>
+        <th style={{ textAlign: 'right' }}>
+          Next / Remaining <Help id="nextRemaining" />
+        </th>
       </tr>
     </thead>
   );
@@ -67,15 +77,13 @@ function CostRow({
         <LevelInput value={row.level} max={max} onChange={onChange} label={row.label} />
       </td>
       <td className="effect">{row.effectText}</td>
+      {/* Cost to max is not shown per row: it never changes as you play, and
+          the Total Resources panel already sums it. Next and remaining are the
+          two numbers that move. */}
       {row.priced ? (
-        <>
-          <td className="cost">
-            <BundleAmount bundle={row.remaining} />
-          </td>
-          <td className="cost">
-            <BundleAmount bundle={row.total} />
-          </td>
-        </>
+        <td className="cost">
+          <CostPair next={row.next} remaining={row.remaining} />
+        </td>
       ) : null}
     </tr>
   );
@@ -184,10 +192,15 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
       </div>
 
       <dl className="stats">
-        <Stat label="Cycle" value={formatDuration(outcome.cycleTime)} />
-        <Stat label="Runes / cycle" value={formatNumber(outcome.runesPerCycle, 2)} />
+        <Stat label="Cycle" help="altarCycle" value={formatDuration(outcome.cycleTime)} />
+        <Stat
+          label="Runes / cycle"
+          help="altarRunesPerCycle"
+          value={formatNumber(outcome.runesPerCycle, 2)}
+        />
         <Stat
           label={`${RESOURCE_LABELS[def.rune]}s / hr`}
+          help="altarRunesPerHour"
           value={
             <span style={{ color: `var(--res-${def.rune})` }}>
               {formatNumber(outcome.runesPerHour, 2)}
@@ -196,6 +209,7 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
         />
         <Stat
           label="Essence / hr"
+          help="altarEssencePerHour"
           value={
             <span style={{ color: state.active && state.unlocked ? 'var(--ember)' : undefined }}>
               {state.active && state.unlocked ? '−' : ''}
@@ -213,6 +227,7 @@ export function Altars(props: Props) {
     <Section
       title="Altars"
       icon={SECTION_ICONS.altars}
+      help="runeCraftMulti"
       eyebrow={`rune craft ×${formatNumber(props.result.runeCraftMulti, 4)}`}
       flush
     >
@@ -236,7 +251,9 @@ export function Spells({ input, result, update }: Props) {
               <th>Level</th>
               <th>Potency</th>
               <th>Effects</th>
-              <th style={{ textAlign: 'right' }}>Potency cost</th>
+              <th style={{ textAlign: 'right' }}>
+                Potency next / remaining <Help id="potencyCost" />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -301,7 +318,7 @@ export function Spells({ input, result, update }: Props) {
                     ) : null}
                   </td>
                   <td className="cost">
-                    <BundleAmount bundle={row.remaining} />
+                    <CostPair next={row.next} remaining={row.remaining} />
                     <div className="submeta">
                       {formatDuration(outcome.duration)} ·{' '}
                       <span className="named tight">
@@ -327,7 +344,13 @@ export function Spells({ input, result, update }: Props) {
 
 export function Exchange({ result, update }: Props) {
   return (
-    <Section title="Exchange" icon={SECTION_ICONS.exchange} eyebrow="costs unknown" flush>
+    <Section
+      title="Exchange"
+      icon={SECTION_ICONS.exchange}
+      eyebrow="costs unknown"
+      help="exchange"
+      flush
+    >
       <div className="scroll-x">
         <table className="rows">
           <thead>
@@ -354,19 +377,13 @@ export function Exchange({ result, update }: Props) {
                 />
               );
             })}
-            {EXCHANGE_PLACEHOLDERS.map((label) => (
-              <tr key={label} className="placeholder">
-                <td className="name">{label}</td>
-                <td colSpan={2}>Not released</td>
-              </tr>
-            ))}
           </tbody>
         </table>
       </div>
       <p className="note" style={{ padding: '10px 16px 14px' }}>
-        Exchange costs are not shown. They are not documented in game, and the figures the
-        spreadsheet carried were guesses rather than observations. Levels still count toward
-        completion.
+        Only the two Exchange upgrades the Arcanist actually reads are listed. Their costs are not
+        shown — they are not documented in game, and the figures the spreadsheet carried were
+        guesses rather than observations.
       </p>
     </Section>
   );
@@ -379,35 +396,40 @@ export function Stats({ result }: { result: ArcanistResult }) {
   return (
     <Section title="Arcanist Stats" eyebrow="derived" flush>
       <dl className="stats">
-        <Stat label="Damage" value={formatNumber(Math.round(s.damage))} />
-        <Stat label="Attack every" value={formatDuration(s.attackInterval)} />
-        <Stat label="Crit chance" value={formatPercent(s.critChance)} />
-        <Stat label="Crit damage" value={`×${formatNumber(s.critDamage, 2)}`} />
-        <Stat label="Super crit" value={formatPercent(s.superCritChance)} />
-        <Stat label="Super crit dmg" value={`×${formatNumber(s.superCritDamage, 2)}`} />
-        <Stat label="Armour pen" value={formatNumber(s.armorPen)} />
-        <Stat label="Stun negate" value={formatPercent(s.stunNegate)} />
-        <Stat label="Shiny chance" value={formatPercent(s.shinyChance)} />
-        <Stat label="Shiny bonus" value={`+${formatNumber(s.shinyBonus)}`} />
-        <Stat label="Super shiny" value={formatPercent(s.superShinyChance)} />
-        <Stat label="Brittle chance" value={formatPercent(s.brittleChance)} />
+        <Stat label="Damage" help="statDamage" value={formatNumber(Math.round(s.damage))} />
+        <Stat
+          label="Attack every"
+          help="statAttackInterval"
+          value={formatDuration(s.attackInterval)}
+        />
+        <Stat label="Crit chance" help="statCritChance" value={formatPercent(s.critChance)} />
+        <Stat
+          label="Crit damage"
+          help="statCritDamage"
+          value={`×${formatNumber(s.critDamage, 2)}`}
+        />
+        <Stat label="Super crit" help="statSuperCrit" value={formatPercent(s.superCritChance)} />
+        <Stat
+          label="Super crit dmg"
+          help="statSuperCritDamage"
+          value={`×${formatNumber(s.superCritDamage, 2)}`}
+        />
+        <Stat label="Armour pen" help="statArmorPen" value={formatNumber(s.armorPen)} />
+        <Stat label="Stun negate" help="statStunNegate" value={formatPercent(s.stunNegate)} />
+        <Stat label="Shiny chance" help="statShinyChance" value={formatPercent(s.shinyChance)} />
+        <Stat label="Shiny bonus" help="statShinyBonus" value={`+${formatNumber(s.shinyBonus)}`} />
+        <Stat
+          label="Super shiny"
+          help="statSuperShiny"
+          value={formatPercent(s.superShinyChance)}
+        />
+        <Stat
+          label="Brittle chance"
+          help="statBrittleChance"
+          value={formatPercent(s.brittleChance)}
+        />
       </dl>
     </Section>
   );
 }
 
-export function Completion({ result }: { result: ArcanistResult }) {
-  const { rows, current, max, reserved } = result.completion;
-  return (
-    <Section title="Completion">
-      {rows.map((row) => (
-        <Meter key={row.label} {...row} />
-      ))}
-      <div style={{ height: 8 }} />
-      <Meter label="Total" current={current} max={max} grand />
-      <p className="note" style={{ marginTop: 10 }}>
-        Total includes {reserved} levels the sheet reserves for unreleased content.
-      </p>
-    </Section>
-  );
-}

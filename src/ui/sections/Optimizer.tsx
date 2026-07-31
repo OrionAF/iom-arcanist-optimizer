@@ -143,7 +143,7 @@ function GoalList({
 
 export function Optimizer({ input, result }: { input: ArcanistInput; result: ArcanistResult }) {
   return (
-    <Section title="Optimizer" eyebrow="best next buys · per hour gained">
+    <Section title="Optimizer" help="optimizer" eyebrow="best next buys · per hour gained">
       <div className="opt-goals">
         <GoalList input={input} result={result} goal="essence" title="For essence / hr" />
         <GoalList input={input} result={result} goal="runes" title="For runes / hr" />

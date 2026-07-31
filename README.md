@@ -29,9 +29,14 @@ Icons are game assets from the [wiki](https://shminer.wiki.gg/), vendored into
 
 ## Using it
 
-- **Levels** — every row takes your current level; costs update as remaining vs.
-  full cost to max. Exchange upgrades show no cost, because the real prices are
-  not documented in game — see [CORRECTIONS.md](CORRECTIONS.md).
+- **Levels** — every row takes your current level, and prices it two ways: what
+  the next level costs, and what the rest of the row costs to max. Exchange
+  shows no cost, and only lists the two upgrades the Arcanist actually reads —
+  see [CORRECTIONS.md](CORRECTIONS.md).
+- **?** — every derived number has one. It explains what the figure is and, where
+  the shape of the calculation is the answer, how it is worked out.
+- **Sections fold.** Which ones you leave closed is remembered locally, and is
+  not part of the build a share link carries.
 - **Cards, Pets, Unlocks, Contracts** — what the rest of your account
   contributes. Defaults are all zero, so fill these in or the numbers read low.
   Cards are picked by tier; the tier total drives Essence Damage Per Arcane Card.
@@ -106,9 +111,26 @@ so a single altar converts essence to runes at exactly its craft multiplier no
 matter how it is tuned. That cancellation is per altar, not across a set — the
 tests pin both halves of it.
 
+### The potency path
+
+`src/calc/potency.ts` answers a different question, because the optimizer's
+does not work for spell potencies: four of the six spells affect drones, portals,
+stars and veins rather than anything on this page, so ranked by marginal value
+they read zero forever — true, and useless.
+
+What matters for potencies is scheduling. The path simulates the run to rank 10:
+it starts with an empty bank, waits until the next rank is affordable, buys it,
+and recomputes. The three rune types bank in parallel, so waits overlap and the
+total is the longest queue rather than the sum of them. Prismism's potency
+raises the Rune Craft multiplier and so shortens every wait after it, which is
+why it lands at the front — found by measuring rather than by a rule.
+
+Times assume nothing banked and every rune going into the plan, so they are
+floors: casting spells and buying altar upgrades spend from the same pile.
+
 ## Not built yet
 
-Goal-seek (cheapest path to a target), time-to-afford projections, and importing
-the game's `EXPORTSTATS` JSON. Time-to-afford needs per-resource income rates,
-which the Arcanist sheet does not model; supplying them would also let the
-per-resource queues merge into one ranked list.
+Goal-seek (cheapest path to a target), time-to-afford for the main optimizer,
+and importing the game's `EXPORTSTATS` JSON. Time-to-afford outside the potency
+path needs orb income rates, which the Arcanist sheet does not model; supplying
+them would also let the per-resource queues merge into one ranked list.

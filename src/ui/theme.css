@@ -6,14 +6,26 @@
  * so a cost column can be scanned without reading it.
  */
 
-/* Latin subsets only — the UI has no non-latin copy, and the full set ships
-   cyrillic/greek/vietnamese faces nobody here will load. */
-@import '@fontsource/ibm-plex-sans/latin-400.css';
-@import '@fontsource/ibm-plex-sans/latin-500.css';
-@import '@fontsource/ibm-plex-sans/latin-600.css';
-@import '@fontsource/ibm-plex-mono/latin-400.css';
-@import '@fontsource/ibm-plex-mono/latin-500.css';
-@import '@fontsource/ibm-plex-mono/latin-600.css';
+/*
+ * Inter and JetBrains Mono, at 500 rather than 400 for body text.
+ *
+ * IBM Plex Sans is a handsome face with a small x-height and thin strokes, and
+ * at the sizes this UI uses it read as faint. Inter is drawn for screen UI —
+ * tall x-height, open apertures, no stroke thinning at small sizes — and is one
+ * of the most widely used interface faces there is, so it is familiar as well as
+ * legible. Medium is the body weight here; regular is reserved for nothing.
+ *
+ * Latin subsets only — the UI has no non-latin copy, and the full set ships
+ * cyrillic/greek/vietnamese faces nobody here will load.
+ */
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-700.css';
+@import '@fontsource/jetbrains-mono/latin-400.css';
+@import '@fontsource/jetbrains-mono/latin-500.css';
+@import '@fontsource/jetbrains-mono/latin-600.css';
+@import '@fontsource/jetbrains-mono/latin-700.css';
 
 :root {
   --void: #0a0d13;
@@ -22,9 +34,12 @@
   --seam: #232c38;
   --seam-bright: #35424f;
 
-  --text: #e8ebf2;
-  --text-dim: #98a3b4;
-  --text-faint: #5f6b7e;
+  /* Dim and faint were set for a lighter face; Inter at 500 needs less help,
+     but the old values were already under 4.5:1 on --stratum, so they come up
+     rather than down. Faint is now the lightest tone used for real words. */
+  --text: #eef1f7;
+  --text-dim: #b3bccb;
+  --text-faint: #8894a6;
 
   --ash: #d8cba6;
   --brine: #46c8b8;
@@ -54,8 +69,25 @@
   --res-prestigePoints: #d88fc0;
   --res-blueCow: #6fa8e0;
 
-  --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
-  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, Menlo, monospace;
+
+  /*
+   * One ramp, used everywhere. Every size in the app comes from this list so
+   * the whole page can be made larger or smaller from five lines.
+   *
+   * --micro is the floor: it is only ever used for uppercase letterspaced mono
+   * labels, which need more size than lowercase prose to read at a glance.
+   */
+  --fs-micro: 11.5px;
+  --fs-tiny: 12.5px;
+  --fs-small: 13.5px;
+  --fs-body: 15px;
+  --fs-lead: 17px;
+
+  /* Body copy sits at medium; regular is too light on a dark background. */
+  --w-body: 500;
+  --w-strong: 600;
 
   --r: 4px;
   --gap: 20px;
@@ -76,15 +108,17 @@ html {
 body {
   margin: 0;
   font-family: var(--sans);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: var(--fs-body);
+  font-weight: var(--w-body);
+  line-height: 1.55;
   color: var(--text);
   background:
     radial-gradient(900px 500px at 12% -8%, rgba(145, 121, 230, 0.09), transparent 65%),
     radial-gradient(760px 420px at 92% 4%, rgba(70, 200, 184, 0.06), transparent 62%),
     var(--void);
   background-attachment: fixed;
-  -webkit-font-smoothing: antialiased;
+  /* No `-webkit-font-smoothing: antialiased` — it thins strokes on macOS, which
+     is the opposite of what light-on-dark text needs. */
 }
 
 /* All numerals are mono and tabular so columns line up down the page. */

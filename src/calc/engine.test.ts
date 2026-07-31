@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { compute } from './engine';
-import { ALTAR_IDS, CARD_SCALES, cardValue } from './constants';
+import { ALTAR_IDS, CARD_SCALES, EXCHANGE_UPGRADES, cardValue } from './constants';
 import { curveCost } from './costs';
 import { formatCompact, formatShortScale } from './format';
 import { EXAMPLE_INPUT } from '../presets/example';
@@ -307,27 +307,6 @@ describe('total resource costs (A87:C110)', () => {
   });
 });
 
-describe('completion (K87:L99)', () => {
-  const cases = [
-    { label: 'essence upgrades', ref: 'K89', actual: result.completion.rows[0]!.current },
-    { label: 'essence upgrades max', ref: 'L89', actual: result.completion.rows[0]!.max },
-    { label: 'altar upgrades', ref: 'K91', actual: result.completion.rows[1]!.current },
-    { label: 'altar upgrades max', ref: 'L91', actual: result.completion.rows[1]!.max },
-    { label: 'spell levels', ref: 'K93', actual: result.completion.rows[2]!.current },
-    { label: 'spell levels max', ref: 'L93', actual: result.completion.rows[2]!.max },
-    { label: 'potency ranks', ref: 'K95', actual: result.completion.rows[3]!.current },
-    { label: 'potency ranks max', ref: 'L95', actual: result.completion.rows[3]!.max },
-    { label: 'exchange upgrades', ref: 'K97', actual: result.completion.rows[4]!.current },
-    { label: 'exchange upgrades max', ref: 'L97', actual: result.completion.rows[4]!.max },
-    { label: 'total', ref: 'K99', actual: result.completion.current },
-    { label: 'total max', ref: 'L99', actual: result.completion.max },
-  ];
-
-  it.each(cases)('$label matches $ref', ({ actual, ref, label }) => {
-    expectMatchesSheet(actual, ref, label);
-  });
-});
-
 describe('per-row costs match the sheet cell for cell', () => {
   /** Cost Remaining cells (column G) for every row with a curve-based cost. */
   const essenceRows: [string, string][] = [
@@ -434,8 +413,18 @@ describe('exchange upgrades carry no costs', () => {
     ]);
   });
 
-  it('still counts exchange levels toward completion', () => {
-    expectMatchesSheet(result.completion.rows[4]!.current, 'K97', 'exchange upgrades');
+  /**
+   * The eleven Exchange upgrades that touch no Arcanist formula are not
+   * modelled — see CORRECTIONS.md. Pinned because the two that remain are the
+   * two the engine actually reads, and a row quietly reappearing here would be
+   * a row a player could tune with nothing to show for it.
+   */
+  it('models only the two Exchange upgrades that change something', () => {
+    expect(EXCHANGE_UPGRADES.map((def) => def.id)).toEqual([
+      'arcaneCardDamage',
+      'runeCraftMulti',
+    ]);
+    expect(result.rows.exchange).toHaveLength(2);
   });
 });
 
@@ -660,8 +649,6 @@ describe('fresh preset', () => {
 
   it('is a coherent starting state', () => {
     expect(fresh.stats.damage).toBe(10);
-    expect(fresh.completion.current).toBe(0);
-    expect(fresh.completion.max).toBe(1048);
     expect(fresh.drain.soft).toBe(0);
   });
 

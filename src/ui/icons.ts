@@ -103,18 +103,7 @@ export const ESSENCE_UPGRADE_ICONS: Record<EssenceUpgradeId, string> = {
 };
 
 export const EXCHANGE_UPGRADE_ICONS: Record<ExchangeUpgradeId, string> = {
-  exchangeWizards: icon('Exchange_Wizard.png'),
-  exchangeTimer: icon('Hourglass.png'),
   arcaneCardDamage: icon('Archaeology_Flat_Damage.png'),
-  rainbowFloorMulti: icon('Rainbow_Floor_Multiplier.png'),
-  lootbugBankedCap: icon('Banked_Lootbug_Cap.png'),
-  goldenPortalChance: icon('Golden_Void_Portal_Chance.png'),
-  starSupergiantMulti: icon('Star_Supergiant_Multiplier.png'),
-  wizardLootMulti: icon('Wizard_Loot_Multi.png'),
-  geminiStarCap: icon('Star_Specific_Cap.png'),
-  unlockVeinboyant: icon('Spell_Unlock.png'),
-  prismaticFloorChance: icon('Prismatic_Galactic_Floor_Chance.png'),
-  shinyFishMulti: icon('Shiny_Multiplier.png'),
   runeCraftMulti: icon('Rune_Craft_Multi.png'),
 };
 

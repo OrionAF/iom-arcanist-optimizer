@@ -1,6 +1,9 @@
 node_modules/
 dist/
 *.local
+
+# Derived code graph, rebuilt from source by `graphify update .`.
+graphify-out/
 .DS_Store
 .vscode/
 .idea/

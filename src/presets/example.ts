@@ -40,18 +40,7 @@ export const EXAMPLE_INPUT: ArcanistInput = {
     veinboyant: { unlocked: false, level: 0, rank: 0 }, // A64
   },
   exchange: {
-    exchangeWizards: 3, // A69
-    exchangeTimer: 15, // A70
     arcaneCardDamage: 1, // A71
-    rainbowFloorMulti: 11, // A72
-    lootbugBankedCap: 3, // A73
-    goldenPortalChance: 10, // A74
-    starSupergiantMulti: 0, // A75
-    wizardLootMulti: 0, // A76
-    geminiStarCap: 0, // A77
-    unlockVeinboyant: 0, // A78
-    prismaticFloorChance: 0, // A79
-    shinyFishMulti: 0, // A80
     runeCraftMulti: 0, // A81
   },
   external: {

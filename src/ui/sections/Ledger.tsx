@@ -2,7 +2,7 @@ import { ESSENCE_LABELS } from '../../calc/constants';
 import { formatNumber } from '../../calc/format';
 import type { ArcanistResult, EssenceType } from '../../calc/types';
 import { ESSENCE_TYPES } from '../../calc/types';
-import { Icon, useFlashOnChange } from '../components';
+import { Help, Icon, useFlashOnChange } from '../components';
 import { ESSENCE_ICONS } from '../icons';
 
 /**
@@ -47,6 +47,7 @@ function LedgerCell({ type, result }: { type: EssenceType; result: ArcanistResul
               {formatNumber(outcome.netEssencePerHour, 2)}
             </span>
             <span className="unit">net / hr</span>
+            <Help id="ledgerNet" />
           </div>
 
           <div className="drainbar" aria-hidden="true">
@@ -56,17 +57,23 @@ function LedgerCell({ type, result }: { type: EssenceType; result: ArcanistResul
 
           <div className="ledger-lines">
             <div>
-              <span>Income</span>
+              <span>
+                Income <Help id="ledgerIncome" />
+              </span>
               <span className="num">{formatNumber(outcome.essencePerHour, 2)}</span>
             </div>
             <div className="drain">
-              <span>Altar drain</span>
+              <span>
+                Altar drain <Help id="ledgerDrain" />
+              </span>
               <span className="num">
                 {outcome.altarDrain > 0 ? `−${formatNumber(outcome.altarDrain, 2)}` : '0'}
               </span>
             </div>
             <div>
-              <span>Kills / hr</span>
+              <span>
+                Kills / hr <Help id="ledgerKills" />
+              </span>
               <span className="num">{formatNumber(outcome.killsPerHour, 2)}</span>
             </div>
           </div>

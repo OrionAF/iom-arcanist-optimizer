@@ -114,6 +114,42 @@ export function formatEffect(value: number, display: 'flat' | 'percent'): string
   return display === 'percent' ? `+${formatPercent(value)}` : `+${formatNumber(value)}`;
 }
 
+/**
+ * Hours as "42m", "6h 10m", "9d 4h", "3mo 12d", "2y 4mo".
+ *
+ * Deliberately coarser as the span grows: a plan that runs for two years does
+ * not become more useful by being precise to the minute, and the precision
+ * would imply a confidence the estimate has not earned.
+ */
+export function formatHours(hours: number): string {
+  if (!Number.isFinite(hours)) return 'never';
+  if (hours <= 0) return 'now';
+  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m`;
+
+  if (hours < 48) {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    // Rounding 1.999h up to "1h 60m" is the one case worth catching.
+    return m === 60 ? `${h + 1}h` : m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }
+
+  const days = Math.floor(hours / 24);
+  if (days < 60) {
+    const h = Math.floor(hours - days * 24);
+    return h > 0 ? `${days}d ${h}h` : `${days}d`;
+  }
+
+  const months = Math.floor(days / 30);
+  if (months < 24) {
+    const d = days - months * 30;
+    return d > 0 ? `${months}mo ${d}d` : `${months}mo`;
+  }
+
+  const years = Math.floor(months / 12);
+  const mo = months - years * 12;
+  return mo > 0 ? `${years}y ${mo}mo` : `${years}y`;
+}
+
 /** Seconds as "1m 24s" for durations and cycle times. */
 export function formatDuration(seconds: number): string {
   if (!Number.isFinite(seconds)) return '—';

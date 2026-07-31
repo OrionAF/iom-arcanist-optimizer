@@ -9,6 +9,7 @@ import type { ArcanistInput } from '../calc/types';
 import { SCHEMA_VERSION, fromSavedBuild, toSavedBuild } from './schema';
 
 const STORAGE_KEY = 'iom-arcanist-optimizer:build';
+const PANELS_KEY = 'iom-arcanist-optimizer:panels';
 
 export function loadBuild(): ArcanistInput | null {
   try {
@@ -33,6 +34,38 @@ export function clearBuild(): void {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* ignore */
+  }
+}
+
+/**
+ * Which panels are open, keyed by panel id.
+ *
+ * Kept out of the build so it never travels in a share link or an export — how
+ * someone has arranged their own screen is not part of the build they are
+ * sharing. A missing entry means "whatever the panel's default is", so adding a
+ * panel does not need a migration.
+ */
+export function loadPanels(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(PANELS_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+    const out: Record<string, boolean> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'boolean') out[key] = value;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function savePanel(id: string, open: boolean): void {
+  try {
+    localStorage.setItem(PANELS_KEY, JSON.stringify({ ...loadPanels(), [id]: open }));
+  } catch {
+    // Same bargain as the build autosave: a convenience, not a requirement.
   }
 }
 

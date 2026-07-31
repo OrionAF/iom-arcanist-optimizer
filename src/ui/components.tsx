@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 import { RESOURCE_LABELS } from '../calc/constants';
 import { formatCompact } from '../calc/format';
 import type { Resource, ResourceBundle } from '../calc/types';
+import { loadPanels, savePanel } from '../state/storage';
+import { HELP, type HelpEntry, type HelpId } from './help';
 import { RESOURCE_ICONS } from './icons';
 
 // ----------------------------------------------------------------- icons ---
@@ -39,53 +42,178 @@ export function Icon({
   );
 }
 
+// ------------------------------------------------------------------- help --
+
+/** Where an open popover sits. Anchored above the mark when below it would clip. */
+interface Spot {
+  left: number;
+  top?: number;
+  bottom?: number;
+}
+
+const POP_WIDTH = 320;
+
+function spotFor(mark: HTMLElement): Spot {
+  const r = mark.getBoundingClientRect();
+  const left = Math.min(
+    Math.max(r.left + r.width / 2 - POP_WIDTH / 2, 8),
+    Math.max(window.innerWidth - POP_WIDTH - 8, 8),
+  );
+  // Flip upward in the bottom half of the viewport, where a downward panel
+  // would run off the screen.
+  return r.bottom > window.innerHeight * 0.6
+    ? { left, bottom: window.innerHeight - r.top + 8 }
+    : { left, top: r.bottom + 8 };
+}
+
+/**
+ * The "?" beside a label, and the explanation behind it.
+ *
+ * Rendered into `document.body` rather than in place: these marks sit inside
+ * table headers and horizontally scrolling panels, and a popover positioned
+ * within those would be clipped by their own overflow. Fixed positioning
+ * measured from the mark avoids that entirely, at the cost of having to close
+ * on scroll — which is the right behaviour anyway, since the anchor moves.
+ */
+export function Help({ id }: { id: HelpId }) {
+  // Widened deliberately: HELP is `as const` so its keys type HelpId, which
+  // also narrows each entry to its own literal shape and hides `formula` on the
+  // ones that lack it.
+  const entry: HelpEntry = HELP[id];
+  const [open, setOpen] = useState(false);
+  const [spot, setSpot] = useState<Spot | null>(null);
+  const mark = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+
+  const close = useCallback(() => setOpen(false), []);
+
+  /*
+   * Scrolling repositions the popover rather than dismissing it.
+   *
+   * Dismissing looks tidier and is wrong: clicking a mark that is only half in
+   * view makes the browser scroll it into view to focus it, which fired the
+   * dismissal before the popover had been seen at all. Following the anchor has
+   * no such race, and is better behaviour besides. It closes only when the
+   * anchor leaves the viewport, where there is nothing left to point at.
+   */
+  useEffect(() => {
+    if (!open) return;
+
+    const place = () => {
+      const el = mark.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > window.innerHeight) setOpen(false);
+      else setSpot(spotFor(el));
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      mark.current?.focus();
+    };
+
+    place();
+    // Capture, so scrolling any ancestor moves it and not just the page.
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={mark}
+        type="button"
+        className="help-mark"
+        aria-label={`What is ${entry.title}?`}
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        onClick={(e) => {
+          // These marks sit inside <summary> elements; without this, asking what
+          // a section is would also collapse it.
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+      >
+        ?
+      </button>
+      {open && spot
+        ? createPortal(
+            <>
+              <div className="help-scrim" onPointerDown={close} />
+              <div
+                id={panelId}
+                className="help-pop"
+                role="note"
+                style={{ left: spot.left, top: spot.top, bottom: spot.bottom }}
+              >
+                <h4>{entry.title}</h4>
+                {entry.body.split('\n\n').map((para) => (
+                  <p key={para}>{para}</p>
+                ))}
+                {entry.formula ? <code className="help-formula">{entry.formula}</code> : null}
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
 // ------------------------------------------------------------------ shell --
 
+/**
+ * Every panel on the page, and all of them fold away.
+ *
+ * A `<details>` rather than a hand-rolled disclosure so the header is a real
+ * button to a screen reader and browser find-in-page can still reach collapsed
+ * content. Open state is remembered per panel — the page is long enough that
+ * re-collapsing the six sections you never look at, on every visit, is a chore.
+ *
+ * State lives outside the build on purpose: how someone has arranged their own
+ * screen is not part of the build a share link carries.
+ */
 export function Section({
   title,
   icon,
   eyebrow,
+  help,
   flush,
+  defaultOpen = true,
   children,
 }: {
   title: string;
   icon?: string;
   eyebrow?: ReactNode;
+  help?: HelpId;
   flush?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <section className="section">
-      <header>
-        {icon ? <Icon src={icon} size={22} /> : null}
-        <h2>{title}</h2>
-        {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
-      </header>
-      <div className={flush ? 'body flush' : 'body'}>{children}</div>
-    </section>
-  );
-}
-
-export function Collapsible({
-  title,
-  icon,
-  eyebrow,
-  defaultOpen = false,
-  flush,
-  children,
-}: {
-  title: string;
-  icon?: string;
-  eyebrow?: ReactNode;
   defaultOpen?: boolean;
-  flush?: boolean;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(() => loadPanels()[title] ?? defaultOpen);
+
   return (
-    <details className="section" open={defaultOpen}>
+    <details
+      className="section"
+      open={open}
+      onToggle={(e) => {
+        const next = e.currentTarget.open;
+        if (next === open) return;
+        setOpen(next);
+        savePanel(title, next);
+      }}
+    >
       <summary>
         {icon ? <Icon src={icon} size={22} /> : null}
         <h2>{title}</h2>
+        {help ? <Help id={help} /> : null}
         {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
       </summary>
       <div className={flush ? 'body flush' : 'body'}>{children}</div>
@@ -287,6 +415,52 @@ export function BundleAmount({ bundle }: { bundle: ResourceBundle }) {
   );
 }
 
+/**
+ * "next / remaining" for one upgrade row.
+ *
+ * Two numbers rather than one because they answer different questions: what a
+ * player can act on today, and how far the row still has to run. When both are
+ * priced in the same single resource — nearly every row — they share one icon
+ * and read as a single fraction. The exceptions (Essence Mine, whose tiers step
+ * from ash runes to brine) fall back to two full bundles either side of the
+ * slash, which is wordier but never wrong.
+ */
+export function CostPair({ next, remaining }: { next: ResourceBundle; remaining: ResourceBundle }) {
+  const nextKeys = Object.keys(next) as Resource[];
+  const remainingKeys = Object.keys(remaining) as Resource[];
+  const sole =
+    nextKeys.length === 1 && remainingKeys.length === 1 && nextKeys[0] === remainingKeys[0]
+      ? nextKeys[0]!
+      : undefined;
+
+  // Maxed rows have no next level; the em dash says so without implying "free".
+  const atMax = nextKeys.length === 0;
+
+  if (sole !== undefined) {
+    const src = RESOURCE_ICONS[sole];
+    return (
+      <span className="res" title={RESOURCE_LABELS[sole]}>
+        <span className="num">{formatCompact(next[sole] ?? 0)}</span>
+        <span className="cost-slash">/</span>
+        <span className="num spent">{formatCompact(remaining[sole] ?? 0)}</span>
+        {src ? (
+          <Icon src={src} size={16} alt={RESOURCE_LABELS[sole]} />
+        ) : (
+          <span className="dot" style={{ ['--dot' as string]: `var(--res-${sole})` }} />
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <span className="cost-pair">
+      {atMax ? <span className="num spent">—</span> : <BundleAmount bundle={next} />}
+      <span className="cost-slash">/</span>
+      <BundleAmount bundle={remaining} />
+    </span>
+  );
+}
+
 export function ResourceName({ resource }: { resource: Resource }) {
   const src = RESOURCE_ICONS[resource];
   return (
@@ -303,45 +477,22 @@ export function ResourceName({ resource }: { resource: Resource }) {
 
 // ------------------------------------------------------------------ misc ---
 
-export function Stat({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="stat">
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
-}
-
-export function Meter({
+export function Stat({
   label,
-  current,
-  max,
-  grand,
+  value,
+  help,
 }: {
   label: string;
-  current: number;
-  max: number;
-  grand?: boolean;
+  value: ReactNode;
+  help?: HelpId;
 }) {
-  const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0;
   return (
-    <div className={grand ? 'meter grand' : 'meter'}>
-      <div className="row">
-        <span>{label}</span>
-        <span className="num">
-          {current} / {max}
-        </span>
-      </div>
-      <div
-        className="track"
-        role="progressbar"
-        aria-label={label}
-        aria-valuenow={current}
-        aria-valuemin={0}
-        aria-valuemax={max}
-      >
-        <div className="fill" style={{ width: `${pct}%` }} />
-      </div>
+    <div className="stat">
+      <dt>
+        {label}
+        {help ? <Help id={help} /> : null}
+      </dt>
+      <dd>{value}</dd>
     </div>
   );
 }
