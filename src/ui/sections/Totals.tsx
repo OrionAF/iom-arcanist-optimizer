@@ -1,11 +1,24 @@
-import { RESOURCE_GROUPS, RESOURCE_LABELS } from '../../calc/constants';
+import { RESOURCE_GROUPS } from '../../calc/constants';
 import { formatShortScale } from '../../calc/format';
 import type { ArcanistResult } from '../../calc/types';
-import { Section } from '../components';
+import { ResourceName, Section } from '../components';
 
-/** Everything still owed to finish every upgrade, grouped as the sheet groups it. */
+/**
+ * Everything still owed to finish every priced upgrade.
+ *
+ * Only resources something can actually cost are listed. Exchange upgrades
+ * carry no costs, so the resources they alone used to consume (stars, prestige
+ * points, veins, blue cow) no longer appear rather than sitting at a
+ * permanent, meaningless zero.
+ */
 export function Totals({ result }: { result: ArcanistResult }) {
-  const { remaining, total } = result.totals;
+  const { remaining, total, spendable } = result.totals;
+  const shown = new Set(spendable);
+
+  const groups = RESOURCE_GROUPS.map((group) => ({
+    label: group.label,
+    resources: group.resources.filter((r) => shown.has(r)),
+  })).filter((group) => group.resources.length > 0);
 
   return (
     <Section title="Total Resources" eyebrow="to max everything" flush>
@@ -18,34 +31,21 @@ export function Totals({ result }: { result: ArcanistResult }) {
               <th>Full cost</th>
             </tr>
           </thead>
-          {RESOURCE_GROUPS.map((group) => (
+          {groups.map((group) => (
             <tbody key={group.label}>
               <tr>
-                <td
-                  colSpan={3}
-                  style={{
-                    color: 'var(--text-faint)',
-                    fontFamily: 'var(--mono)',
-                    fontSize: 10,
-                    letterSpacing: '0.14em',
-                    textTransform: 'uppercase',
-                    paddingTop: 10,
-                  }}
-                >
+                <td colSpan={3} className="group">
                   {group.label}
                 </td>
               </tr>
               {group.resources.map((resource) => (
                 <tr key={resource}>
                   <td>
-                    <span
-                      className="res"
-                      style={{ ['--dot' as string]: `var(--res-${resource})` }}
-                    >
-                      {RESOURCE_LABELS[resource]}
-                    </span>
+                    <ResourceName resource={resource} />
                   </td>
-                  <td style={{ color: remaining[resource] > 0 ? 'var(--text)' : 'var(--text-faint)' }}>
+                  <td
+                    style={{ color: remaining[resource] > 0 ? 'var(--text)' : 'var(--text-faint)' }}
+                  >
                     {formatShortScale(remaining[resource])}
                   </td>
                   <td style={{ color: 'var(--text-faint)' }}>{formatShortScale(total[resource])}</td>

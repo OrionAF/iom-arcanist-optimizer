@@ -207,12 +207,18 @@ export interface SpellDef {
   durationBase: number;
 }
 
+/**
+ * Exchange upgrades carry no cost.
+ *
+ * The workbook priced them, but those numbers were invented rather than
+ * observed — they are not documented anywhere in game and are not close. A
+ * blank is honest; a wrong number gets planned around.
+ */
 export interface ExchangeUpgradeDef {
   id: ExchangeUpgradeId;
   row: number;
   label: string;
   max: number;
-  cost: CostSpec;
   /** Effect per level; omitted for pure unlocks. */
   perLevel?: number;
   display?: 'flat' | 'percent';
@@ -407,8 +413,11 @@ export interface UpgradeCost {
   max: number;
   /** Undefined for tiered rune costs, which span several resources. */
   resource?: Resource;
+  /** Empty for rows with no known cost (every Exchange upgrade). */
   remaining: ResourceBundle;
   total: ResourceBundle;
+  /** False when this row has no cost data at all, rather than a cost of zero. */
+  priced: boolean;
   /** Human-readable effect at the current level. */
   effectText: string;
   note?: string;
@@ -438,10 +447,12 @@ export interface ArcanistResult {
     spells: UpgradeCost[];
     exchange: UpgradeCost[];
   };
-  /** Totals by resource, summed across every row. */
+  /** Totals by resource, summed across every priced row. */
   totals: {
     remaining: Record<Resource, number>;
     total: Record<Resource, number>;
+    /** Resources that some priced upgrade actually costs, in canonical order. */
+    spendable: Resource[];
   };
   completion: {
     rows: CompletionRow[];

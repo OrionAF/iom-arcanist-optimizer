@@ -526,24 +526,22 @@ export const SPELL_LEVEL_PER_RANK = 0.05;
 // Exchange (A68:H86)
 // ---------------------------------------------------------------------------
 
+/**
+ * Exchange upgrades carry no costs — see ExchangeUpgradeDef for why. The
+ * workbook's prices for these were invented, so they are not carried over.
+ */
 export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
   {
     id: 'exchangeWizards',
     row: 69,
     label: 'Exchange Wizards',
     max: 3,
-    cost: {
-      kind: 'tiered',
-      tiers: [{ ashRune: 2500 }, { brineRune: 5000 }, { chasmRune: 2500 }],
-    },
   },
   {
     id: 'exchangeTimer',
     row: 70,
     label: 'Exchange Timer',
     max: 30,
-    // Level i costs i * 500 Blue Cow.
-    cost: curveOn('blueCow', arith(500, 500)),
     perLevel: 2,
     display: 'flat',
   },
@@ -552,7 +550,6 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     row: 71,
     label: 'Essence Damage Per Arcane Card',
     max: 1,
-    cost: curveOn('scorpioStar', arith(1e13, 0)),
     note: 'Grants flat damage equal to your total Arcane card count (External Bonuses).',
   },
   {
@@ -560,7 +557,6 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     row: 72,
     label: 'Rainbow Floor Multiplier',
     max: 20,
-    cost: curveOn('ashRune', geo(250, 1.3)),
     perLevel: 0.02,
     display: 'percent',
   },
@@ -569,7 +565,6 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     row: 73,
     label: 'Lootbug Banked Cap',
     max: 10,
-    cost: curveOn('prestigePoints', geo(1e25, 1.3)),
     perLevel: 1,
     display: 'flat',
   },
@@ -578,7 +573,6 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     row: 74,
     label: 'Golden Portal Chance',
     max: 25,
-    cost: curveOn('brineRune', geo(175, 1.3)),
     perLevel: 0.002,
     display: 'percent',
   },
@@ -587,7 +581,6 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     row: 75,
     label: 'Star Supergiant Multiplier',
     max: 25,
-    cost: curveOn('lynxStar', geo(2.5e14, 1.3)),
     perLevel: 0.01,
     display: 'percent',
   },
@@ -596,7 +589,6 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     row: 76,
     label: 'Wizard Loot Multiplier',
     max: 10,
-    cost: curveOn('softEssence', geo(750, 1.3)),
     perLevel: 0.03,
     display: 'percent',
   },
@@ -605,7 +597,6 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     row: 77,
     label: 'Gemini Star Cap',
     max: 10,
-    cost: curveOn('superstars', geo(5e8, 1.3)),
     perLevel: 2,
     display: 'flat',
   },
@@ -614,14 +605,12 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     row: 78,
     label: 'Unlock Spell: Veinboyant',
     max: 1,
-    cost: curveOn('stoneVein', arith(5e22, 0)),
   },
   {
     id: 'prismaticFloorChance',
     row: 79,
     label: 'Prismatic Floor Chance',
     max: 15,
-    cost: curveOn('chasmRune', geo(500, 1.3)),
     perLevel: 0.005,
     display: 'percent',
   },
@@ -630,7 +619,6 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     row: 80,
     label: 'Shiny Fish Multiplier',
     max: 20,
-    cost: curveOn('aquariusStar', geo(1e14, 1.3)),
     perLevel: 0.02,
     display: 'percent',
   },
@@ -639,7 +627,6 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     row: 81,
     label: 'Rune Craft Multiplier',
     max: 15,
-    cost: curveOn('denseEssence', geo(500, 1.3)),
     perLevel: 0.01,
     display: 'percent',
   },

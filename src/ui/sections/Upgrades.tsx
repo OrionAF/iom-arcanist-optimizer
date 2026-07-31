@@ -10,7 +10,16 @@ import {
 } from '../../calc/constants';
 import { formatDuration, formatNumber, formatPercent } from '../../calc/format';
 import type { AltarId, ArcanistInput, ArcanistResult, UpgradeCost } from '../../calc/types';
-import { BundleAmount, LevelInput, Meter, Section, Stat, Subhead, Switch } from '../components';
+import { BundleAmount, Icon, LevelInput, Meter, Section, Stat, Subhead, Switch } from '../components';
+import {
+  ALTAR_ICONS,
+  ESSENCE_UPGRADE_ICONS,
+  EXCHANGE_UPGRADE_ICONS,
+  MISC_ICONS,
+  SECTION_ICONS,
+  SPELL_ACTIVE_ICONS,
+  SPELL_ICONS,
+} from '../icons';
 
 interface Props {
   input: ArcanistInput;
@@ -35,28 +44,39 @@ function RowsHead() {
 function CostRow({
   row,
   max,
+  icon,
   onChange,
 }: {
   row: UpgradeCost;
   max: number;
+  icon?: string;
   onChange: (next: number) => void;
 }) {
   return (
     <tr className={row.level >= max ? 'maxed' : undefined}>
       <td className="name" title={row.note}>
-        {row.label}
-        {row.note ? <span style={{ color: 'var(--text-faint)' }}> ⁎</span> : null}
+        <span className="named">
+          {icon ? <Icon src={icon} size={20} dim={row.level >= max} /> : null}
+          <span>
+            {row.label}
+            {row.note ? <span style={{ color: 'var(--text-faint)' }}> ⁎</span> : null}
+          </span>
+        </span>
       </td>
       <td>
         <LevelInput value={row.level} max={max} onChange={onChange} label={row.label} />
       </td>
       <td className="effect">{row.effectText}</td>
-      <td className="cost">
-        <BundleAmount bundle={row.remaining} />
-      </td>
-      <td className="cost">
-        <BundleAmount bundle={row.total} />
-      </td>
+      {row.priced ? (
+        <>
+          <td className="cost">
+            <BundleAmount bundle={row.remaining} />
+          </td>
+          <td className="cost">
+            <BundleAmount bundle={row.total} />
+          </td>
+        </>
+      ) : null}
     </tr>
   );
 }
@@ -65,7 +85,7 @@ function CostRow({
 
 export function EssenceUpgrades({ result, update }: Props) {
   return (
-    <Section title="Essence Upgrades" eyebrow="orbs · runes" flush>
+    <Section title="Essence Upgrades" icon={SECTION_ICONS.essence} eyebrow="orbs · runes" flush>
       <div className="scroll-x">
         <table className="rows">
           <RowsHead />
@@ -77,6 +97,7 @@ export function EssenceUpgrades({ result, update }: Props) {
                   key={row.id}
                   row={row}
                   max={def.max}
+                  icon={ESSENCE_UPGRADE_ICONS[def.id]}
                   onChange={(next) =>
                     update((draft) => {
                       draft.essence[def.id] = next;
@@ -104,7 +125,10 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
 
   return (
     <>
-      <Subhead>{def.label}</Subhead>
+      <Subhead>
+        <Icon src={ALTAR_ICONS[id]} size={18} />
+        {def.label}
+      </Subhead>
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', padding: '0 16px 8px' }}>
         {needsUnlock ? (
@@ -188,6 +212,7 @@ export function Altars(props: Props) {
   return (
     <Section
       title="Altars"
+      icon={SECTION_ICONS.altars}
       eyebrow={`rune craft ×${formatNumber(props.result.runeCraftMulti, 4)}`}
       flush
     >
@@ -202,7 +227,7 @@ export function Altars(props: Props) {
 
 export function Spells({ input, result, update }: Props) {
   return (
-    <Section title="Spells" eyebrow="runes" flush>
+    <Section title="Spells" icon={SECTION_ICONS.spells} eyebrow="runes" flush>
       <div className="scroll-x">
         <table className="rows">
           <thead>
@@ -224,16 +249,24 @@ export function Spells({ input, result, update }: Props) {
               return (
                 <tr key={id} className={state.unlocked ? undefined : 'locked'}>
                   <td className="name">
-                    <Switch
-                      checked={state.unlocked}
-                      onChange={(next) =>
-                        update((draft) => {
-                          draft.spells[id].unlocked = next;
-                        })
-                      }
-                    >
-                      {def.label}
-                    </Switch>
+                    <span className="named">
+                      {/* The buff icon once you own it, the card art until then. */}
+                      <Icon
+                        src={state.unlocked ? SPELL_ACTIVE_ICONS[id] : SPELL_ICONS[id]}
+                        size={22}
+                        dim={!state.unlocked}
+                      />
+                      <Switch
+                        checked={state.unlocked}
+                        onChange={(next) =>
+                          update((draft) => {
+                            draft.spells[id].unlocked = next;
+                          })
+                        }
+                      >
+                        {def.label}
+                      </Switch>
+                    </span>
                   </td>
                   <td>
                     <LevelInput
@@ -269,8 +302,12 @@ export function Spells({ input, result, update }: Props) {
                   </td>
                   <td className="cost">
                     <BundleAmount bundle={row.remaining} />
-                    <div style={{ color: 'var(--text-faint)', fontSize: 11 }}>
-                      {formatDuration(outcome.duration)} · {def.manaCost} mana
+                    <div className="submeta">
+                      {formatDuration(outcome.duration)} ·{' '}
+                      <span className="named tight">
+                        {def.manaCost}
+                        <Icon src={MISC_ICONS.mana} size={14} alt="mana" />
+                      </span>
                     </div>
                   </td>
                 </tr>
@@ -290,10 +327,16 @@ export function Spells({ input, result, update }: Props) {
 
 export function Exchange({ result, update }: Props) {
   return (
-    <Section title="Exchange" eyebrow="stars · runes · essence" flush>
+    <Section title="Exchange" icon={SECTION_ICONS.exchange} eyebrow="costs unknown" flush>
       <div className="scroll-x">
         <table className="rows">
-          <RowsHead />
+          <thead>
+            <tr>
+              <th>Upgrade</th>
+              <th>Level</th>
+              <th>Effect</th>
+            </tr>
+          </thead>
           <tbody>
             {result.rows.exchange.map((row, i) => {
               const def = EXCHANGE_UPGRADES[i]!;
@@ -302,6 +345,7 @@ export function Exchange({ result, update }: Props) {
                   key={row.id}
                   row={row}
                   max={def.max}
+                  icon={EXCHANGE_UPGRADE_ICONS[def.id]}
                   onChange={(next) =>
                     update((draft) => {
                       draft.exchange[def.id] = next;
@@ -313,12 +357,17 @@ export function Exchange({ result, update }: Props) {
             {EXCHANGE_PLACEHOLDERS.map((label) => (
               <tr key={label} className="placeholder">
                 <td className="name">{label}</td>
-                <td colSpan={4}>Not released</td>
+                <td colSpan={2}>Not released</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <p className="note" style={{ padding: '10px 16px 14px' }}>
+        Exchange costs are not shown. They are not documented in game, and the figures the
+        spreadsheet carried were guesses rather than observations. Levels still count toward
+        completion.
+      </p>
     </Section>
   );
 }

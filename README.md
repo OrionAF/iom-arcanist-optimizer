@@ -20,14 +20,18 @@ The workbook itself is not committed here — it is a community binary and not
 ours to redistribute. What is committed is the derived fixture in
 `src/calc/__fixtures__/`, which the test suite checks the port against.
 
-Three formula errors in the source sheet are fixed here. They are documented in
+Four formula errors in the source sheet are fixed here. They are documented in
 [CORRECTIONS.md](CORRECTIONS.md) along with a few oddities left alone pending
 in-game confirmation.
+
+Icons are game assets from the [wiki](https://shminer.wiki.gg/), vendored into
+`public/icons/` — see [ICON-CREDITS.md](ICON-CREDITS.md).
 
 ## Using it
 
 - **Levels** — every row takes your current level; costs update as remaining vs.
-  full cost to max.
+  full cost to max. Exchange upgrades show no cost, because the real prices are
+  not documented in game — see [CORRECTIONS.md](CORRECTIONS.md).
 - **External Bonuses** — the Arcanist reads ~20 values from cards, pets,
   obelisks, skills, the store, constructs and contracts. Defaults are zero, so
   fill these in or the numbers will read low.

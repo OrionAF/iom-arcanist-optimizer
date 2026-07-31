@@ -2,7 +2,8 @@ import { ESSENCE_LABELS } from '../../calc/constants';
 import { formatNumber } from '../../calc/format';
 import type { ArcanistResult, EssenceType } from '../../calc/types';
 import { ESSENCE_TYPES } from '../../calc/types';
-import { useFlashOnChange } from '../components';
+import { Icon, useFlashOnChange } from '../components';
+import { ESSENCE_ICONS } from '../icons';
 
 /**
  * Net essence per hour for all three tiers, pinned above the inputs.
@@ -21,7 +22,10 @@ function LedgerCell({ type, result }: { type: EssenceType; result: ArcanistResul
 
   return (
     <div className="ledger-cell" data-type={type}>
-      <div className="ledger-head">{ESSENCE_LABELS[type]}</div>
+      <div className="ledger-head">
+        <Icon src={ESSENCE_ICONS[type]} size={18} />
+        {ESSENCE_LABELS[type]}
+      </div>
 
       {outcome.unkillable ? (
         <div className="ledger-blocked">

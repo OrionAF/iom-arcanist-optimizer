@@ -369,35 +369,30 @@ function costRow(
   label: string,
   level: number,
   max: number,
-  cost: (typeof ESSENCE_UPGRADES)[number]['cost'],
+  cost: (typeof ESSENCE_UPGRADES)[number]['cost'] | undefined,
   effectText: string,
   note?: string,
 ): UpgradeCost {
+  const common = { id, label, level, max, effectText, note, available: level < max };
+
+  // No cost data for this row (every Exchange upgrade). Distinct from free.
+  if (!cost) return { ...common, remaining: {}, total: {}, priced: false };
+
   if (cost.kind === 'tiered') {
     return {
-      id,
-      label,
-      level,
-      max,
+      ...common,
       remaining: tieredCost(cost.tiers, level, max),
       total: tieredCost(cost.tiers, 0, max),
-      effectText,
-      note,
-      available: level < max,
+      priced: true,
     };
   }
 
   return {
-    id,
-    label,
-    level,
-    max,
+    ...common,
     resource: cost.resource,
     remaining: { [cost.resource]: curveCost(cost.curve, level, max) },
     total: { [cost.resource]: curveCost(cost.curve, 0, max) },
-    effectText,
-    note,
-    available: level < max,
+    priced: true,
   };
 }
 
@@ -448,6 +443,7 @@ function buildRows(
         total: { ...def.unlockCost },
         effectText: raw.unlocked ? 'Unlocked' : 'Locked',
         available: !raw.unlocked,
+        priced: true,
       });
     }
   }
@@ -468,6 +464,7 @@ function buildRows(
         def.secondary.label
       } ${formatEffect(outcome.secondary, def.secondary.display)}`,
       available: rank < def.maxRank,
+      priced: true,
     } satisfies UpgradeCost;
   });
 
@@ -479,7 +476,7 @@ function buildRows(
           ? 'Purchased'
           : 'Not purchased'
         : `${def.label} ${formatEffect(level * def.perLevel, def.display ?? 'flat')}`;
-    return costRow(def.id, def.label, level, def.max, def.cost, effectText, def.note);
+    return costRow(def.id, def.label, level, def.max, undefined, effectText, def.note);
   });
 
   return { essence, altars, altarUnlocks, spells: spellRows, exchange };
@@ -497,12 +494,21 @@ function sumTotals(rows: ArcanistResult['rows']): ArcanistResult['totals'] {
     ...rows.exchange,
   ];
 
+  // Which resources the Arcanist can actually spend. Derived rather than
+  // listed, so dropping a cost also drops its resource from the totals panel
+  // instead of leaving a row stuck at zero forever.
+  const spendable = new Set<Resource>();
+
   for (const row of all) {
+    if (!row.priced) continue;
     addBundle(remaining as ResourceBundle, row.remaining);
     addBundle(total as ResourceBundle, row.total);
+    for (const resource of Object.keys(row.total) as Resource[]) {
+      if ((row.total[resource] ?? 0) > 0) spendable.add(resource);
+    }
   }
 
-  return { remaining, total };
+  return { remaining, total, spendable: RESOURCES.filter((r) => spendable.has(r)) };
 }
 
 function buildCompletion(input: ArcanistInput): ArcanistResult['completion'] {

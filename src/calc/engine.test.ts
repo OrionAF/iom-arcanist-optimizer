@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { compute } from './engine';
-import { CARD_SCALES, cardValue } from './constants';
+import { ALTAR_IDS, CARD_SCALES, cardValue } from './constants';
 import { curveCost } from './costs';
 import { formatCompact, formatShortScale } from './format';
 import { EXAMPLE_INPUT } from '../presets/example';
@@ -255,28 +255,49 @@ describe('spells (E45:L66)', () => {
 });
 
 describe('total resource costs (A87:C110)', () => {
+  /**
+   * Orbs are spent only by essence and altar upgrades, so these still match the
+   * sheet exactly. The rune totals do not — the sheet's figures included
+   * Exchange costs, which are no longer counted (see the exchange describe
+   * block below).
+   */
   const cases = [
     ['whiteOrb', 'C89'],
     ['greenOrb', 'C90'],
     ['purpleOrb', 'C91'],
     ['orangeOrb', 'C92'],
     ['redOrb', 'C93'],
-    ['ashRune', 'C95'],
-    ['brineRune', 'C96'],
-    ['chasmRune', 'C97'],
-    ['softEssence', 'C99'],
-    ['denseEssence', 'C100'],
-    ['stoneVein', 'C102'],
-    ['scorpioStar', 'C104'],
-    ['lynxStar', 'C105'],
-    ['aquariusStar', 'C106'],
-    ['superstars', 'C107'],
-    ['prestigePoints', 'C109'],
-    ['blueCow', 'C110'],
   ] as const;
 
   it.each(cases)('%s remaining matches %s', (resource, ref) => {
     expectMatchesSheet(result.totals.remaining[resource], ref, `${resource} remaining`);
+  });
+
+  it('rune totals are the sheet minus the exchange costs', () => {
+    // Ash: spell potency + the essence-mine and altar unlocks the sheet added
+    // separately. Every exchange contribution is gone.
+    const ash = result.totals.remaining.ashRune;
+    expect(ash).toBeGreaterThan(0);
+    expect(ash).toBeLessThan(sheet('C95'));
+
+    const brine = result.totals.remaining.brineRune;
+    expect(brine).toBeGreaterThan(0);
+    expect(brine).toBeLessThan(sheet('C96'));
+
+    const chasm = result.totals.remaining.chasmRune;
+    expect(chasm).toBeGreaterThan(0);
+    expect(chasm).toBeLessThan(sheet('C97'));
+  });
+
+  it('sums only priced rows', () => {
+    const sumOf = (rows: { remaining: Record<string, number | undefined> }[], key: string) =>
+      rows.reduce((n, row) => n + (row.remaining[key] ?? 0), 0);
+
+    const expectedWhite =
+      sumOf(result.rows.essence, 'whiteOrb') +
+      ALTAR_IDS.reduce((n, id) => n + sumOf(result.rows.altars[id], 'whiteOrb'), 0);
+
+    expect(result.totals.remaining.whiteOrb).toBeCloseTo(expectedWhite, 6);
   });
 });
 
@@ -326,27 +347,6 @@ describe('per-row costs match the sheet cell for cell', () => {
     expectMatchesSheet(amount, ref, `${id} cost remaining`);
   });
 
-  const exchangeRows: [string, string][] = [
-    ['exchangeTimer', 'G70'],
-    ['arcaneCardDamage', 'G71'],
-    ['rainbowFloorMulti', 'G72'],
-    ['lootbugBankedCap', 'G73'],
-    ['goldenPortalChance', 'G74'],
-    ['starSupergiantMulti', 'G75'],
-    ['wizardLootMulti', 'G76'],
-    ['geminiStarCap', 'G77'],
-    ['unlockVeinboyant', 'G78'],
-    ['prismaticFloorChance', 'G79'],
-    ['shinyFishMulti', 'G80'],
-    ['runeCraftMulti', 'G81'],
-  ];
-
-  it.each(exchangeRows)('exchange %s matches %s', (id, ref) => {
-    const row = result.rows.exchange.find((r) => r.id === id);
-    const amount = Object.values(row!.remaining)[0] ?? 0;
-    expectMatchesSheet(amount, ref, `${id} cost remaining`);
-  });
-
   const altarRows: [string, string, string][] = [
     ['ash', 'capacity', 'G29'],
     ['ash', 'travel', 'G30'],
@@ -369,8 +369,67 @@ describe('per-row costs match the sheet cell for cell', () => {
     expect(flatDamage1!.total.whiteOrb).toBeCloseTo(471.98108322034466, 6);
     const armorPen = result.rows.essence.find((r) => r.id === 'armorPen');
     expect(armorPen!.total.purpleOrb).toBe(75);
-    const timer = result.rows.exchange.find((r) => r.id === 'exchangeTimer');
-    expect(timer!.total.blueCow).toBe(232500);
+  });
+});
+
+/**
+ * The workbook priced the Exchange upgrades, but those figures were invented
+ * rather than observed. Showing a wrong number is worse than showing none,
+ * because a wrong one gets planned around.
+ */
+describe('exchange upgrades carry no costs', () => {
+  it('marks every exchange row unpriced with empty bundles', () => {
+    expect(result.rows.exchange).not.toHaveLength(0);
+    for (const row of result.rows.exchange) {
+      expect(row.priced, `${row.id} priced`).toBe(false);
+      expect(row.remaining, `${row.id} remaining`).toEqual({});
+      expect(row.total, `${row.id} total`).toEqual({});
+      expect(row.resource, `${row.id} resource`).toBeUndefined();
+    }
+  });
+
+  it('keeps every other section priced', () => {
+    const priced = [
+      ...result.rows.essence,
+      ...ALTAR_IDS.flatMap((id) => result.rows.altars[id]),
+      ...result.rows.altarUnlocks,
+      ...result.rows.spells,
+    ];
+    expect(priced.every((row) => row.priced)).toBe(true);
+  });
+
+  it('drops resources only Exchange used from the totals', () => {
+    // These were exchange-only costs on the sheet.
+    for (const resource of [
+      'blueCow',
+      'scorpioStar',
+      'lynxStar',
+      'aquariusStar',
+      'superstars',
+      'prestigePoints',
+      'stoneVein',
+      'softEssence',
+      'denseEssence',
+    ] as const) {
+      expect(result.totals.remaining[resource], resource).toBe(0);
+      expect(result.totals.spendable, `${resource} listed`).not.toContain(resource);
+    }
+  });
+
+  it('still lists the resources the remaining sections spend', () => {
+    expect(result.totals.spendable).toEqual([
+      'whiteOrb',
+      'greenOrb',
+      'purpleOrb',
+      'orangeOrb',
+      'ashRune',
+      'brineRune',
+      'chasmRune',
+    ]);
+  });
+
+  it('still counts exchange levels toward completion', () => {
+    expectMatchesSheet(result.completion.rows[4]!.current, 'K97', 'exchange upgrades');
   });
 });
 

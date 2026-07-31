@@ -3,16 +3,53 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { RESOURCE_LABELS } from '../calc/constants';
 import { formatCompact } from '../calc/format';
 import type { Resource, ResourceBundle } from '../calc/types';
+import { RESOURCE_ICONS } from './icons';
+
+// ----------------------------------------------------------------- icons ---
+
+/**
+ * A game icon.
+ *
+ * Decorative by default: these sit beside a text label that already says what
+ * the row is, so announcing the image again is noise. Pass `alt` only when the
+ * icon is the sole identifier.
+ */
+export function Icon({
+  src,
+  size = 20,
+  alt = '',
+  dim,
+}: {
+  src: string;
+  size?: number;
+  alt?: string;
+  dim?: boolean;
+}) {
+  return (
+    <img
+      className={dim ? 'icon dim' : 'icon'}
+      src={src}
+      alt={alt}
+      aria-hidden={alt === '' ? true : undefined}
+      width={size}
+      height={size}
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
 
 // ------------------------------------------------------------------ shell --
 
 export function Section({
   title,
+  icon,
   eyebrow,
   flush,
   children,
 }: {
   title: string;
+  icon?: string;
   eyebrow?: ReactNode;
   flush?: boolean;
   children: ReactNode;
@@ -20,6 +57,7 @@ export function Section({
   return (
     <section className="section">
       <header>
+        {icon ? <Icon src={icon} size={22} /> : null}
         <h2>{title}</h2>
         {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
       </header>
@@ -30,12 +68,14 @@ export function Section({
 
 export function Collapsible({
   title,
+  icon,
   eyebrow,
   defaultOpen = false,
   flush,
   children,
 }: {
   title: string;
+  icon?: string;
   eyebrow?: ReactNode;
   defaultOpen?: boolean;
   flush?: boolean;
@@ -44,6 +84,7 @@ export function Collapsible({
   return (
     <details className="section" open={defaultOpen}>
       <summary>
+        {icon ? <Icon src={icon} size={22} /> : null}
         <h2>{title}</h2>
         {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
       </summary>
@@ -55,7 +96,7 @@ export function Collapsible({
 export function Subhead({ children }: { children: ReactNode }) {
   return (
     <div className="subhead">
-      <span>{children}</span>
+      <span className="named">{children}</span>
       <span className="rule" />
     </div>
   );
@@ -208,10 +249,17 @@ export function NumberField({
 
 // -------------------------------------------------------------- resources --
 
+/** An amount with the resource's own icon, so a cost column can be scanned. */
 export function ResourceAmount({ resource, amount }: { resource: Resource; amount: number }) {
+  const src = RESOURCE_ICONS[resource];
   return (
-    <span className="res" style={{ ['--dot' as string]: `var(--res-${resource})` }}>
+    <span className="res" title={RESOURCE_LABELS[resource]}>
       <span className="num">{formatCompact(amount)}</span>
+      {src ? (
+        <Icon src={src} size={16} alt={RESOURCE_LABELS[resource]} />
+      ) : (
+        <span className="dot" style={{ ['--dot' as string]: `var(--res-${resource})` }} />
+      )}
     </span>
   );
 }
@@ -240,8 +288,14 @@ export function BundleAmount({ bundle }: { bundle: ResourceBundle }) {
 }
 
 export function ResourceName({ resource }: { resource: Resource }) {
+  const src = RESOURCE_ICONS[resource];
   return (
-    <span className="res" style={{ ['--dot' as string]: `var(--res-${resource})` }}>
+    <span className="res-name">
+      {src ? (
+        <Icon src={src} size={18} />
+      ) : (
+        <span className="dot" style={{ ['--dot' as string]: `var(--res-${resource})` }} />
+      )}
       {RESOURCE_LABELS[resource]}
     </span>
   );

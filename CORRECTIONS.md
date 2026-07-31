@@ -64,6 +64,30 @@ implemented exactly as the sheet has them.
 `N9` (Ultra Crit Chance) is hardcoded `0` and no upgrade feeds it, so the ultra
 crit branch of the damage table never contributes. Modelled as a constant.
 
+## Removed
+
+### Exchange upgrade costs
+
+The workbook priced all thirteen Exchange upgrades — geometric curves in stars,
+runes, essence, prestige points and Blue Cow. Those figures were invented, not
+observed: they are not documented anywhere in game and are not close.
+
+The app shows no cost for these rows at all. A blank says "unknown"; a wrong
+number gets planned around, which is worse than nothing in a planning tool.
+
+Consequences:
+
+- The Exchange table has no Remaining / Total columns.
+- Resources that **only** Exchange consumed no longer appear in Total Resources:
+  Blue Cow, Scorpio / Lynx / Aquarius Star, Superstars, Prestige Points, Stone
+  Vein, and Soft / Dense Essence. Red Orb drops out too — nothing costs it.
+- The Ash, Brine and Chasm Rune totals are lower than the sheet's `C95`/`C96`/
+  `C97`, which included Exchange costs. Orb totals still match the sheet exactly.
+- Exchange levels still count toward completion, unchanged.
+
+Costs are still shown for Essence Upgrades, Altar upgrades and unlocks, and
+Spell Potency ranks, all of which come from real in-game figures.
+
 ## Confirmed correct — do not "fix"
 
 ### Altar essence routing
