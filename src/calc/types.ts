@@ -138,8 +138,6 @@ export interface EffectDef {
   label: string;
   perLevel: number;
   display: 'flat' | 'percent';
-  /** Set when the sheet computes this effect but nothing consumes it. */
-  unused?: string;
 }
 
 export interface EssenceUpgradeDef {

@@ -63,6 +63,30 @@ export function Subhead({ children }: { children: ReactNode }) {
 
 // ----------------------------------------------------------------- inputs --
 
+/**
+ * Shows zero as a placeholder rather than a literal "0", so a field at its
+ * default can be typed into without clearing it first.
+ *
+ * Needs a local draft: with a plain controlled input, typing "0" would set the
+ * value to 0, re-render as empty, and the character the user just typed would
+ * vanish. The draft holds exactly what was typed until focus leaves, then the
+ * canonical value takes over again. Stepper buttons drop the draft so they
+ * never show a stale string.
+ */
+function useNumericDraft(value: number, onChange: (next: number) => void, parse: (raw: string) => number) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  return {
+    display: draft ?? (value === 0 ? '' : String(value)),
+    onInput: (raw: string) => {
+      setDraft(raw);
+      onChange(parse(raw));
+    },
+    onBlur: () => setDraft(null),
+    reset: () => setDraft(null),
+  };
+}
+
 export function LevelInput({
   value,
   max,
@@ -75,12 +99,18 @@ export function LevelInput({
   label: string;
 }) {
   const clamp = (n: number) => Math.min(Math.max(Math.trunc(n) || 0, 0), max);
+  const field = useNumericDraft(value, onChange, (raw) => clamp(Number(raw)));
+
+  const step = (next: number) => {
+    field.reset();
+    onChange(clamp(next));
+  };
 
   return (
     <span className="level">
       <button
         type="button"
-        onClick={() => onChange(clamp(value - 1))}
+        onClick={() => step(value - 1)}
         disabled={value <= 0}
         aria-label={`Decrease ${label}`}
       >
@@ -88,15 +118,17 @@ export function LevelInput({
       </button>
       <input
         type="number"
-        value={value}
+        value={field.display}
+        placeholder="0"
         min={0}
         max={max}
         aria-label={`${label} level`}
-        onChange={(e) => onChange(clamp(Number(e.target.value)))}
+        onChange={(e) => field.onInput(e.target.value)}
+        onBlur={field.onBlur}
       />
       <button
         type="button"
-        onClick={() => onChange(clamp(value + 1))}
+        onClick={() => step(value + 1)}
         disabled={value >= max}
         aria-label={`Increase ${label}`}
       >
@@ -155,17 +187,21 @@ export function NumberField({
   step?: number;
   label: string;
 }) {
+  const field = useNumericDraft(value, onChange, (raw) => {
+    const next = Number(raw);
+    return Number.isFinite(next) ? next : 0;
+  });
+
   return (
     <input
       className="plain"
       type="number"
       step={step}
-      value={value}
+      value={field.display}
+      placeholder="0"
       aria-label={label}
-      onChange={(e) => {
-        const next = Number(e.target.value);
-        onChange(Number.isFinite(next) ? next : 0);
-      }}
+      onChange={(e) => field.onInput(e.target.value)}
+      onBlur={field.onBlur}
     />
   );
 }

@@ -154,7 +154,7 @@ function computeStats(
     critChance: effects.critChance1 + effects.critChance2,
     critDamage: BASE_STATS.critDamage * (1 + effects.critDamage),
     superCritChance: effects.superCritChance1 + effects.superCritChance2,
-    superCritDamage: BASE_STATS.superCritDamage,
+    superCritDamage: BASE_STATS.superCritDamage * (1 + effects.superCritDamage),
     ultraCritChance: BASE_STATS.ultraCritChance,
     ultraCritDamage: BASE_STATS.ultraCritDamage,
     armorPen: effects.armorPen,

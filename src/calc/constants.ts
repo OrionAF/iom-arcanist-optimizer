@@ -26,7 +26,7 @@ export const BASE_STATS = {
   attackInterval: 2,
   /** N6: crit damage is 2 * (1 + critDamage effect). */
   critDamage: 2,
-  /** N8: flat. The "Super Crit Damage" upgrade (E15) is not wired to this. */
+  /** N8: super crit damage is 2 * (1 + superCritDamage effect), mirroring N6. */
   superCritDamage: 2,
   /** N9: no upgrade feeds ultra crit chance. */
   ultraCritChance: 0,
@@ -283,14 +283,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
     cost: curveOn('purpleOrb', geo(5, 1.2)),
     effects: [
       { key: 'superCritChance1', label: 'Super Crit Chance', perLevel: 0.005, display: 'percent' },
-      {
-        key: 'superCritDamage',
-        label: 'Super Crit Damage',
-        perLevel: 0.01,
-        display: 'percent',
-        unused:
-          'The sheet computes this but Super Crit Damage is hardcoded to 2x, so it has no effect. Left as-is pending in-game confirmation.',
-      },
+      { key: 'superCritDamage', label: 'Super Crit Damage', perLevel: 0.01, display: 'percent' },
     ],
   },
   {

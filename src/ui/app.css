@@ -411,6 +411,12 @@ details.section[open] > summary {
   margin: 0;
 }
 
+/* A field sitting at zero shows a ghost 0 you can type straight over. */
+input::placeholder {
+  color: var(--text-faint);
+  opacity: 0.55;
+}
+
 .level button {
   border: 0;
   background: var(--stratum-2);

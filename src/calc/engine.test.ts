@@ -45,7 +45,6 @@ describe('stats panel (M2:N17)', () => {
     { label: 'Crit Chance', ref: 'N5', actual: result.stats.critChance },
     { label: 'Crit Damage', ref: 'N6', actual: result.stats.critDamage },
     { label: 'Super Crit Chance', ref: 'N7', actual: result.stats.superCritChance },
-    { label: 'Super Crit Damage', ref: 'N8', actual: result.stats.superCritDamage },
     { label: 'Ultra Crit Chance', ref: 'N9', actual: result.stats.ultraCritChance },
     { label: 'Ultra Crit Damage', ref: 'N10', actual: result.stats.ultraCritDamage },
     { label: 'Armor Pen', ref: 'N11', actual: result.stats.armorPen },
@@ -60,6 +59,18 @@ describe('stats panel (M2:N17)', () => {
   it.each(cases)('$label matches $ref', ({ actual, ref, label }) => {
     expectMatchesSheet(actual, ref, label);
   });
+
+  /**
+   * The sheet hardcodes Super Crit Damage (N8) to 2 and never reads the
+   * upgrade that feeds it (E15), unlike Crit Damage where N6 reads E9. Wired
+   * up to mirror N6; confirmed against the game.
+   */
+  it('super crit damage is scaled by its upgrade, unlike the sheet', () => {
+    // E15 = level 2 * 0.01, so 2 * 1.02.
+    expect(result.stats.superCritDamage).toBeCloseTo(2.04, 9);
+    expect(sheet('N8'), 'sheet leaves it flat').toBe(2);
+    expect(sheet('E15'), 'sheet computes the upgrade but ignores it').toBeCloseTo(0.02, 9);
+  });
 });
 
 describe('probability tables (Y3:AA33)', () => {
@@ -72,21 +83,35 @@ describe('probability tables (Y3:AA33)', () => {
     expectMatchesSheet(superShiny!.value, 'AA6', 'super shiny bonus');
   });
 
-  it('crit weights match Z16:Z19 / AA16:AA19', () => {
+  it('crit chances match Z16:Z19', () => {
     const [noCrit, crit, superCrit, ultraCrit] = result.averages.critTable;
     expectMatchesSheet(noCrit!.chance, 'Z16', 'no crit chance');
     expectMatchesSheet(crit!.chance, 'Z17', 'crit chance');
     expectMatchesSheet(crit!.value, 'AA17', 'crit multi');
     expectMatchesSheet(superCrit!.chance, 'Z18', 'super crit chance');
-    expectMatchesSheet(superCrit!.value, 'AA18', 'super crit multi');
     expectMatchesSheet(ultraCrit!.chance, 'Z19', 'ultra crit chance');
-    expectMatchesSheet(ultraCrit!.value, 'AA19', 'ultra crit multi');
   });
 
-  it('weighted averages match Z10, Z23, Z33', () => {
+  /**
+   * AA18 and AA19 are N6*N8 and N6*N8*N10, so scaling super crit damage moves
+   * them — and moves the weighted average Z23 with them.
+   */
+  it('crit multipliers pick up the super crit damage fix', () => {
+    const [, , superCrit, ultraCrit] = result.averages.critTable;
+    expect(superCrit!.value).toBeCloseTo(2.18 * 2.04, 9);
+    expect(ultraCrit!.value).toBeCloseTo(2.18 * 2.04 * 2, 9);
+    expect(sheet('AA18')).toBeCloseTo(2.18 * 2, 9);
+  });
+
+  it('weighted averages match Z10 and Z33', () => {
     expectMatchesSheet(result.averages.shinyBonus, 'Z10', 'avg shiny bonus');
-    expectMatchesSheet(result.averages.critMult, 'Z23', 'avg crit multi');
     expectMatchesSheet(result.averages.brittleMult, 'Z33', 'avg brittle multi');
+  });
+
+  it('avg crit multi shifts slightly above the sheet (Z23)', () => {
+    // Only the super-crit branch changes, and it carries 0.13% of the weight.
+    expect(result.averages.critMult).toBeGreaterThan(sheet('Z23'));
+    expect(result.averages.critMult).toBeCloseTo(sheet('Z23'), 3);
   });
 });
 

@@ -1,13 +1,13 @@
 # Differences from the spreadsheet
 
 This app is a port of the **Arcanist** sheet from the community workbook
-*Obelisk Total Resources Calculator v7.1.1*. It is a faithful port with three
+*Obelisk Total Resources Calculator v7.1.1*. It is a faithful port with four
 deliberate exceptions, listed here so a number that disagrees with the workbook
 is explainable rather than mysterious.
 
 The golden test (`src/calc/engine.test.ts`) asserts the app against the
 workbook's own cached values for every other computed cell, and asserts these
-three *do* differ — so a correction can never be confused with a transcription
+four *do* differ — so a correction can never be confused with a transcription
 slip.
 
 ## Corrected
@@ -41,30 +41,38 @@ Most visibly: Veinboyant is locked in the source workbook (`A64 = 0`), yet
 into every altar's rune output. All spell effects are now gated on the unlock
 flag.
 
+### 4. The "Super Crit Damage" upgrade did nothing (`E15`, `N8`)
+
+`E15` computes `level * 0.01`, but the Super Crit Damage stat (`N8`) is
+hardcoded to `2` and never reads it — unlike Crit Damage, where `N6` reads
+`E9`. Confirmed in game as a bug; the stat is now `2 * (1 + E15)`, mirroring
+`N6`.
+
+This also moves the super crit and ultra crit rows of the damage table
+(`AA18`, `AA19`, both derived from `N8`) and therefore the weighted average
+damage multiplier `Z23`. The shift is small — the super crit branch carries
+about 0.13% of the weight — so with the workbook's inputs it does not move any
+hits-to-kill figure, which is rounded up to a whole hit.
+
 ## Not changed — needs in-game confirmation
 
 These look odd but changing them would be a guess, not a fix. They are
 implemented exactly as the sheet has them.
 
-### The "Super Crit Damage" upgrade does nothing (`E15`)
-
-`E15` computes `level * 0.01`, but the Super Crit Damage stat (`N8`) is
-hardcoded to `2` and never reads it — unlike Crit Damage, where `N6` reads
-`E9`. Either the stat should be `2 * (1 + E15)` or the upgrade row is
-mislabelled. The app shows the upgrade with a note and applies no effect.
-
-### Altar essence routing
-
-The sheet drains **Soft** essence for both the Ash and Brine altars, and
-**Dense** for the Chasm altar (`X28 = V28 + V29`, `X29 = V30`). A symmetric
-ash→soft / brine→dense / chasm→jagged mapping might be expected instead. The
-empty `X30` (Jagged drain) is consistent with the sheet's arrangement — nothing
-consumes Jagged — so it is not treated as a bug.
-
 ### Ultra crit is inert
 
 `N9` (Ultra Crit Chance) is hardcoded `0` and no upgrade feeds it, so the ultra
 crit branch of the damage table never contributes. Modelled as a constant.
+
+## Confirmed correct — do not "fix"
+
+### Altar essence routing
+
+The Ash and Brine altars both drain **Soft** essence; the Chasm altar drains
+**Dense** (`X28 = V28 + V29`, `X29 = V30`). Nothing drains Jagged, which is why
+`X30` is empty. This is asymmetric and looks like an oversight, but it matches
+the game — confirmed 2026-07-31. `src/calc/constants.ts` encodes it as each
+altar's `consumes` field.
 
 ## Cosmetic
 
