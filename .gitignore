@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+.vscode/
+.idea/
+
+# Source workbook — a community binary, not ours to redistribute.
+# The derived fixture at src/calc/__fixtures__/ is committed instead.
+*.xlsx

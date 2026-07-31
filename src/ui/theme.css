@@ -1,0 +1,117 @@
+/*
+ * Palette is taken from the system's own materials rather than invented:
+ * the three rune types (ash, brine, chasm) are the accent trio, and the three
+ * essence tiers escalate pale -> teal -> rose in step with their difficulty.
+ * Orb colours are literal — the game calls them White/Green/Purple/Orange/Red,
+ * so a cost column can be scanned without reading it.
+ */
+
+/* Latin subsets only — the UI has no non-latin copy, and the full set ships
+   cyrillic/greek/vietnamese faces nobody here will load. */
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+
+:root {
+  --void: #0a0d13;
+  --stratum: #131822;
+  --stratum-2: #191f2a;
+  --seam: #232c38;
+  --seam-bright: #35424f;
+
+  --text: #e8ebf2;
+  --text-dim: #98a3b4;
+  --text-faint: #5f6b7e;
+
+  --ash: #d8cba6;
+  --brine: #46c8b8;
+  --chasm: #9179e6;
+  --ember: #e2664b;
+  --gold: #e6b655;
+
+  --soft: #8fb8d8;
+  --dense: #5bc9a8;
+  --jagged: #c86fa8;
+
+  --res-whiteOrb: #e8ecf2;
+  --res-greenOrb: #62c97a;
+  --res-purpleOrb: #a97be0;
+  --res-orangeOrb: #e89a4c;
+  --res-redOrb: #e05a5a;
+  --res-ashRune: #d8cba6;
+  --res-brineRune: #46c8b8;
+  --res-chasmRune: #9179e6;
+  --res-softEssence: #8fb8d8;
+  --res-denseEssence: #5bc9a8;
+  --res-stoneVein: #a8a29a;
+  --res-scorpioStar: #e6c555;
+  --res-lynxStar: #e6c555;
+  --res-aquariusStar: #e6c555;
+  --res-superstars: #f0d97a;
+  --res-prestigePoints: #d88fc0;
+  --res-blueCow: #6fa8e0;
+
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --r: 4px;
+  --gap: 20px;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--void);
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background:
+    radial-gradient(900px 500px at 12% -8%, rgba(145, 121, 230, 0.09), transparent 65%),
+    radial-gradient(760px 420px at 92% 4%, rgba(70, 200, 184, 0.06), transparent 62%),
+    var(--void);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* All numerals are mono and tabular so columns line up down the page. */
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'zero' 1;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brine);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
