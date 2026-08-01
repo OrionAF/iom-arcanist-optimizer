@@ -129,12 +129,3 @@ length on ranks worth exactly zero.
 
 Rune costs carry a time-to-afford at the current sustained rate. One purchase is
 as far as that stays true, because buying anything moves the rates.
-
-## Not built yet
-
-Goal-seek (cheapest path to a target) and importing the game's `EXPORTSTATS`
-JSON.
-
-Orb costs carry no time-to-afford, because orb income is not modelled anywhere —
-the Arcanist sheet has no notion of it. Supplying those rates would also let the
-per-resource queues merge into one ranked list.
