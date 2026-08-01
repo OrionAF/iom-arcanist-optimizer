@@ -278,7 +278,7 @@ export function Spells({ input, result, update }: Props) {
                 <tr key={id} className={state.unlocked ? undefined : 'locked'}>
                   <td className="name">
                     <span className="named">
-                      {/* The buff icon once you own it, the card art until then. */}
+                      {/* The buff icon once you own it, the spell item until then. */}
                       <Icon
                         src={state.unlocked ? SPELL_ACTIVE_ICONS[id] : SPELL_ICONS[id]}
                         size={22}

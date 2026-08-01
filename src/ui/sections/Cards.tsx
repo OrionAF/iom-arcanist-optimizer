@@ -9,7 +9,7 @@ import {
   ESSENCE_CARD_ICONS,
   ORB_CARD_ICONS,
   SECTION_ICONS,
-  SPELL_ICONS,
+  SPELL_ACTIVE_ICONS,
 } from '../icons';
 
 export const TIER_LABELS: Record<CardTier, string> = {
@@ -140,7 +140,7 @@ export function Cards({ input, result, update }: Props) {
           <CardTile
             key={id}
             name={SPELLS[id].label}
-            art={SPELL_ICONS[id]}
+            art={SPELL_ACTIVE_ICONS[id]}
             tier={cards.spell[id]}
             onChange={(next) =>
               update((draft) => {

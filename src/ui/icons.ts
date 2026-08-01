@@ -61,7 +61,7 @@ export const ALTAR_ICONS: Record<AltarId, string> = {
   chasm: icon('Chasm_Rune.png'),
 };
 
-/** The card art for each spell. */
+/** The spell item itself, shown on spell rows you have not unlocked yet. */
 export const SPELL_ICONS: Record<SpellId, string> = {
   runicSurge: icon('Runic_Surge_Spell.png'),
   rainbowRift: icon('Rainbow_Rift_Spell.png'),
@@ -73,7 +73,8 @@ export const SPELL_ICONS: Record<SpellId, string> = {
 
 /**
  * The buff icon shown in game while a spell is running. Used on the unlocked
- * rows, where the spell is one you actually have.
+ * spell rows, where the spell is one you actually have, and as the art on the
+ * spell cards, which is what the game draws on them.
  */
 export const SPELL_ACTIVE_ICONS: Record<SpellId, string> = {
   runicSurge: icon('Runic_Surge.png'),
