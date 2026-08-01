@@ -3,6 +3,11 @@
 **Date:** 2026-08-01
 **Status:** approved, not yet implemented
 
+**Audience note.** The app has one user, who has said not to design around share
+link compatibility. Backwards compatibility is therefore not a constraint here;
+failing *loudly* on a stale link still is, since silently decoding to the wrong
+build is a correctness bug rather than a compatibility one.
+
 ## The problem
 
 The Spell Potency Path prices ranks in runes and divides by rune income. Rune
@@ -59,6 +64,11 @@ claiming knowledge the model does not have.
 Inventing a diversion factor was considered and rejected for the same reason the
 Exchange costs were dropped: a wrong number gets planned around.
 
+One part of the output escapes this caveat. When to switch an altar off does not
+depend on how you split your mining time — an altar that has already produced
+every rune the plan needs is burning essence for nothing whenever you reach that
+point. That is advice the model can give honestly. See *Altar shutdown*.
+
 ## Stage 1 — exclusive mining in the engine
 
 Shipped on its own. Leaves the app correct even if stage 2 is later reworked.
@@ -73,18 +83,17 @@ export interface ArcanistInput {
 }
 ```
 
-Appended to the end of `FIELD_ORDER`, encoded as an index into `ESSENCE_TYPES`
-— the same convention `cardField` uses for tiers, with an out-of-range value
-coercing to `soft` rather than throwing.
+Added to `FIELD_ORDER`, encoded as an index into `ESSENCE_TYPES` — the same
+convention `cardField` uses for tiers, with an out-of-range value coercing to
+`soft` rather than throwing. Default is `soft`.
 
-Decoding already fills a short tail from `FRESH_INPUT` (pinned by "fills the
-tail with defaults when a link predates a new field"), so **existing share links
-keep working and `PACK_FORMAT` does not move.** An old link decodes with
-`mining: 'soft'`.
+`SCHEMA_VERSION` moves to 4 and `PACK_FORMAT` from `r` to `s`.
 
-`SCHEMA_VERSION` moves to 4 for the JSON side, where a missing key coerces the
-same way. JSON needs no migration: parsing reads known keys and defaults the
-rest.
+**Old share links are not preserved.** The app currently has one user, who has
+said not to design around link compatibility. The format marker still moves, so
+a stale link fails the prefix check and reports "couldn't be read" rather than
+silently decoding to the wrong build — that guard costs one character and is
+worth keeping whatever the user count.
 
 ### Altar output
 
@@ -144,6 +153,46 @@ to tune.
 State: essence bank per type, rune bank per type, ranks, current mining target,
 clock.
 
+### Altar shutdown
+
+Each rune type comes from exactly one altar, and the conversion ratio is
+
+```
+runesPerHour ÷ essenceCostPerHour = (1 + craft × 0.2) × (1 + card) × runeCraftMulti
+```
+
+with capacity and cycle time cancelling. Two consequences:
+
+- **There is no substitution and therefore no search.** Ash runes come only from
+  the Ash altar at a fixed essence price. Turning an altar off cannot make
+  another altar's runes cheaper, so the total Soft the plan needs is fixed at
+  `N_ash ÷ ratio_ash + N_brine ÷ ratio_brine`.
+- **Running an altar past its requirement is pure waste.** It keeps converting
+  Soft into runes the plan does not need, and on a shared pool that is essence
+  the other altar could have used.
+
+So the rule is: **run each altar until its rune requirement is met, then stop.**
+The simulation already tracks when each rune type is satisfied, so this is a
+recorded timestamp rather than new machinery. An altar whose rune type the plan
+does not need at all is off from the start, which falls out of the same rule.
+
+Only the Soft pool has two altars competing (Ash and Brine); Chasm is alone on
+Dense, so its shutdown time is informational rather than a saving.
+
+The budget assumes this management. Leaving an altar running past its
+requirement makes the real Soft consumption higher than the budget states, which
+is exactly what the shutdown times are for.
+
+```ts
+export interface AltarSchedule {
+  altar: AltarId;
+  /** Hours from now when this altar has made every rune the plan needs. */
+  stopAt: number;
+  /** False when the plan needs none of its runes — do not run it at all. */
+  neededAtAll: boolean;
+}
+```
+
 ### Switch rule
 
 Mine a pool until its bank covers every remaining purchase that depends on it,
@@ -168,11 +217,18 @@ export interface EssenceBudget {
 }
 ```
 
-`PotencyPlan` gains `budget: EssenceBudget[]`. Per-rank ETAs stay, labelled
-explicitly as a floor that assumes all mining serves this plan.
+`PotencyPlan` gains `budget: EssenceBudget[]` and `altars: AltarSchedule[]`.
+Per-rank ETAs stay, labelled explicitly as a floor that assumes all mining serves
+this plan.
 
 No phase headers in the buy order. The ordering is why the numbers are what they
 are, not an instruction.
+
+The panel therefore shows three things: what the plan costs in essence, how long
+that is at your rates, and when each altar can be switched off. The last is the
+only part that is genuinely advice, because it does not depend on how you split
+your mining time — an altar that has made its runes is waste whenever you get
+there.
 
 ### Blocked cases
 
@@ -196,24 +252,36 @@ unreachable for the same reason and report the same way.
 
 - Total time is never below the essence-limited floor `Σ (required ÷ income)`.
 - Jagged is never mined and never appears in the budget.
-- Budget totals reconcile with the rune totals through the conversion rate.
+- Budget totals reconcile with the rune totals through the conversion rate —
+  `required ≈ Σ (runes needed ÷ ratio)` for the altars on that pool. This is the
+  test that would catch the whole feature being subtly wrong.
 - An altar-limited build reproduces today's numbers exactly — the regression that
   proves nothing was broken for players already in that regime.
+
+**Altar shutdown**
+
+- `stopAt` is never later than the plan's total, and never earlier than the last
+  rank priced in that altar's rune.
+- `neededAtAll` is false exactly when no remaining rank uses that rune.
+- The conversion ratio is independent of capacity and travel — pinned directly,
+  since the no-search argument rests on it. If a balance patch made capacity
+  affect the ratio, altar choice would become a real search and this test is
+  what would say so.
 
 **UI**
 
 - Selecting a mining essence changes the ledger's live cell and the potency
   budget.
-- Share links from before the change still decode, with `mining` defaulting to
-  Soft.
+- A build whose plan needs no ash runes shows the Ash altar as "don't run".
 
 ## Out of scope, recorded
 
-- **Recommending altars be turned off.** If you need brine but not ash, both
-  drain Soft, so a running Ash altar steals essence from the runes you want.
-  Real, and it turns scheduling into a small search. Follow-up.
 - **Modelling the orb exchange sink.** Would need exchange rates the app has
   deliberately never claimed to know.
+- **Recommending altar *upgrades* for efficiency.** Craft level and the altar
+  card both raise the conversion ratio, so they reduce the essence the plan
+  needs — a genuine trade against their orb cost, but it belongs to the main
+  optimizer rather than here.
 
 ## Expected consequence
 
