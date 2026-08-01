@@ -28,7 +28,7 @@ export const BASE_STATS = {
   critDamage: 2,
   /** N8: super crit damage is 2 * (1 + superCritDamage effect), mirroring N6. */
   superCritDamage: 2,
-  /** N9: no upgrade feeds ultra crit chance. */
+  /** N9: ultra crit is not in the Arcanist yet, so nothing feeds this. */
   ultraCritChance: 0,
   /** N10. */
   ultraCritDamage: 2,

@@ -134,6 +134,30 @@ export default function App() {
         </div>
       </div>
 
+      <footer className="colophon">
+        <p>
+          Based on the Arcanist sheet from{' '}
+          <a
+            href="https://docs.google.com/spreadsheets/d/1hj4YvYYNlAmXD9LHZNsDQS2n1pFI8H34_1-RS_RlU-E/edit?usp=sharing"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            Obelisk Total Resources Calculator
+          </a>{' '}
+          by <strong>Stonestriker</strong> — heavily modified. The formulas are
+          their work; this page ports and extends them.
+        </p>
+        <p>
+          <a
+            href="https://github.com/OrionAF/iom-arcanist-optimizer"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            Source on GitHub
+          </a>
+        </p>
+      </footer>
+
       {toast ? (
         <div className="toast" role="status">
           {toast}

@@ -952,6 +952,51 @@ button.action.primary:hover {
   padding-top: 10px;
 }
 
+/* ----------------------------------------------------------- colophon ---- */
+
+/*
+ * Credit for the source sheet, at the foot of the page. Recessive by default —
+ * it is an attribution, not a control — but the link lifts on hover so it still
+ * reads as one.
+ */
+
+.colophon {
+  margin-top: calc(var(--gap) * 2);
+  padding-top: 14px;
+  border-top: 1px solid var(--seam);
+  font-size: var(--fs-small);
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+
+/* The rule spans the page, but the prose under it keeps a readable measure. */
+.colophon p {
+  margin: 0 0 6px;
+  max-width: 68ch;
+}
+
+.colophon p:last-child {
+  margin-bottom: 0;
+}
+
+.colophon strong {
+  color: var(--text-dim);
+  font-weight: var(--w-strong);
+}
+
+.colophon a {
+  color: var(--text-dim);
+  text-decoration: underline;
+  text-decoration-color: var(--seam-bright);
+  text-underline-offset: 2px;
+  transition: color 120ms ease, text-decoration-color 120ms ease;
+}
+
+.colophon a:hover {
+  color: var(--brine);
+  text-decoration-color: var(--brine);
+}
+
 /* -------------------------------------------------------------- toast ---- */
 
 .toast {

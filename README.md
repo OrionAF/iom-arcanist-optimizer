@@ -13,42 +13,46 @@ a time, so click the one you are on: the other two keep reporting what they
 
 ## Credit
 
-The math is a port of the **Arcanist** sheet from the community workbook
-*Obelisk Total Resources Calculator v7.1.1*. All credit for working out these
-formulas belongs to the workbook's authors and the Idle Obelisk Miner
-community. This project only moves that work to a shareable web page.
+Based on the **Arcanist** sheet from
+[Obelisk Total Resources Calculator](https://docs.google.com/spreadsheets/d/1hj4YvYYNlAmXD9LHZNsDQS2n1pFI8H34_1-RS_RlU-E/edit?usp=sharing)
+by **Stonestriker**, heavily modified. All credit for working out the underlying
+formulas belongs there; this project ports them to a shareable web page and
+extends them.
 
-The workbook itself is not committed here — it is a community binary and not
-ours to redistribute. What is committed is the derived fixture in
-`src/calc/__fixtures__/`, which the test suite checks the port against.
+What is different here:
 
-Four formula errors in the source sheet are fixed here. They are documented in
-[CORRECTIONS.md](CORRECTIONS.md) along with a few oddities left alone pending
-in-game confirmation.
+- Essence supply is modelled properly: one essence mined at a time, and altars
+  that stall on an empty pool instead of draining it past zero.
+- An optimizer ranks what to buy next, which the sheet has no notion of.
+- Every number carries its own explanation, and the full derivation is on the
+  page rather than behind a cell reference.
+
+Where the app's numbers depart from the sheet's, and why, is written up in
+[CORRECTIONS.md](CORRECTIONS.md).
 
 Icons are game assets from the [wiki](https://shminer.wiki.gg/), vendored into
 `public/icons/` — see [ICON-CREDITS.md](ICON-CREDITS.md).
 
 ## Using it
 
+Everything you can change lives in the left column; the right column is
+read-only output.
+
 - **Levels** — every row takes your current level, and prices it two ways: what
   the next level costs, and what the rest of the row costs to max. Exchange
   shows no cost, and only lists the two upgrades the Arcanist actually reads —
   see [CORRECTIONS.md](CORRECTIONS.md).
-- **?** — every derived number has one. It explains what the figure is and, where
-  the shape of the calculation is the answer, how it is worked out.
-- **Sections fold.** Which ones you leave closed is remembered locally, and is
-  not part of the build a share link carries.
 - **Cards, Pets, Unlocks, Contracts** — what the rest of your account
   contributes. Defaults are all zero, so fill these in or the numbers read low.
   Cards are picked by tier; the tier total drives Essence Damage Per Arcane Card.
+- **?** — every derived number has one. It explains what the figure is and, where
+  the shape of the calculation is the answer, how it is worked out.
 - **Show the math** — the full derivation: crit/shiny/brittle probability
   tables, per-block stats, hits to mine, and where the essence goes.
+- **Sections fold.** Which ones you leave closed is remembered locally, and is
+  not part of the build a share link carries.
 - Builds autosave locally. **Export** writes a JSON file; **Share link** puts
   the whole build in the URL.
-
-Everything you can change lives in the left column; the right column is
-read-only output.
 
 ## Development
 
@@ -59,36 +63,29 @@ npm test         # golden test against the workbook's cached values
 npm run build    # production build
 ```
 
-### Regenerating the fixture
+If you have the source workbook, put it in the project root and run `npm run
+fixture` to regenerate the golden fixture. `tools/extract_arcanist.py` reads the
+`.xlsx` with the Python standard library (no openpyxl) and writes every Arcanist
+cell's cached value to `src/calc/__fixtures__/arcanist-sheet.json`.
 
-If you have the source workbook, put it in the project root and run:
+To take screenshots, `node tools/shoot.mjs <url> <out.png> [waitMs] [width]
+[height]` drives headless Edge over the DevTools Protocol with a real wait,
+which `--screenshot --virtual-time-budget` cannot do.
 
-```sh
-npm run fixture
-```
-
-`tools/extract_arcanist.py` reads the `.xlsx` with the Python standard library
-(no openpyxl) and writes every Arcanist cell's cached value to
-`src/calc/__fixtures__/arcanist-sheet.json`.
+## Design notes
 
 ### How it fits together
 
 The calculator is a pure function — `compute(input)` in `src/calc/engine.ts` —
 with no DOM or React anywhere near it. It returns every intermediate value, not
 just the headline numbers, which is what lets the "show the math" panel, the
-golden test and the planned optimizer features all read from one source.
+golden test and the optimizer all read from one source.
 
 Costs are closed-form (`src/calc/costs.ts`) rather than the sheet's
 `SUMPRODUCT` loops, so the engine stays cheap enough to call in a search loop.
 
-Game data lives in `src/calc/constants.ts`. A balance patch should be fixable
-by editing that one file.
-
-### Taking screenshots
-
-`node tools/shoot.mjs <url> <out.png> [waitMs] [width] [height]` drives headless
-Edge over the DevTools Protocol with a real wait, which `--screenshot
---virtual-time-budget` cannot do.
+Game data lives in `src/calc/constants.ts`. A balance patch should be fixable by
+editing that one file.
 
 ### The optimizer
 
@@ -136,10 +133,10 @@ no capacity term, so a starved altar's output is set by what you mine.
 ### Horizons
 
 Every number in this app answers a question about the *next* purchase, not about
-a finished build. That is deliberate, and it was learned the hard way: a panel
-that projected spell potencies out to rank 10 produced a three-week schedule
-that no purchase survived, restated what the optimizer already said in one line,
-and spent most of its length on ranks worth exactly zero. It was deleted.
+a finished build. A panel that projected spell potencies out to rank 10 was
+built and deleted: it produced a three-week schedule that no purchase survived,
+restated what the optimizer already said in one line, and spent most of its
+length on ranks worth exactly zero.
 
 Rune costs carry a time-to-afford at the current sustained rate. One purchase is
 as far as that stays true, because buying anything moves the rates.

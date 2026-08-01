@@ -54,15 +54,17 @@ damage multiplier `Z23`. The shift is small — the super crit branch carries
 about 0.13% of the weight — so with the workbook's inputs it does not move any
 hits-to-mine figure, which is rounded up to a whole hit.
 
-## Not changed — needs in-game confirmation
-
-These look odd but changing them would be a guess, not a fix. They are
-implemented exactly as the sheet has them.
+## Not changed — unreleased content
 
 ### Ultra crit is inert
 
 `N9` (Ultra Crit Chance) is hardcoded `0` and no upgrade feeds it, so the ultra
-crit branch of the damage table never contributes. Modelled as a constant.
+crit branch of the damage table never contributes.
+
+That is correct today: ultra crit is not in the Arcanist yet, though it is
+planned. The branch is carried as a constant `0` so it costs nothing now and
+only needs a chance source wired in when the upgrade ships — the damage ladder
+in `engine.ts` already handles it.
 
 ## Added — modelled here, absent from the sheet
 
