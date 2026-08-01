@@ -197,14 +197,20 @@ export function Unlocks({ input, update }: Props) {
             UNLOCKS.statueSuperShinyPerStatue,
           )} Essence Super Shiny Chance per W4 gilded statue`}
           checked={unlocks.statueOfNatureGilded}
-          onChange={(v) => set('statueOfNatureGilded', v)}
+          onChange={(v) =>
+            update((draft) => {
+              draft.external.unlocks.statueOfNatureGilded = v;
+              // Gilding the Statue of Nature is itself one of the nine.
+              if (v) draft.external.unlocks.w4GildedStatues = Math.max(unlocks.w4GildedStatues, 1);
+            })
+          }
         >
           {unlocks.statueOfNatureGilded ? (
             <div className="unlock-sub">
               <span>W4 gilded statues owned</span>
               <LevelInput
                 value={unlocks.w4GildedStatues}
-                max={999}
+                max={UNLOCKS.maxW4GildedStatues}
                 label="W4 gilded statues owned"
                 onChange={(v) => set('w4GildedStatues', v)}
               />

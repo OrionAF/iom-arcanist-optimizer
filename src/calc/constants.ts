@@ -608,6 +608,8 @@ export const UNLOCKS = {
   bundleSpellDuration: 0.1,
   /** Construct!M352 = 0.01 * E554, gated on the gilded Statue of Nature. */
   statueSuperShinyPerStatue: 0.01,
+  /** Nine gildable statues in W4, the Statue of Nature itself included. */
+  maxW4GildedStatues: 9,
 } as const;
 
 /** Contracts!A45 / D45 = A45 * 0.005. */

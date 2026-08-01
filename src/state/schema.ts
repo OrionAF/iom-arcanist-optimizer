@@ -179,7 +179,7 @@ function coerceExternal(raw: unknown): ExternalBonuses {
       straightOuttaYanille: bool(unlocks.straightOuttaYanille, false),
       arcanistBundle: bool(unlocks.arcanistBundle, false),
       statueOfNatureGilded: bool(unlocks.statueOfNatureGilded, false),
-      w4GildedStatues: Math.max(int(unlocks.w4GildedStatues, 0), 0),
+      w4GildedStatues: clamp(int(unlocks.w4GildedStatues, 0), UNLOCKS.maxW4GildedStatues),
     },
     contractRuneCraftLevel: clamp(
       int(data.contractRuneCraftLevel, 0),
