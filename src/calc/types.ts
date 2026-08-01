@@ -408,6 +408,16 @@ export interface EssenceOutcome {
   blocksPerHour: number;
   minLootAvg: number;
   maxLootAvg: number;
+  /**
+   * The most a single block can drop: a top roll that also procs super shiny.
+   *
+   * Above `maxLoot`, because shiny is added on top of the roll rather than
+   * being part of it. Each bonus is only counted where its chance is non-zero,
+   * so a player with no super shiny source is not shown a number they cannot
+   * hit. This is the top of the range a player actually observes, which is why
+   * it is here rather than left as `maxLoot` — that one is only the roll.
+   */
+  luckiestLoot: number;
   trueLootAvg: number;
   essencePerHour: number;
   brittleBlocksPerHour: number;

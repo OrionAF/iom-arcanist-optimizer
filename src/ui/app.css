@@ -227,6 +227,13 @@
   color: var(--ember);
 }
 
+/* The average, trailing the range it is drawn from — recessive, because the
+   range is the new information here; the average is already the headline. */
+.ledger-lines .avg {
+  color: var(--text-faint);
+  margin-left: 7px;
+}
+
 .ledger-blocked {
   margin-top: 8px;
   font-size: var(--fs-small);

@@ -104,6 +104,19 @@ function LedgerCell({
               </span>
               <span className="num">{formatNumber(outcome.blocksPerHour, 2)}</span>
             </div>
+            {/* The spread behind the income figure. A single block pays
+                anywhere in this range, and the hourly number above is the
+                average of a hundred of them — without this, a run of minimum
+                rolls reads as the calculator being wrong. */}
+            <div>
+              <span>
+                Loot / block <Help id="ledgerLootRange" />
+              </span>
+              <span className="num">
+                {formatNumber(outcome.minLoot)}–{formatNumber(outcome.luckiestLoot)}
+                <span className="avg">avg {formatNumber(outcome.trueLootAvg, 2)}</span>
+              </span>
+            </div>
           </div>
 
           {/* Only worth saying where it is a surprise: the altars on this pool

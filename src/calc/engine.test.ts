@@ -188,6 +188,51 @@ describe('per-essence mining (AB3:AJ22, V9:X13)', () => {
   });
 });
 
+/**
+ * The observable spread behind the average.
+ *
+ * The hourly figures are built from `trueLootAvg`, which is correct as an
+ * expectation but is not a number any single block pays. These are the bounds a
+ * player actually sees, and the sheet has no equivalent — it never modelled the
+ * range, only the mean.
+ */
+describe('loot range', () => {
+  it('tops out at a max roll that also procs super shiny', () => {
+    const input = structuredClone(EXAMPLE_INPUT);
+    input.external.pets.rhinoCard = 'polychrome'; // a super shiny source
+    const soft = compute(input).essence.soft;
+    const stats = compute(input).stats;
+
+    expect(stats.shinyChance).toBeGreaterThan(0);
+    expect(stats.superShinyChance).toBeGreaterThan(0);
+    expect(soft.luckiestLoot).toBeCloseTo(
+      soft.maxLoot + stats.shinyBonus + stats.superShinyBonus,
+      9,
+    );
+  });
+
+  it('leaves out a bonus the build cannot roll', () => {
+    // The example has no super shiny source, so the top is a plain shiny.
+    const soft = result.essence.soft;
+    expect(result.stats.superShinyChance).toBe(0);
+    expect(soft.luckiestLoot).toBeCloseTo(soft.maxLoot + result.stats.shinyBonus, 9);
+
+    // And with no shiny chance at all, the roll is the whole story.
+    const dull = structuredClone(FRESH_INPUT);
+    const dullSoft = compute(dull).essence.soft;
+    expect(compute(dull).stats.shinyChance).toBe(0);
+    expect(dullSoft.luckiestLoot).toBe(dullSoft.maxLoot);
+  });
+
+  it('brackets the average it is shown beside', () => {
+    for (const type of ESSENCE_TYPES) {
+      const outcome = result.essence[type];
+      expect(outcome.trueLootAvg, type).toBeGreaterThanOrEqual(outcome.minLoot);
+      expect(outcome.trueLootAvg, type).toBeLessThanOrEqual(outcome.luckiestLoot);
+    }
+  });
+});
+
 describe('altars (I29:L41, U27:X30)', () => {
   it('rune craft multiplier matches Statmath!C372', () => {
     expect(result.runeCraftMulti).toBeCloseTo(1.28412, 9);

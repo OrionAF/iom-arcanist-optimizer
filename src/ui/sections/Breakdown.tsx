@@ -164,6 +164,11 @@ export function Breakdown({ result }: { result: ArcanistResult }) {
               render={(t) => `${result.essence[t].minLoot}–${result.essence[t].maxLoot}`}
             />
             <Row
+              label="Loot range (with shiny)"
+              help="mathLuckiestLoot"
+              render={(t) => `${result.essence[t].minLoot}–${result.essence[t].luckiestLoot}`}
+            />
+            <Row
               label="Avg loot (with shiny)"
               help="mathAvgLoot"
               render={(t) => formatNumber(result.essence[t].trueLootAvg, 4)}

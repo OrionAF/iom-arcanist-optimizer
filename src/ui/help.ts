@@ -47,6 +47,11 @@ export const HELP = {
     title: 'Altar drain',
     body: 'Essence per hour consumed by every altar that is unlocked and running on this essence. Ash and Brine altars both draw on Soft essence, Chasm draws on Dense, and nothing draws on Jagged.\n\nAn altar that is unlocked but not running drains nothing and produces nothing.',
   },
+  ledgerLootRange: {
+    title: 'Loot per block',
+    body: 'What one block pays. The bottom is a minimum roll with no shiny; the top is a maximum roll that also procs super shiny, since shiny is added on top of the roll rather than being part of it.\n\nThe average beside it is what the hourly figures are built from, and it sits wherever the odds put it rather than in the middle of the range — the Max Loot upgrades raise the top of the roll without moving the bottom.',
+    formula: 'income/hr = blocks mined/hr × average loot',
+  },
   ledgerBlocks: {
     title: 'Essence blocks / hour',
     body: 'How many of this essence block you mine in an hour. One mined block takes the time it takes for you to mine through the block\'s health plus its respawn delay, so past a certain point extra damage stops helping much — respawn becomes the floor.',
@@ -185,6 +190,11 @@ export const HELP = {
   mathLootRange: {
     title: 'Loot range',
     body: 'The minimum and maximum essence a single ordinary block can drop, after the Max Loot upgrades, cards and pet skin have been applied.',
+  },
+  mathLuckiestLoot: {
+    title: 'Loot range (with shiny)',
+    body: 'The same range with a shiny proc on top of it. Shiny is added to the roll rather than being part of it, so the luckiest possible block — a maximum roll that also procs super shiny — pays above the top of the ordinary range.\n\nBonuses you have no chance of rolling are left out, so with no super shiny source the top of this range is a plain shiny.',
+    formula: 'luckiest = max roll + shiny bonus + super shiny bonus',
   },
   mathAvgLoot: {
     title: 'Average loot (with shiny)',

@@ -317,6 +317,12 @@ function computeEssence(
   const { min, max } = lootRange(type, block, effects, ext, derived);
   const minLootAvg = min + averages.shinyBonus;
   const maxLootAvg = max + averages.shinyBonus;
+  // The best single block, for the range the player sees rather than the mean.
+  // A bonus that cannot proc is not part of anyone's range, hence the gates.
+  const luckiestLoot =
+    max +
+    (stats.shinyChance > 0 ? stats.shinyBonus : 0) +
+    (stats.shinyChance > 0 && stats.superShinyChance > 0 ? stats.superShinyBonus : 0);
   const trueLootAvg = (minLootAvg + maxLootAvg) / 2;
   const essencePerHour = blocksPerHour * trueLootAvg;
 
@@ -335,6 +341,7 @@ function computeEssence(
     blocksPerHour,
     minLootAvg,
     maxLootAvg,
+    luckiestLoot,
     trueLootAvg,
     essencePerHour,
     brittleBlocksPerHour: blocksPerHour * stats.brittleChance,
