@@ -1029,8 +1029,6 @@ button.action.primary:hover {
   font-size: var(--fs-body);
 }
 
-/* Two-digit ranks appear once the potency path is expanded, so the gutter is
-   sized for them rather than clipping into the label. */
 .opt-rank {
   color: var(--text-faint);
   font-size: var(--fs-micro);
@@ -1087,120 +1085,16 @@ button.action.primary:hover {
   font-size: var(--fs-tiny);
 }
 
+/* How long that cost is at current rates. Shown only for runes — see
+   Marginal.hoursToAfford for why orbs carry no time. */
+.opt-eta {
+  color: var(--brine);
+}
+
 .opt-empty {
   margin: 0 0 8px;
   font-size: var(--fs-tiny);
   color: var(--text-faint);
-}
-
-/* ------------------------------------------------------- potency path ---- */
-
-.potency-summary td:first-child {
-  color: var(--text);
-}
-
-.potency-steps {
-  padding: 0 16px;
-}
-
-/* ------------------------------------------------------------- budget ---- */
-
-/* The headline of the panel: what the plan costs in essence and mining time. */
-.budget {
-  padding: 12px 16px 14px;
-  border-bottom: 1px solid var(--seam);
-}
-
-.budget-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 12px;
-  padding: 5px 0;
-  font-size: var(--fs-small);
-}
-
-.budget-amount {
-  color: var(--text-dim);
-}
-
-.budget-hours {
-  color: var(--brine);
-  min-width: 8ch;
-  text-align: right;
-}
-
-.budget-note {
-  margin: 8px 0 0;
-  font-size: var(--fs-tiny);
-  line-height: 1.45;
-  color: var(--text-faint);
-}
-
-/* The one piece of outright advice in the panel, so it gets its own block. */
-.altar-stops {
-  padding: 11px 16px 13px;
-  border-bottom: 1px solid var(--seam);
-}
-
-.altar-stops-head {
-  font-family: var(--mono);
-  font-size: var(--fs-micro);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 6px;
-}
-
-.altar-stop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 3px 0;
-  font-size: var(--fs-small);
-  color: var(--text-dim);
-}
-
-.altar-stop .num {
-  color: var(--text);
-}
-
-.altar-stop-off {
-  color: var(--text-faint);
-  font-size: var(--fs-tiny);
-}
-
-/* An altar the plan wants but nothing is feeding: an instruction, not a note. */
-.altar-stop-start {
-  color: var(--ember);
-  font-size: var(--fs-tiny);
-}
-
-/* The clock is the point of this list, so it gets the emphasis the gain column
-   carries in the Optimizer. */
-.potency-at {
-  color: var(--brine);
-  min-width: 7ch;
-  text-align: right;
-}
-
-.opt-feedback {
-  font-size: var(--fs-tiny);
-  color: var(--dense);
-}
-
-.opt-blocked {
-  margin: 0;
-  padding: 12px 16px;
-  font-size: var(--fs-small);
-  line-height: 1.5;
-  color: var(--ember);
-  border-bottom: 1px solid var(--seam);
-}
-
-.potency-more {
-  padding: 8px 16px 0;
 }
 
 /* ------------------------------------------------------------------ help -- */

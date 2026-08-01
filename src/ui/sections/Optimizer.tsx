@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { RESOURCE_LABELS } from '../../calc/constants';
-import { formatCompact, formatNumber } from '../../calc/format';
+import { formatCompact, formatHours, formatNumber } from '../../calc/format';
 import { rankings, type Goal, type Marginal } from '../../calc/optimize';
 import type { ArcanistInput, ArcanistResult } from '../../calc/types';
 import { Icon, Section } from '../components';
@@ -66,7 +66,15 @@ function Entry({ entry, goal, rank }: { entry: Marginal; goal: Goal; rank: numbe
           {gain > 0 ? '+' : ''}
           {formatNumber(gain, 1)}
         </span>
-        {amount !== undefined ? <span className="opt-cost num">{formatCompact(amount)}</span> : null}
+        {amount !== undefined ? (
+          <span className="opt-cost num">
+            {formatCompact(amount)}
+            {/* Only rune costs carry a time: orb income is not modelled. */}
+            {entry.hoursToAfford !== undefined ? (
+              <span className="opt-eta"> · {formatHours(entry.hoursToAfford)}</span>
+            ) : null}
+          </span>
+        ) : null}
       </span>
     </li>
   );

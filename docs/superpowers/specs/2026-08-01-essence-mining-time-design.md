@@ -1,7 +1,28 @@
 # Essence mining time in the Spell Potency Path
 
 **Date:** 2026-08-01
-**Status:** implemented
+**Status:** stage 1 shipped; stage 2 built, then removed
+
+**Postmortem (2026-08-01).** Stage 1 — exclusive mining and supply-limited altars
+— was right and is in. Stage 2 was not, and has been deleted.
+
+The mistake was the horizon, and it predates this document: the potency path
+always planned to rank 10, and this spec inherited that framing without either
+party questioning it. Three weeks of projection in a game where every purchase
+moves the rates. Worse, it re-derived what the Optimizer already said in a
+single line — "Prismism Potency 4→5, +4.2 runes/hr, 6.71K brine" — and then
+continued into ranks the Optimizer correctly scores at zero, because four of the
+six spells affect nothing this app models.
+
+The redeeming detail is that stage 1 made the fix free. Sustained runes are
+`ratio × min(supply, demand)`, so on a starved pool ranking by sustained runes
+per hour *is* ranking by runes per essence. The efficiency view stage 2 was
+groping toward already existed one panel over.
+
+What survived: the engine supply model, and a one-purchase time-to-afford on
+Optimizer rows. What went: `potency.ts`, its tests, and its panel.
+
+Kept for the reasoning, not as a plan of record.
 
 **Audience note.** The app has one user, who has said not to design around share
 link compatibility. Backwards compatibility is therefore not a constraint here;

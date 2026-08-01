@@ -122,9 +122,8 @@ altar stalls on an empty pool rather than going negative.
 So every altar carries two rates. `runesPerHour` is the nominal one — what it
 would produce if fed. `sustainedRunesPerHour` multiplies that by
 `min(1, pool income ÷ pool drain)`, which is 1 whenever your pickaxe outpaces
-the altars and collapses toward zero when it does not. Both the optimizer and
-the potency path read the sustained figure, because the nominal one describes an
-altar nobody can actually feed.
+the altars and collapses toward zero when it does not. The optimizer reads the
+sustained figure, because the nominal one describes an altar nobody can feed.
 
 `netEssencePerHour` keeps the workbook's formula and stays asserted against the
 sheet, so the golden test remains a transcription check. `sustainedNet` is what
@@ -134,42 +133,22 @@ One consequence worth knowing: on a starved pool, capacity buys nothing. An
 altar converts at `(1 + craft × 0.2) × (1 + card) × runeCraftMulti`, which has
 no capacity term, so a starved altar's output is set by what you mine.
 
-### The potency path
+### Horizons
 
-`src/calc/potency.ts` answers a different question, because the optimizer's does
-not work for spell potencies: four of the six spells affect drones, portals,
-stars and veins rather than anything on this page, so ranked by marginal value
-they read zero forever — true, and useless.
+Every number in this app answers a question about the *next* purchase, not about
+a finished build. That is deliberate, and it was learned the hard way: a panel
+that projected spell potencies out to rank 10 produced a three-week schedule
+that no purchase survived, restated what the optimizer already said in one line,
+and spent most of its length on ranks worth exactly zero. It was deleted.
 
-Ranks are priced in runes, runes come from altars, altars eat essence, and
-essence is mined one type at a time. So the real cost of the plan is mining
-hours, and that is what it reports: an essence budget per pool, plus the hours
-that implies at your current rates.
-
-It simulates rather than divides, because the pieces feed back. Prismism's
-potency raises the Rune Craft multiplier, which makes every later rank cheaper
-in essence, so it front-loads itself — found by measuring, not by a rule.
-
-**It is a budget, not a timetable.** Essence also buys orbs at the exchange, so
-the plan has no exclusive claim on your mining time and the split is not
-something the app can know. The internal ordering exists to get the numbers
-right, not to be followed.
-
-The one exception is the altar advice. Each rune comes from exactly one altar
-and the conversion ratio is capacity-independent, so there is nothing to search:
-an altar is worth running until the last rank priced in its rune is bought, and
-after that it only burns essence — on the Soft pool, essence the other altar
-could have used. That holds however you split your time, so it is stated as
-advice rather than as a schedule.
+Rune costs carry a time-to-afford at the current sustained rate. One purchase is
+as far as that stays true, because buying anything moves the rates.
 
 ## Not built yet
 
-Goal-seek (cheapest path to a target), time-to-afford for the main optimizer,
-and importing the game's `EXPORTSTATS` JSON. Time-to-afford outside the potency
-path needs orb income rates, which the Arcanist sheet does not model; supplying
-them would also let the per-resource queues merge into one ranked list.
+Goal-seek (cheapest path to a target) and importing the game's `EXPORTSTATS`
+JSON.
 
-Altar *upgrades* are not recommended for supply efficiency either: craft level
-and the altar card both raise the conversion ratio, so they reduce the essence a
-plan needs. That is a real trade against their orb cost, but it belongs to the
-main optimizer.
+Orb costs carry no time-to-afford, because orb income is not modelled anywhere —
+the Arcanist sheet has no notion of it. Supplying those rates would also let the
+per-resource queues merge into one ranked list.

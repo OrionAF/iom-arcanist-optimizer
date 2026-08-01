@@ -219,26 +219,6 @@ export const HELP = {
     title: 'Optimizer',
     body: 'What one more level of each upgrade is worth, measured by buying it, recomputing the whole model, and diffing the result. Nothing here is estimated.\n\nThere are two lists because there are two goals and they do not always agree — altar throughput buys runes with essence, so an upgrade can be near the top of one list and negative on the other. Within a list, upgrades are grouped by the resource they cost, since a pile of white orbs cannot buy a rune upgrade.\n\nBoth goals count only what you can sustain. Essence counts the essence you are mining, not all three at once; runes count what your altars can actually be fed. An upgrade that raises an altar past what the pool supports shows no gain, because it would give you none.',
   },
-  potencyPath: {
-    title: 'Spell potency path',
-    body: 'What the remaining potency ranks cost — in runes, and in the mining behind those runes.\n\nRanks are priced in runes, runes come from altars, altars eat essence, and essence is mined one type at a time. So the real cost of this plan is mining hours, and that is what it reports.\n\nIt is a simulation rather than a division, because the pieces feed back on each other: altars stall when the pool runs dry, and Prismism\'s potency raises the Rune Craft multiplier, which makes every later rank cheaper in essence. Buying it early is worth more than buying it late, so it moves to the front on its own rather than by a rule.',
-  },
-  potencyBudget: {
-    title: 'Essence budget',
-    body: 'Essence these ranks consume, and how long that is to mine at your current rate for each type.\n\nThis assumes you switch altars off once they have made what the plan needs — see the Altars line. Leaving a finished altar running costs more essence than this states, because it keeps converting essence into runes nothing is waiting for.\n\nAn essence you never mine has no line here, however much its altar could theoretically produce.',
-  },
-  potencyAltarStop: {
-    title: 'When to stop an altar',
-    body: 'Each rune type comes from exactly one altar, and an altar converts essence to runes at a rate set by its Craft Multi, its card and the global Rune Craft Multi — capacity and travel speed cancel out entirely.\n\nSo there is no cleverness available in which altar to run: an altar is worth running until the last rank priced in its rune is bought, and after that it is only burning essence. On the Soft pool that matters twice over, since Ash and Brine compete for the same essence — a finished Ash altar is taking essence the Brine altar could be using.\n\nThis is the one line here that holds no matter how you split your mining time.',
-  },
-  potencyEta: {
-    title: 'Buy order',
-    body: 'The order the simulation buys ranks in, and the cumulative mining hours when each lands.\n\nTreat this as the reasoning behind the budget rather than a schedule to follow. Essence also buys orbs at the exchange, so you will interleave mining this plan does not know about, and the model has no idea what you have already banked.',
-  },
-  potencyTotal: {
-    title: 'Mined by',
-    body: 'Cumulative mining hours when this spell\'s last rank is bought.\n\nPools are worked one at a time, so a spell priced in chasm runes waits behind all the Soft mining — you cannot mine Dense and Soft at once. Within a pool the altars do run together: Ash and Brine both draw on Soft, so their ranks accumulate in parallel.',
-  },
   exchange: {
     title: 'Exchange',
     body: 'Only the two Exchange upgrades that change an Arcanist number are listed: Essence Damage Per Arcane Card, which grants flat damage equal to your Arcane card count, and the Rune Craft Multiplier, which lifts every altar\'s output.\n\nThe Exchange sells eleven more. They are real upgrades, but none of them touch anything on this page, so listing them would only suggest they did.',

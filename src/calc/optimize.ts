@@ -290,6 +290,34 @@ export interface Marginal {
   /** Objective gain per unit of the step's cost. Zero when unpriced. */
   perCostEssence: number;
   perCostRunes: number;
+  /**
+   * Hours to afford this step from nothing, at the current sustained rate.
+   *
+   * Only defined for rune costs. Orb income is not modelled anywhere in this
+   * app — the Arcanist sheet has no notion of it — and an invented figure would
+   * be worse than a blank, so orb-priced rows simply carry no time.
+   *
+   * A one-purchase horizon on purpose. Rates move every time you buy something,
+   * so this stays true for exactly as long as the decision it informs.
+   */
+  hoursToAfford?: number;
+}
+
+/**
+ * Sustained runes per hour, by rune type.
+ *
+ * Sustained rather than nominal, so a starved altar reports what it can really
+ * deliver: saving for a rune the altars cannot feed does not go faster because
+ * the altar is well tuned.
+ */
+export function runeIncome(result: ArcanistResult): Partial<Record<Resource, number>> {
+  const rates: Partial<Record<Resource, number>> = {};
+  for (const id of ALTAR_IDS) {
+    const altar = result.altars[id];
+    const rate = altar.unlocked && altar.active ? altar.sustainedRunesPerHour : 0;
+    rates[altar.rune] = (rates[altar.rune] ?? 0) + rate;
+  }
+  return rates;
 }
 
 const zeroObjectives = (): Objectives => ({
@@ -329,6 +357,7 @@ export function marginalValue(
   input: ArcanistInput,
   candidate: Candidate,
   baseline: Objectives,
+  income?: Partial<Record<Resource, number>>,
 ): Marginal {
   const draft = structuredClone(input);
   candidate.apply(draft);
@@ -337,6 +366,12 @@ export function marginalValue(
   const size = bundleSize(candidate.stepCost);
   const priced = candidate.priced && size > 0;
 
+  // Only where the whole cost is one resource we earn: a multi-resource price
+  // would need the slowest of several waits, and orbs have no rate at all.
+  const resource = candidate.resource;
+  const rate = resource !== undefined ? (income?.[resource] ?? 0) : 0;
+  const owed = resource !== undefined ? (candidate.stepCost[resource] ?? 0) : 0;
+
   // Unpriced rows get a literal zero rather than a scaled delta: multiplying a
   // negative delta by a zero ratio yields -0, which renders as "-0.0".
   return {
@@ -344,13 +379,16 @@ export function marginalValue(
     delta,
     perCostEssence: priced ? delta.essencePerHour / size : 0,
     perCostRunes: priced ? delta.runesPerHour / size : 0,
+    hoursToAfford: priced && rate > 0 ? owed / rate : undefined,
   };
 }
 
 /** Score every available candidate against the current build. */
 export function rankAll(input: ArcanistInput, result?: ArcanistResult): Marginal[] {
-  const baseline = objectives(result ?? compute(input));
-  return enumerateCandidates(input).map((c) => marginalValue(input, c, baseline));
+  const base = result ?? compute(input);
+  const baseline = objectives(base);
+  const income = runeIncome(base);
+  return enumerateCandidates(input).map((c) => marginalValue(input, c, baseline, income));
 }
 
 // ---------------------------------------------------------------------------

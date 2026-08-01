@@ -78,8 +78,8 @@ stalls on an empty pool rather than overdrawing it. Both are modelled here:
   report their income — that is what makes them answerable as "if you switched"
   — but they bank nothing.
 - Each altar carries `supplyFactor` (`min(1, pool income ÷ pool drain)`) and
-  `sustainedRunesPerHour` beside its nominal rate. Both the optimizer and the
-  potency path read the sustained one.
+  `sustainedRunesPerHour` beside its nominal rate. The optimizer reads the
+  sustained one.
 - `sustainedNet` is income less what the altars can actually take, floored at
   zero.
 
@@ -87,8 +87,8 @@ stalls on an empty pool rather than overdrawing it. Both are modelled here:
 so the golden test stays a transcription check. It can read negative where the
 game cannot; `sustainedNet` is the user-facing figure.
 
-Consequence worth stating plainly: potency-path times are substantially longer
-than they were before this, because the old figures assumed essence was free and
+Consequence worth stating plainly: rune income reads lower than it used to
+wherever a pool is starved, because the old figures assumed essence was free and
 infinite.
 
 ## Removed

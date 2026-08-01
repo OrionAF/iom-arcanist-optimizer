@@ -17,6 +17,7 @@ import {
   objectives,
   rankAll,
   rankings,
+  runeIncome,
 } from './optimize';
 import { EXAMPLE_INPUT } from '../presets/example';
 import { FRESH_INPUT } from '../presets/fresh';
@@ -344,6 +345,84 @@ describe('the essence/rune tradeoff', () => {
     expect(objectives(compute(toBrine)).runesPerHour).toBeGreaterThan(
       objectives(compute(shared)).runesPerHour,
     );
+  });
+});
+
+/**
+ * Time to afford.
+ *
+ * A one-purchase horizon, on purpose. Every buy changes the rates, so this is
+ * true for exactly as long as the decision it informs — which is the lesson of
+ * the potency path that used to project three weeks ahead.
+ */
+describe('time to afford', () => {
+  const running = () => {
+    const input = structuredClone(EXAMPLE_INPUT);
+    for (const id of ALTAR_IDS) {
+      input.altars[id].unlocked = true;
+      input.altars[id].active = true;
+    }
+    return input;
+  };
+
+  it('divides a rune cost by the rate that rune actually sustains', () => {
+    const input = running();
+    const result = compute(input);
+    const income = runeIncome(result);
+
+    for (const m of rankAll(input, result)) {
+      const resource = m.candidate.resource;
+      if (resource === undefined || !m.candidate.priced) continue;
+
+      const rate = income[resource] ?? 0;
+      if (rate <= 0) {
+        expect(m.hoursToAfford, m.candidate.id).toBeUndefined();
+        continue;
+      }
+
+      expect(m.hoursToAfford, m.candidate.id).toBeCloseTo(
+        (m.candidate.stepCost[resource] ?? 0) / rate,
+        6,
+      );
+    }
+  });
+
+  /**
+   * Orbs have no time, because the app has never modelled orb income. A blank
+   * is the honest answer; a number would be invented, which is the reason the
+   * Exchange costs were dropped in the first place.
+   */
+  it('leaves orb costs without a time', () => {
+    for (const m of rankAll(running())) {
+      const resource = m.candidate.resource;
+      if (resource !== undefined && resource.endsWith('Orb')) {
+        expect(m.hoursToAfford, m.candidate.id).toBeUndefined();
+      }
+    }
+  });
+
+  it('gives no time for a rune whose altar is not running', () => {
+    const idle = running();
+    idle.altars.chasm.active = false;
+
+    for (const m of rankAll(idle)) {
+      if (m.candidate.resource === 'chasmRune') {
+        expect(m.hoursToAfford, m.candidate.id).toBeUndefined();
+      }
+    }
+  });
+
+  /** Starving an altar makes its runes take longer, not the same time. */
+  it('lengthens when the altar feeding it is starved', () => {
+    const fed = EXAMPLE_INPUT;
+    const starved = running();
+
+    const brineOf = (input: typeof fed) =>
+      rankAll(input).find((m) => m.candidate.id === 'prismism.potency')?.hoursToAfford;
+
+    expect(compute(starved).altars.brine.supplyFactor).toBeLessThan(1);
+    expect(compute(fed).altars.brine.supplyFactor).toBe(1);
+    expect(brineOf(starved)!).toBeGreaterThan(brineOf(fed)!);
   });
 });
 
