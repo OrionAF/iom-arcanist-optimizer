@@ -19,17 +19,6 @@ by **Stonestriker**, heavily modified. All credit for working out the underlying
 formulas belongs there; this project ports them to a shareable web page and
 extends them.
 
-What is different here:
-
-- Essence supply is modelled properly: one essence mined at a time, and altars
-  that stall on an empty pool instead of draining it past zero.
-- An optimizer ranks what to buy next, which the sheet has no notion of.
-- Every number carries its own explanation, and the full derivation is on the
-  page rather than behind a cell reference.
-
-Where the app's numbers depart from the sheet's, and why, is written up in
-[CORRECTIONS.md](CORRECTIONS.md).
-
 Icons are game assets from the [wiki](https://shminer.wiki.gg/), vendored into
 `public/icons/` — see [ICON-CREDITS.md](ICON-CREDITS.md).
 
