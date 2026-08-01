@@ -35,8 +35,8 @@ export const HELP = {
 
   ledgerNet: {
     title: 'Net essence / hour',
-    body: 'What actually lands in your satchel for this essence: everything you mine, minus everything the altars burn. This is the number the whole page exists to move.\n\nA negative net means the altars drawing on this essence consume faster than you can mine it, and the pool drains. That can still be the right call if the runes are worth more to you than the essence, but it is not sustainable indefinitely.',
-    formula: 'net = income − altar drain',
+    body: 'What actually lands in your satchel: everything you mine of this essence, minus everything the altars on it burn.\n\nYou can only mine one essence at a time, so this is a live figure for the one you are mining and a "what if" for the other two — click a card to switch. An essence you are not mining banks nothing, whatever its income says.\n\nIt cannot go below zero. If the altars want more than you can mine they stall rather than overdraw the pool: you bank nothing and they run at part rate.',
+    formula: 'net = income − altar drain, and never below 0',
   },
   ledgerIncome: {
     title: 'Income',
@@ -66,8 +66,8 @@ export const HELP = {
   },
   altarRunesPerHour: {
     title: 'Runes per hour',
-    body: 'Runes per cycle spread over an hour of cycles. Only counted while the altar is both unlocked and running.',
-    formula: 'runes/hr = runes per cycle × 3600 ÷ cycle',
+    body: 'What this altar actually sustains, which is capped by the essence reaching it rather than by how well it is tuned. An altar stalls on an empty pool, so if it wants more essence per hour than you mine, it runs at a fraction of its nominal rate — shown beneath as "starved".\n\nAn altar on an essence you are not mining sustains nothing at all: it eats through whatever is banked and then stops.',
+    formula: 'sustained = nominal × min(1, pool income ÷ pool drain)',
   },
   altarEssencePerHour: {
     title: 'Essence per hour (altar)',
@@ -217,19 +217,27 @@ export const HELP = {
 
   optimizer: {
     title: 'Optimizer',
-    body: 'What one more level of each upgrade is worth, measured by buying it, recomputing the whole model, and diffing the result. Nothing here is estimated.\n\nThere are two lists because there are two goals and they do not always agree — altar throughput buys runes with essence, so an upgrade can be near the top of one list and negative on the other. Within a list, upgrades are grouped by the resource they cost, since a pile of white orbs cannot buy a rune upgrade.',
+    body: 'What one more level of each upgrade is worth, measured by buying it, recomputing the whole model, and diffing the result. Nothing here is estimated.\n\nThere are two lists because there are two goals and they do not always agree — altar throughput buys runes with essence, so an upgrade can be near the top of one list and negative on the other. Within a list, upgrades are grouped by the resource they cost, since a pile of white orbs cannot buy a rune upgrade.\n\nBoth goals count only what you can sustain. Essence counts the essence you are mining, not all three at once; runes count what your altars can actually be fed. An upgrade that raises an altar past what the pool supports shows no gain, because it would give you none.',
   },
   potencyPath: {
     title: 'Spell potency path',
-    body: 'The order to raise spell potencies in, and when you will be able to afford each one at your current rune income.\n\nIt is a simulation, not a sorted list: it starts from your build with nothing banked, waits until the next rank is affordable, buys it, then recomputes. Because Prismism\'s potency raises the Rune Craft multiplier, buying it early speeds up everything after it — so it moves to the front on its own rather than by a rule.\n\nThe three rune types bank in parallel, so a step waiting on brine runes does not hold up one waiting on ash.',
+    body: 'What the remaining potency ranks cost — in runes, and in the mining behind those runes.\n\nRanks are priced in runes, runes come from altars, altars eat essence, and essence is mined one type at a time. So the real cost of this plan is mining hours, and that is what it reports.\n\nIt is a simulation rather than a division, because the pieces feed back on each other: altars stall when the pool runs dry, and Prismism\'s potency raises the Rune Craft multiplier, which makes every later rank cheaper in essence. Buying it early is worth more than buying it late, so it moves to the front on its own rather than by a rule.',
+  },
+  potencyBudget: {
+    title: 'Essence budget',
+    body: 'Essence these ranks consume, and how long that is to mine at your current rate for each type.\n\nThis assumes you switch altars off once they have made what the plan needs — see the Altars line. Leaving a finished altar running costs more essence than this states, because it keeps converting essence into runes nothing is waiting for.\n\nAn essence you never mine has no line here, however much its altar could theoretically produce.',
+  },
+  potencyAltarStop: {
+    title: 'When to stop an altar',
+    body: 'Each rune type comes from exactly one altar, and an altar converts essence to runes at a rate set by its Craft Multi, its card and the global Rune Craft Multi — capacity and travel speed cancel out entirely.\n\nSo there is no cleverness available in which altar to run: an altar is worth running until the last rank priced in its rune is bought, and after that it is only burning essence. On the Soft pool that matters twice over, since Ash and Brine compete for the same essence — a finished Ash altar is taking essence the Brine altar could be using.\n\nThis is the one line here that holds no matter how you split your mining time.',
   },
   potencyEta: {
-    title: 'Time to afford',
-    body: 'Hours from now until you can pay for this rank, assuming you bank every rune your altars produce and spend them only on this plan.\n\nIt is a floor, not a forecast. Casting spells, altar upgrades and rune unlocks all compete for the same runes, and the model does not know about the ones you have already stockpiled.',
+    title: 'Buy order',
+    body: 'The order the simulation buys ranks in, and the cumulative mining hours when each lands.\n\nTreat this as the reasoning behind the budget rather than a schedule to follow. Essence also buys orbs at the exchange, so you will interleave mining this plan does not know about, and the model has no idea what you have already banked.',
   },
   potencyTotal: {
-    title: 'Time to finish',
-    body: 'When the last rank in the plan is bought — the length of the whole path, not the sum of its steps, because the three rune types accumulate at the same time.',
+    title: 'Mined by',
+    body: 'Cumulative mining hours when this spell\'s last rank is bought.\n\nPools are worked one at a time, so a spell priced in chasm runes waits behind all the Soft mining — you cannot mine Dense and Soft at once. Within a pool the altars do run together: Ash and Brine both draw on Soft, so their ranks accumulate in parallel.',
   },
   exchange: {
     title: 'Exchange',

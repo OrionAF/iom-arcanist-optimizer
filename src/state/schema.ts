@@ -38,13 +38,15 @@ import { FRESH_INPUT } from '../presets/fresh';
  * 1 — original flat ExternalBonuses (raw numbers like `petBrittle: 0.05`).
  * 2 — cards / pets / unlocks groups, with levels and unlocks as the input.
  * 3 — Exchange trimmed to the two upgrades the Arcanist reads.
+ * 4 — `mining`: which essence the Arcanist is currently mining.
  *
- * JSON needs no migration for 3: parsing walks EXCHANGE_UPGRADES and ignores
- * keys it does not recognise, so a v2 export loads with the eleven dropped
- * levels quietly discarded. The packed share format is positional and cannot
- * absorb that, which is why PACK_FORMAT moves with it.
+ * JSON needs no migration for either: parsing walks the definitions it knows
+ * and defaults anything absent, so an older export loads with `mining` at its
+ * fresh value and any dropped Exchange levels quietly discarded. The packed
+ * share format is positional and cannot absorb that, which is why PACK_FORMAT
+ * moves alongside.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export interface SavedBuild {
   version: number;
@@ -227,7 +229,16 @@ export function coerceInput(raw: unknown): ArcanistInput {
     exchange[def.id] = clamp(int(exchangeRaw[def.id], 0), def.max);
   }
 
-  return { essence, altars, spells, exchange, external: coerceExternal(data.external) };
+  return {
+    essence,
+    altars,
+    spells,
+    exchange,
+    external: coerceExternal(data.external),
+    mining: ESSENCE_TYPES.includes(data.mining as EssenceType)
+      ? (data.mining as EssenceType)
+      : FRESH_INPUT.mining,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -385,6 +396,13 @@ const FIELD_ORDER: Field[] = [
     get: (input) => input.external.contractRuneCraftLevel,
     set: (input, value) => {
       input.external.contractRuneCraftLevel = value;
+    },
+  },
+  // An index into ESSENCE_TYPES, as card tiers encode their tier.
+  {
+    get: (input) => Math.max(ESSENCE_TYPES.indexOf(input.mining), 0),
+    set: (input, value) => {
+      input.mining = ESSENCE_TYPES[value] ?? FRESH_INPUT.mining;
     },
   },
 ];

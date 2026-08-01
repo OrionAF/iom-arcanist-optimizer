@@ -198,13 +198,24 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
           help="altarRunesPerCycle"
           value={formatNumber(outcome.runesPerCycle, 2)}
         />
+        {/* The sustained rate is the one to plan on, so it takes the headline
+            and the nominal rate drops to a footnote — but only when they
+            differ, which is only when the pool cannot keep this altar fed. */}
         <Stat
           label={`${RESOURCE_LABELS[def.rune]}s / hr`}
           help="altarRunesPerHour"
           value={
-            <span style={{ color: `var(--res-${def.rune})` }}>
-              {formatNumber(outcome.runesPerHour, 2)}
-            </span>
+            <>
+              <span style={{ color: `var(--res-${def.rune})` }}>
+                {formatNumber(outcome.sustainedRunesPerHour, 2)}
+              </span>
+              {outcome.supplyFactor < 1 ? (
+                <span className="stat-note">
+                  starved · {formatNumber(outcome.supplyFactor * 100, 0)}% of{' '}
+                  {formatNumber(outcome.runesPerHour, 2)}
+                </span>
+              ) : null}
+            </>
           }
         />
         <Stat

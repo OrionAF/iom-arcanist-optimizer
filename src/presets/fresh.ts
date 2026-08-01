@@ -78,4 +78,6 @@ export const FRESH_INPUT: ArcanistInput = {
     runeCraftMulti: 0,
   },
   external: FRESH_EXTERNAL,
+  // Soft is the only essence a fresh Arcanist can actually break.
+  mining: 'soft',
 };

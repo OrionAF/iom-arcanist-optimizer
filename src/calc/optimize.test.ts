@@ -21,6 +21,7 @@ import {
 import { EXAMPLE_INPUT } from '../presets/example';
 import { FRESH_INPUT } from '../presets/fresh';
 import { ALTAR_IDS } from './constants';
+import { ESSENCE_TYPES } from './types';
 
 describe('candidates', () => {
   it('covers every unmaxed row the engine prices', () => {
@@ -109,15 +110,27 @@ describe('candidates', () => {
 });
 
 describe('objectives', () => {
-  it('sums net essence across the three tiers', () => {
+  /**
+   * Only the mined essence counts. The other two report an income they would
+   * earn *if you switched to them*, which is not income you are getting — and
+   * summing all three was the old model's central mistake.
+   */
+  it('counts essence only from the essence being mined', () => {
     const result = compute(EXAMPLE_INPUT);
     const obj = objectives(result);
-    expect(obj.essencePerHour).toBeCloseTo(
-      result.essence.soft.netEssencePerHour +
-        result.essence.dense.netEssencePerHour +
-        result.essence.jagged.netEssencePerHour,
-      6,
-    );
+
+    expect(obj.essencePerHour).toBeCloseTo(result.essence[EXAMPLE_INPUT.mining].sustainedNet, 6);
+    for (const type of ESSENCE_TYPES) {
+      if (type !== EXAMPLE_INPUT.mining) expect(obj.perEssence[type]).toBe(0);
+    }
+  });
+
+  it('follows the mined essence when it changes', () => {
+    const onJagged = { ...EXAMPLE_INPUT, mining: 'jagged' as const };
+    const obj = objectives(compute(onJagged));
+
+    expect(obj.perEssence.soft).toBe(0);
+    expect(obj.perEssence.jagged).toBeGreaterThan(0);
   });
 
   it('counts runes only from altars that are unlocked and running', () => {
@@ -137,10 +150,37 @@ describe('objectives', () => {
 describe('marginal value', () => {
   const baseline = objectives(compute(EXAMPLE_INPUT));
 
-  it('scores a damage upgrade as a gain to essence', () => {
-    const candidate = enumerateCandidates(EXAMPLE_INPUT).find((c) => c.id === 'flatDamage1')!;
+  it('scores a loot upgrade as a gain to essence', () => {
+    // Soft Max Loot, because the example build mines Soft and loot scales the
+    // yield continuously. Damage does not: hits-to-mine is a whole number, so
+    // a single point of damage usually buys nothing until it crosses a ceiling
+    // — see the test below, which pins that as a property rather than a bug.
+    const candidate = enumerateCandidates(EXAMPLE_INPUT).find((c) => c.id === 'softMaxLoot')!;
     const m = marginalValue(EXAMPLE_INPUT, candidate, baseline);
     expect(m.delta.essencePerHour).toBeGreaterThan(0);
+  });
+
+  /**
+   * Damage arrives in steps, not slopes.
+   *
+   * `hitsToMine` is rounded up to a whole hit, so damage that does not remove a
+   * hit from the count changes nothing. Under the old model this was masked:
+   * the objective summed all three essences, so a point of damage that did
+   * nothing for Soft could still cross a ceiling for Dense or Jagged and look
+   * like a smooth gain. Mining one essence at a time exposes it.
+   */
+  it('scores damage in steps, since hits-to-mine is a whole number', () => {
+    const candidate = enumerateCandidates(EXAMPLE_INPUT).find((c) => c.id === 'flatDamage1')!;
+    expect(marginalValue(EXAMPLE_INPUT, candidate, baseline).delta.essencePerHour).toBe(0);
+
+    // Enough damage to remove at least one hit does show up.
+    const stronger = structuredClone(EXAMPLE_INPUT);
+    stronger.essence.flatDamage1 = 25;
+    const mined = EXAMPLE_INPUT.mining;
+    expect(compute(stronger).essence[mined].hitsToMine).toBeLessThan(
+      compute(EXAMPLE_INPUT).essence[mined].hitsToMine,
+    );
+    expect(objectives(compute(stronger)).essencePerHour).toBeGreaterThan(baseline.essencePerHour);
   });
 
   it('leaves the input untouched', () => {
@@ -227,13 +267,83 @@ describe('the essence/rune tradeoff', () => {
     expect(blended(shifted)).toBeGreaterThan(blended(uneven));
   });
 
-  it('makes capacity a pure conversion: more runes, less net essence', () => {
-    const more = structuredClone(base);
-    for (const id of ALTAR_IDS) more.altars[id].capacity = base.altars[id].capacity + 1;
-    const before = objectives(compute(base));
+  /**
+   * Capacity trades essence for runes only while the pool can keep up.
+   *
+   * EXAMPLE_INPUT mines Soft and runs one altar on it, so income comfortably
+   * covers the drain and raising capacity does what it always did: more runes,
+   * less banked essence.
+   */
+  it('makes capacity a pure conversion while the pool is fed', () => {
+    const fed = EXAMPLE_INPUT;
+    const more = structuredClone(fed);
+    for (const id of ALTAR_IDS) more.altars[id].capacity = fed.altars[id].capacity + 1;
+
+    const before = objectives(compute(fed));
     const after = objectives(compute(more));
+
+    expect(compute(fed).altars.brine.supplyFactor).toBe(1);
     expect(after.runesPerHour).toBeGreaterThan(before.runesPerHour);
     expect(after.essencePerHour).toBeLessThan(before.essencePerHour);
+  });
+
+  /**
+   * Once the pool is starved, capacity stops buying runes.
+   *
+   * A starved altar converts every unit of essence that reaches it, so its
+   * sustained output is `conversion ratio × what you mine` — and the ratio is
+   * capacity-independent. Adding capacity to a starved altar therefore buys
+   * nothing at all. `base` runs all three altars, which the example's mining
+   * rate cannot feed.
+   */
+  it('makes capacity worthless once the pool is starved', () => {
+    // Ash alone on Soft, so raising its capacity cannot reweight a shared pool
+    // — this isolates the supply effect from the blend effect below.
+    const alone = structuredClone(base);
+    alone.altars.brine.active = false;
+    alone.altars.chasm.active = false;
+
+    const at = (capacity: number) => {
+      const input = structuredClone(alone);
+      input.altars.ash.capacity = capacity;
+      const result = compute(input);
+      return { result, runes: objectives(result).runesPerHour };
+    };
+
+    // Both well past the point where Ash outpaces the Soft income.
+    const lean = at(15);
+    const fat = at(20);
+
+    expect(lean.result.altars.ash.supplyFactor).toBeLessThan(1);
+    expect(fat.result.altars.ash.supplyFactor).toBeLessThan(1);
+    expect(lean.result.essence.soft.sustainedNet).toBe(0);
+
+    // A third more capacity, and not one extra rune.
+    expect(fat.runes).toBeCloseTo(lean.runes, 6);
+    expect(fat.result.altars.ash.runesPerHour).toBeGreaterThan(
+      lean.result.altars.ash.runesPerHour,
+    );
+  });
+
+  /**
+   * The one way capacity still matters when starved: it decides which altar on
+   * a shared pool gets the essence. Ash and Brine both drain Soft, so raising
+   * one altar's capacity moves the blend toward it — worth more if its craft is
+   * higher, worse if lower.
+   */
+  it('reweights a shared starved pool toward the altar with more capacity', () => {
+    const shared = structuredClone(base);
+    shared.altars.chasm.active = false;
+    shared.altars.ash.craft = 0;
+    shared.altars.brine.craft = 10;
+
+    const toBrine = structuredClone(shared);
+    toBrine.altars.brine.capacity = shared.altars.brine.capacity + 10;
+
+    expect(compute(shared).altars.ash.supplyFactor).toBeLessThan(1);
+    expect(objectives(compute(toBrine)).runesPerHour).toBeGreaterThan(
+      objectives(compute(shared)).runesPerHour,
+    );
   });
 });
 

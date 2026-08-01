@@ -97,7 +97,7 @@ describe('share links', () => {
     // Literal, not PACK_FORMAT: the point is to encode independently of the
     // app's own encoder, so the letter is bumped by hand when the format moves.
     const browserToken =
-      'r' +
+      's' +
       Buffer.from(JSON.stringify(packFields(EXAMPLE_INPUT)), 'utf8')
         .toString('base64')
         .replace(/\+/g, '-')

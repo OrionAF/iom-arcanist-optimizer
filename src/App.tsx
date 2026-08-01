@@ -112,7 +112,7 @@ export default function App() {
         </div>
       </header>
 
-      <Ledger result={result} />
+      <Ledger input={input} result={result} update={update} />
 
       {/* Left column takes every input; the right is read-only output only. */}
       <div className="columns">

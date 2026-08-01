@@ -339,6 +339,15 @@ export interface ArcanistInput {
   spells: Record<SpellId, SpellInput>;
   exchange: Record<ExchangeUpgradeId, number>;
   external: ExternalBonuses;
+  /**
+   * Which essence the Arcanist is currently mining.
+   *
+   * The Arcanist mines one essence at a time. Every essence still reports its
+   * own income — that is what makes the other two answerable as "if you
+   * switched" — but only this one is actually being earned, and only this one
+   * can keep an altar fed.
+   */
+  mining: EssenceType;
 }
 
 // ---------------------------------------------------------------------------
@@ -403,7 +412,25 @@ export interface EssenceOutcome {
   essencePerHour: number;
   brittleBlocksPerHour: number;
   altarDrain: number;
+  /**
+   * Income less the full altar drain.
+   *
+   * Kept as the workbook computes it, and still asserted against the sheet, so
+   * the golden test stays a transcription check. It can go negative, which the
+   * game cannot: altars stall rather than overdraw a pool. Use `sustainedNet`
+   * for anything user-facing.
+   */
   netEssencePerHour: number;
+  /**
+   * Steady-state net, once altars have throttled to what the pool can feed.
+   *
+   * Zero for an essence you are not mining but whose altars are running: they
+   * drain the stock, then stall. Equal to `netEssencePerHour` whenever the pool
+   * is being mined faster than it is drained. Never negative — a pool cannot
+   * lose more per hour than it holds, and the transient draw-down is the
+   * potency path's business, not the steady state's.
+   */
+  sustainedNet: number;
   /** True when damage output cannot outpace the block's regeneration. */
   unmineable: boolean;
 }
@@ -414,8 +441,20 @@ export interface AltarOutcome {
   active: boolean;
   cycleTime: number;
   runesPerCycle: number;
+  /** Rate with essence assumed infinite. What the altar would do if fed. */
   runesPerHour: number;
   essenceCostPerHour: number;
+  /**
+   * Share of its nominal rate this altar can actually sustain, 0..1.
+   *
+   * An altar stalls on an empty pool, so its long-run output is capped by what
+   * you mine, not by how well it is tuned. 1 means the pool it drains is being
+   * mined faster than the altars on it consume — the case the model assumed
+   * everywhere before this existed.
+   */
+  supplyFactor: number;
+  /** `runesPerHour * supplyFactor`. The rate a plan can count on. */
+  sustainedRunesPerHour: number;
   consumes: EssenceType;
   rune: Resource;
 }

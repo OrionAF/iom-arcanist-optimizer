@@ -89,4 +89,7 @@ export const EXAMPLE_INPUT: ArcanistInput = {
     },
     contractRuneCraftLevel: 16, // Contracts!A45 (D45 = 0.08)
   },
+  // The sheet has no notion of mining one essence at a time, so this is not
+  // from the workbook; Soft is what its running altars drain.
+  mining: 'soft',
 };

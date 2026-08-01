@@ -64,6 +64,33 @@ implemented exactly as the sheet has them.
 `N9` (Ultra Crit Chance) is hardcoded `0` and no upgrade feeds it, so the ultra
 crit branch of the damage table never contributes. Modelled as a constant.
 
+## Added — modelled here, absent from the sheet
+
+### Exclusive mining and altar stalling
+
+The workbook computes all three essences' net-per-hour side by side, as though
+you earned them simultaneously, and lets an altar drive a pool negative.
+
+Neither matches the game. The Arcanist mines one essence at a time, and an altar
+stalls on an empty pool rather than overdrawing it. Both are modelled here:
+
+- `ArcanistInput.mining` says which essence you are on. The other two still
+  report their income — that is what makes them answerable as "if you switched"
+  — but they bank nothing.
+- Each altar carries `supplyFactor` (`min(1, pool income ÷ pool drain)`) and
+  `sustainedRunesPerHour` beside its nominal rate. Both the optimizer and the
+  potency path read the sustained one.
+- `sustainedNet` is income less what the altars can actually take, floored at
+  zero.
+
+`netEssencePerHour` is **unchanged** and still asserted against `P16`/`X28`/`X29`,
+so the golden test stays a transcription check. It can read negative where the
+game cannot; `sustainedNet` is the user-facing figure.
+
+Consequence worth stating plainly: potency-path times are substantially longer
+than they were before this, because the old figures assumed essence was free and
+infinite.
+
 ## Removed
 
 ### Exchange upgrade costs

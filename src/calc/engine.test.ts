@@ -16,7 +16,8 @@ import { curveCost } from './costs';
 import { formatCompact, formatShortScale } from './format';
 import { EXAMPLE_INPUT } from '../presets/example';
 import { FRESH_INPUT } from '../presets/fresh';
-import { CARD_TIERS } from './types';
+import { CARD_TIERS, ESSENCE_TYPES } from './types';
+import type { ArcanistInput } from './types';
 import fixture from './__fixtures__/arcanist-sheet.json';
 
 const cells = fixture.cells as Record<string, { v: number | string | boolean | null; f?: string }>;
@@ -425,6 +426,113 @@ describe('exchange upgrades carry no costs', () => {
       'runeCraftMulti',
     ]);
     expect(result.rows.exchange).toHaveLength(2);
+  });
+});
+
+/**
+ * Exclusive mining and altar stalling.
+ *
+ * The workbook has no notion of either — it models all three essences earning
+ * at once and lets an altar drain a pool past empty — so none of this can be
+ * checked against the sheet. What it can be checked against is the old model:
+ * every one of these must reduce to the previous behaviour whenever the pool
+ * being mined outpaces the altars drawing on it.
+ */
+describe('essence supply', () => {
+  /** All three altars running, which the example's mining rate cannot feed. */
+  const starvedInput = (() => {
+    const input = structuredClone(EXAMPLE_INPUT);
+    for (const id of ALTAR_IDS) {
+      input.altars[id].unlocked = true;
+      input.altars[id].active = true;
+    }
+    return input;
+  })();
+
+  it('leaves a fed pool completely untouched', () => {
+    // EXAMPLE_INPUT mines Soft and runs one altar on it; income covers drain.
+    const fed = compute(EXAMPLE_INPUT);
+    expect(fed.essence.soft.essencePerHour).toBeGreaterThan(fed.essence.soft.altarDrain);
+
+    expect(fed.altars.brine.supplyFactor).toBe(1);
+    expect(fed.altars.brine.sustainedRunesPerHour).toBe(fed.altars.brine.runesPerHour);
+    expect(fed.essence.soft.sustainedNet).toBeCloseTo(fed.essence.soft.netEssencePerHour, 9);
+  });
+
+  it('throttles altars to the share of demand the pool can meet', () => {
+    const starved = compute(starvedInput);
+    const soft = starved.essence.soft;
+
+    expect(soft.essencePerHour).toBeLessThan(soft.altarDrain);
+    const expected = soft.essencePerHour / soft.altarDrain;
+
+    // Ash and Brine share the Soft pool, so they throttle by the same factor.
+    for (const id of ['ash', 'brine'] as const) {
+      expect(starved.altars[id].supplyFactor).toBeCloseTo(expected, 9);
+      expect(starved.altars[id].sustainedRunesPerHour).toBeCloseTo(
+        starved.altars[id].runesPerHour * expected,
+        9,
+      );
+    }
+  });
+
+  it('starves an altar whose pool is not being mined at all', () => {
+    // Chasm drains Dense; the example mines Soft, so Dense has no income.
+    const starved = compute(starvedInput);
+    expect(starvedInput.mining).not.toBe('dense');
+    expect(starved.altars.chasm.supplyFactor).toBe(0);
+    expect(starved.altars.chasm.sustainedRunesPerHour).toBe(0);
+    // The nominal rate is untouched — it is what the altar *would* do if fed.
+    expect(starved.altars.chasm.runesPerHour).toBeGreaterThan(0);
+  });
+
+  it('banks nothing from an essence it is not mining', () => {
+    const result = compute(EXAMPLE_INPUT);
+    for (const type of ESSENCE_TYPES) {
+      if (type === EXAMPLE_INPUT.mining) continue;
+      expect(result.essence[type].sustainedNet, type).toBe(0);
+    }
+  });
+
+  it('reports a starved pool as banking exactly zero, not a negative', () => {
+    // The sheet's net goes negative here, which no player can experience: the
+    // altars stall instead of overdrawing the pool.
+    const starved = compute(starvedInput);
+    expect(starved.essence.soft.netEssencePerHour).toBeLessThan(0);
+    expect(starved.essence.soft.sustainedNet).toBe(0);
+  });
+
+  it('leaves an altar on a pool nothing drains at full rate', () => {
+    const idle = structuredClone(EXAMPLE_INPUT);
+    for (const id of ALTAR_IDS) idle.altars[id].active = false;
+    const result = compute(idle);
+    for (const id of ALTAR_IDS) expect(result.altars[id].supplyFactor).toBe(1);
+  });
+
+  /**
+   * The claim the altar-shutdown advice rests on: an altar converts essence to
+   * runes at a rate set by craft, its card and the global multiplier — and
+   * *not* by capacity or travel speed. If a balance patch broke this, choosing
+   * which altar to run would become a search rather than a rule.
+   */
+  it('converts at a ratio independent of capacity and travel', () => {
+    const ratio = (input: ArcanistInput, id: (typeof ALTAR_IDS)[number]) => {
+      const altar = compute(input).altars[id];
+      return altar.runesPerHour / altar.essenceCostPerHour;
+    };
+
+    for (const id of ALTAR_IDS) {
+      const base = ratio(EXAMPLE_INPUT, id);
+
+      const tuned = structuredClone(EXAMPLE_INPUT);
+      tuned.altars[id].capacity = 25;
+      tuned.altars[id].travel = 10;
+      expect(ratio(tuned, id), id).toBeCloseTo(base, 9);
+
+      const crafted = structuredClone(EXAMPLE_INPUT);
+      crafted.altars[id].craft = 10;
+      expect(ratio(crafted, id), id).toBeGreaterThan(base);
+    }
   });
 });
 

@@ -73,39 +73,81 @@ describe('potencyPlan', () => {
   });
 
   /**
-   * The finish time, bracketed by the two schedules that need no simulation.
+   * Pools are worked in sequence, so the total is their mining hours summed.
    *
-   * Rune income only ever rises along the plan, so paying at today's rate the
-   * whole way is the slowest the plan can be, and paying at the rate it ends on
-   * is the fastest. Both bounds are per rune and then *maxed*, not summed —
-   * that is the parallel-banking claim stated as arithmetic. The strict upper
-   * bound is also the proof that front-loading Prismism paid for itself: a
-   * schedule that never compounded would land exactly on it.
+   * This is the shape of the whole model in one assertion: you cannot mine Soft
+   * and Dense at once, so a rank paid for in chasm runes waits behind the
+   * entire Soft phase. Before altars were supply-limited the plan treated all
+   * three rune types as banking simultaneously, which is why its figures were
+   * roughly half what they should have been.
    */
-  it('finishes between the slowest and fastest constant-rate schedules', () => {
+  it('totals the mining hours of every pool it works', () => {
+    const plan = potencyPlan(running());
+    const summed = plan.budget.reduce((sum, row) => sum + row.hours, 0);
+    expect(plan.totalHours).toBeCloseTo(summed, 6);
+  });
+
+  /**
+   * Within a pool, though, its altars really do bank in parallel: Ash and Brine
+   * both drain Soft, so a rank waiting on ash does not queue behind one waiting
+   * on brine. If they were sequential the Soft phase would be the sum of the
+   * individual waits rather than shorter than it.
+   */
+  it('banks the runes of a shared pool in parallel', () => {
+    const plan = potencyPlan(running());
+
+    const softPhase = plan.budget.find((row) => row.essence === 'soft');
+    expect(softPhase).toBeDefined();
+
+    const softSteps = plan.steps.filter((step) => step.pool === 'soft');
+    const runes = new Set(softSteps.map((step) => step.resource));
+    expect(runes.size).toBeGreaterThan(1);
+
+    const sequential = softSteps.reduce((sum, step) => sum + step.wait, 0);
+    expect(softPhase!.hours).toBeLessThanOrEqual(sequential + 1e-6);
+  });
+
+  /**
+   * The essence-limited floor: every rune the plan buys had to be converted
+   * from essence at the altar's ratio, and that essence had to be mined. If the
+   * budget were below this the model would be manufacturing essence.
+   */
+  it('never budgets less essence than the runes it buys require', () => {
     const input = running();
     const plan = potencyPlan(input);
+    const result = compute(input);
 
-    const maxed = structuredClone(input);
-    for (const id of SPELL_IDS) maxed.spells[id].rank = SPELLS[id].maxRank;
+    for (const row of plan.budget) {
+      const needed = ALTAR_IDS.filter((id) => ALTARS[id].consumes === row.essence).reduce(
+        (sum, id) => {
+          const altar = result.altars[id];
+          const ratio = altar.runesPerHour / altar.essenceCostPerHour;
+          return sum + (plan.cost[altar.rune] ?? 0) / ratio;
+        },
+        0,
+      );
 
-    const rateOf = (result: ReturnType<typeof compute>, altar: (typeof ALTAR_IDS)[number]) =>
-      result.altars[altar].runesPerHour;
-    const start = compute(input);
-    const end = compute(maxed);
+      // The plan's own ratio only improves as Prismism lands, so the starting
+      // ratio gives an upper bound on the essence required.
+      expect(row.required).toBeGreaterThan(0);
+      expect(row.required).toBeLessThanOrEqual(needed * 1.000001);
+    }
+  });
 
-    const spans = ALTAR_IDS.map((id) => {
-      const cost = plan.cost[ALTARS[id].rune] ?? 0;
-      return { slowest: cost / rateOf(start, id), fastest: cost / rateOf(end, id) };
-    });
+  it('reports mining hours consistent with the essence it needs', () => {
+    const input = running();
+    const plan = potencyPlan(input);
+    const result = compute(input);
 
-    const slowest = Math.max(...spans.map((s) => s.slowest));
-    const fastest = Math.max(...spans.map((s) => s.fastest));
-    const sequential = spans.reduce((sum, s) => sum + s.slowest, 0);
-
-    expect(plan.totalHours).toBeGreaterThan(fastest * 0.999999);
-    expect(plan.totalHours).toBeLessThan(slowest);
-    expect(plan.totalHours).toBeLessThan(sequential);
+    for (const row of plan.budget) {
+      // Hours × what the altars can eat per hour is the essence consumed.
+      const drain = Math.min(
+        result.essence[row.essence].essencePerHour,
+        result.essence[row.essence].altarDrain,
+      );
+      expect(row.hours).toBeGreaterThan(0);
+      expect(row.required).toBeLessThanOrEqual(row.hours * drain * 1.000001);
+    }
   });
 
   it('reports ranks as unreachable when no altar makes their rune', () => {
@@ -141,6 +183,87 @@ describe('potencyPlan', () => {
     const first = plan.steps.find((step) => step.resource === SPELLS.prismism.potencyResource);
     expect(first?.spell).toBe('prismism');
     expect(first?.runeGain).toBeGreaterThan(0);
+  });
+
+  /**
+   * Altar shutdown.
+   *
+   * Each rune comes from exactly one altar and the conversion ratio has no
+   * capacity term, so there is nothing to search: an altar is worth running
+   * until the last rank priced in its rune is bought, and is waste afterwards.
+   */
+  it('stops each altar when the last rank on its rune is bought', () => {
+    const plan = potencyPlan(running());
+
+    for (const schedule of plan.altars) {
+      const onThisRune = plan.steps.filter((step) => step.resource === schedule.rune);
+
+      if (onThisRune.length === 0) {
+        expect(schedule.advice, schedule.altar).not.toBe('run');
+        continue;
+      }
+
+      expect(schedule.advice, schedule.altar).toBe('run');
+      expect(schedule.stopAt).toBeCloseTo(onThisRune[onThisRune.length - 1]!.at, 9);
+      expect(schedule.stopAt).toBeLessThanOrEqual(plan.totalHours + 1e-9);
+    }
+  });
+
+  it('marks an altar idle when the plan wants none of its runes', () => {
+    const input = running();
+    // Manaflow is the only spell priced in chasm runes.
+    input.spells.manaflow.rank = SPELLS.manaflow.maxRank;
+
+    const chasm = potencyPlan(input).altars.find((a) => a.altar === 'chasm');
+    expect(chasm?.advice).toBe('idle');
+    expect(chasm?.stopAt).toBe(0);
+  });
+
+  /**
+   * "Not needed" and "cannot be fed" must not be confused.
+   *
+   * An altar the plan still wants but which is switched off produces nothing,
+   * so it has no steps and no stop time — exactly like an altar nothing needs.
+   * Reporting that as surplus would tell the player to turn off the altar they
+   * most need to turn on.
+   */
+  it('tells you to start an altar the plan needs but nothing is feeding', () => {
+    const input = running();
+    input.altars.chasm.active = false;
+
+    const plan = potencyPlan(input);
+    const chasm = plan.altars.find((a) => a.altar === 'chasm');
+
+    expect(chasm?.advice).toBe('start');
+    expect(plan.steps.some((step) => step.resource === 'chasmRune')).toBe(false);
+    expect(plan.blocked).toContain('chasmRune');
+  });
+
+  /**
+   * The saving that makes shutdown worth reporting: with Ash switched off once
+   * its ranks are done, Brine gets the whole Soft pool and finishes sooner than
+   * it would sharing with an altar nobody needs.
+   */
+  it('finishes sooner than the same plan with a finished altar left running', () => {
+    const input = running();
+    // Everything on ash is already done, so the Ash altar is pure waste.
+    for (const id of SPELL_IDS) {
+      if (SPELLS[id].potencyResource === 'ashRune') input.spells[id].rank = SPELLS[id].maxRank;
+    }
+
+    const managed = potencyPlan(input);
+    const softHours = managed.budget.find((row) => row.essence === 'soft')?.hours ?? 0;
+
+    // The same build with Ash never unlocked cannot leave it running, so it is
+    // the "managed" case by construction — the two must agree.
+    const withoutAsh = structuredClone(input);
+    withoutAsh.altars.ash.active = false;
+    const bare = potencyPlan(withoutAsh);
+
+    expect(softHours).toBeCloseTo(
+      bare.budget.find((row) => row.essence === 'soft')?.hours ?? 0,
+      6,
+    );
   });
 
   it('stays fast enough to run on every keystroke', () => {

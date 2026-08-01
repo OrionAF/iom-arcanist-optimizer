@@ -340,6 +340,8 @@ function computeEssence(
     brittleBlocksPerHour: blocksPerHour * stats.brittleChance,
     altarDrain: drain,
     netEssencePerHour: essencePerHour - drain,
+    // Overwritten by applySupply, which needs every pool's income at once.
+    sustainedNet: essencePerHour - drain,
     unmineable,
   };
 }
@@ -373,12 +375,61 @@ function computeAltars(
       runesPerCycle,
       runesPerHour: cyclesPerHour * runesPerCycle,
       essenceCostPerHour: cyclesPerHour * (1 + capacity),
+      // Filled in by applySupply, once essence income is known.
+      supplyFactor: 1,
+      sustainedRunesPerHour: cyclesPerHour * runesPerCycle,
       consumes: def.consumes,
       rune: def.rune,
     };
   }
 
   return out;
+}
+
+/**
+ * Throttle each altar to the essence actually reaching it.
+ *
+ * An altar stalls on an empty pool, so what it produces over a long run is set
+ * by the pool's income, not by its own tuning. Mining is exclusive, so at most
+ * one pool has income at a time and the other two support only whatever their
+ * altars can draw from a stock that is not being replenished — zero, in the
+ * steady state this models.
+ *
+ * The factor is a ratio rather than a boolean because two altars can share a
+ * pool: Ash and Brine both drain Soft, so a pool feeding half their combined
+ * demand runs both at half rate rather than one of them fully.
+ *
+ * Runs after `computeEssence` because it needs income, and income does not
+ * depend on drain — only the net does.
+ */
+function applySupply(
+  altars: Record<AltarId, AltarOutcome>,
+  essence: Record<EssenceType, EssenceOutcome>,
+  drain: Record<EssenceType, number>,
+  mining: EssenceType,
+): void {
+  const factor = {} as Record<EssenceType, number>;
+  for (const type of ESSENCE_TYPES) {
+    const supply = type === mining ? essence[type].essencePerHour : 0;
+    const demand = drain[type];
+    factor[type] = demand > 0 ? Math.min(1, supply / demand) : 1;
+  }
+
+  for (const id of ALTAR_IDS) {
+    const altar = altars[id];
+    const share = altar.unlocked && altar.active ? factor[altar.consumes] : 1;
+    altar.supplyFactor = share;
+    altar.sustainedRunesPerHour = altar.runesPerHour * share;
+  }
+
+  for (const type of ESSENCE_TYPES) {
+    const outcome = essence[type];
+    const supply = type === mining ? outcome.essencePerHour : 0;
+    // `supply - demand * factor` algebraically, but that leaves a float residue
+    // where it should be a clean zero: below demand, factor is supply/demand
+    // and the two terms cancel exactly.
+    outcome.sustainedNet = Math.max(0, supply - drain[type]);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -571,6 +622,8 @@ export function compute(input: ArcanistInput): ArcanistResult {
   for (const type of ESSENCE_TYPES) {
     essence[type] = computeEssence(type, stats, averages, effects, ext, derived, drain[type]);
   }
+
+  applySupply(altars, essence, drain, input.mining);
 
   const rows = buildRows(input, spells);
 

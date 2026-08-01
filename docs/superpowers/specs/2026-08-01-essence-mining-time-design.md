@@ -1,7 +1,7 @@
 # Essence mining time in the Spell Potency Path
 
 **Date:** 2026-08-01
-**Status:** approved, not yet implemented
+**Status:** implemented
 
 **Audience note.** The app has one user, who has said not to design around share
 link compatibility. Backwards compatibility is therefore not a constraint here;

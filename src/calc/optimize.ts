@@ -249,6 +249,11 @@ export interface Objectives {
 /**
  * Collapse a result into the two numbers being optimised.
  *
+ * Both objectives are the *sustained* figures, not the nominal ones. Mining is
+ * exclusive and altars stall on an empty pool, so an upgrade that raises an
+ * altar's throughput past what the pool can feed changes nothing a player would
+ * ever see — and ranking it as an improvement would send them to buy it.
+ *
  * Rune output is gated on `unlocked && active` to match how `compute` gates the
  * matching essence drain — an idle altar costs nothing and produces nothing, and
  * counting its notional output would make unlocking look free.
@@ -257,7 +262,7 @@ export function objectives(result: ArcanistResult): Objectives {
   const perEssence = {} as Record<EssenceType, number>;
   let essencePerHour = 0;
   for (const type of ESSENCE_TYPES) {
-    const net = result.essence[type].netEssencePerHour;
+    const net = result.essence[type].sustainedNet;
     perEssence[type] = net;
     essencePerHour += net;
   }
@@ -266,7 +271,7 @@ export function objectives(result: ArcanistResult): Objectives {
   let runesPerHour = 0;
   for (const id of ALTAR_IDS) {
     const altar = result.altars[id];
-    const rate = altar.unlocked && altar.active ? altar.runesPerHour : 0;
+    const rate = altar.unlocked && altar.active ? altar.sustainedRunesPerHour : 0;
     perAltar[id] = rate;
     runesPerHour += rate;
   }

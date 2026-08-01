@@ -69,6 +69,64 @@
   background: linear-gradient(180deg, var(--stratum-2), var(--stratum));
   padding: 14px 16px 12px;
   min-width: 0;
+  position: relative;
+  transition: background 140ms ease, opacity 140ms ease;
+}
+
+/* Covers the cell so clicking anywhere picks this essence. Sits beneath the
+   content, so the "?" buttons layered above it still take their own clicks. */
+.ledger-pick {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ledger-cell > *:not(.ledger-pick) {
+  position: relative;
+  z-index: 1;
+  /* Let clicks fall through to the pick button, except on the marks below. */
+  pointer-events: none;
+}
+
+.ledger-cell .help-mark {
+  pointer-events: auto;
+}
+
+/* The two you are not mining are showing a hypothetical, so they recede. */
+.ledger-cell:not([data-mining]) {
+  opacity: 0.5;
+}
+
+.ledger-cell:not([data-mining]):hover {
+  opacity: 0.78;
+}
+
+.ledger-cell[data-mining] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 9%, var(--stratum-2)), var(--stratum));
+  box-shadow: inset 0 2px 0 0 var(--tone);
+}
+
+.ledger-tag {
+  margin-left: auto;
+  font-size: var(--fs-micro);
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.ledger-cell[data-mining] .ledger-tag {
+  color: var(--tone);
+}
+
+.ledger-starved {
+  margin-top: 8px;
+  font-size: var(--fs-tiny);
+  line-height: 1.45;
+  color: var(--ember);
 }
 
 .ledger-cell[data-type='soft'] {
@@ -831,6 +889,16 @@ button.action.primary:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* A qualifier under a stat, for when the headline number needs a caveat. */
+.stat-note {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-micro);
+  font-family: var(--sans);
+  letter-spacing: 0;
+  color: var(--ember);
+}
+
 /* ------------------------------------------------------------ breakdown -- */
 
 .matrix {
@@ -1033,6 +1101,80 @@ button.action.primary:hover {
 
 .potency-steps {
   padding: 0 16px;
+}
+
+/* ------------------------------------------------------------- budget ---- */
+
+/* The headline of the panel: what the plan costs in essence and mining time. */
+.budget {
+  padding: 12px 16px 14px;
+  border-bottom: 1px solid var(--seam);
+}
+
+.budget-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0;
+  font-size: var(--fs-small);
+}
+
+.budget-amount {
+  color: var(--text-dim);
+}
+
+.budget-hours {
+  color: var(--brine);
+  min-width: 8ch;
+  text-align: right;
+}
+
+.budget-note {
+  margin: 8px 0 0;
+  font-size: var(--fs-tiny);
+  line-height: 1.45;
+  color: var(--text-faint);
+}
+
+/* The one piece of outright advice in the panel, so it gets its own block. */
+.altar-stops {
+  padding: 11px 16px 13px;
+  border-bottom: 1px solid var(--seam);
+}
+
+.altar-stops-head {
+  font-family: var(--mono);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.altar-stop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: var(--fs-small);
+  color: var(--text-dim);
+}
+
+.altar-stop .num {
+  color: var(--text);
+}
+
+.altar-stop-off {
+  color: var(--text-faint);
+  font-size: var(--fs-tiny);
+}
+
+/* An altar the plan wants but nothing is feeding: an instruction, not a note. */
+.altar-stop-start {
+  color: var(--ember);
+  font-size: var(--fs-tiny);
 }
 
 /* The clock is the point of this list, so it gets the emphasis the gain column
