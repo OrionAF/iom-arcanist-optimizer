@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 
 import { RESOURCE_LABELS } from '../../calc/constants';
 import { formatCompact, formatHours, formatNumber } from '../../calc/format';
-import { rankings, type Goal, type Marginal } from '../../calc/optimize';
+import { groupRankings, rankAll, type Goal, type Marginal } from '../../calc/optimize';
 import type { ArcanistInput, ArcanistResult } from '../../calc/types';
 import { Icon, Section } from '../components';
 import { RESOURCE_ICONS } from '../icons';
@@ -32,10 +32,14 @@ function gainOf(entry: Marginal, goal: Goal): number {
 /**
  * One recommendation.
  *
- * The cost is the price of exactly one more level, not the row's cost to max,
- * because that is the decision being ranked. The side-effect line appears only
- * when the other objective moves the wrong way — that is the tradeoff the two
- * lists exist to expose, and it is worth spelling out where it happens.
+ * The cost is the price of the step being ranked, not the row's cost to max.
+ * That step is usually one level but not always: damage arrives in whole hits,
+ * so the cheapest damage buy that does anything can be several levels, and the
+ * `3→7` on the row is the purchase the gain and the price both refer to.
+ *
+ * The side-effect line appears only when the other objective moves the wrong
+ * way — that is the tradeoff the two lists exist to expose, and it is worth
+ * spelling out where it happens.
  */
 function Entry({ entry, goal, rank }: { entry: Marginal; goal: Goal; rank: number }) {
   const gain = gainOf(entry, goal);
@@ -52,7 +56,7 @@ function Entry({ entry, goal, rank }: { entry: Marginal; goal: Goal; rank: numbe
         <span className="opt-name">
           {entry.candidate.label}
           <span className="opt-level num">
-            {entry.candidate.level}→{entry.candidate.level + 1}
+            {entry.candidate.level}→{entry.candidate.to}
           </span>
         </span>
         {other < 0 ? (
@@ -81,17 +85,15 @@ function Entry({ entry, goal, rank }: { entry: Marginal; goal: Goal; rank: numbe
 }
 
 function GoalList({
-  input,
-  result,
+  scored,
   goal,
   title,
 }: {
-  input: ArcanistInput;
-  result: ArcanistResult;
+  scored: Marginal[];
   goal: Goal;
   title: string;
 }) {
-  const ranked = useMemo(() => rankings(input, goal, result), [input, goal, result]);
+  const ranked = useMemo(() => groupRankings(scored, goal), [scored, goal]);
 
   // An upgrade that moves this goal not at all is not a recommendation for it.
   const queues = ranked.byResource
@@ -127,7 +129,7 @@ function GoalList({
             </div>
             <ol className="opt-list">
               {queue.entries.map((entry, i) => (
-                <Entry key={entry.candidate.id} entry={entry} goal={goal} rank={i + 1} />
+                <Entry key={entry.candidate.key} entry={entry} goal={goal} rank={i + 1} />
               ))}
             </ol>
           </div>
@@ -140,7 +142,7 @@ function GoalList({
           <div className="opt-queue-head">No price</div>
           <ol className="opt-list">
             {unpriced.map((entry, i) => (
-              <Entry key={entry.candidate.id} entry={entry} goal={goal} rank={i + 1} />
+              <Entry key={entry.candidate.key} entry={entry} goal={goal} rank={i + 1} />
             ))}
           </ol>
         </div>
@@ -150,11 +152,15 @@ function GoalList({
 }
 
 export function Optimizer({ input, result }: { input: ArcanistInput; result: ArcanistResult }) {
+  // Scored once for both lists: the recomputes are the expensive part and they
+  // do not depend on the goal — only the ordering does.
+  const scored = useMemo(() => rankAll(input, result), [input, result]);
+
   return (
     <Section title="Optimizer" help="optimizer" eyebrow="best next buys · per hour gained">
       <div className="opt-goals">
-        <GoalList input={input} result={result} goal="essence" title="For essence / hr" />
-        <GoalList input={input} result={result} goal="runes" title="For runes / hr" />
+        <GoalList scored={scored} goal="essence" title="For essence / hr" />
+        <GoalList scored={scored} goal="runes" title="For runes / hr" />
       </div>
     </Section>
   );

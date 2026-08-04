@@ -12,12 +12,15 @@ import { describe, expect, it } from 'vitest';
 
 import { compute } from './engine';
 import {
+  candidateAt,
   enumerateCandidates,
+  enumerateLevers,
   marginalValue,
   objectives,
   rankAll,
   rankings,
   runeIncome,
+  STEPS_PER_LEVER,
 } from './optimize';
 import { EXAMPLE_INPUT } from '../presets/example';
 import { FRESH_INPUT } from '../presets/fresh';
@@ -88,6 +91,37 @@ describe('candidates', () => {
       // Either the level went up by one, or the row is now maxed and gone.
       expect(after?.level ?? candidate.max).toBe(candidate.level + 1);
     }
+  });
+
+  it('applies exactly its own step, at any size', () => {
+    for (const lever of enumerateLevers(FRESH_INPUT)) {
+      for (const steps of [1, 2, 5, 40]) {
+        const candidate = candidateAt(lever, steps);
+        // Never past the row's max, however many levels were asked for.
+        expect(candidate.to).toBeLessThanOrEqual(lever.max);
+        expect(candidate.steps).toBeGreaterThan(0);
+
+        const draft = structuredClone(FRESH_INPUT);
+        candidate.apply(draft);
+        const after = enumerateLevers(draft).find((l) => l.id === candidate.id);
+        expect(after?.level ?? candidate.max).toBe(candidate.to);
+      }
+    }
+  });
+
+  it('prices a multi-level step as the sum of the levels it buys', () => {
+    const lever = enumerateLevers(FRESH_INPUT).find((l) => l.id === 'flatDamage1')!;
+    const one = Object.values(candidateAt(lever, 1).stepCost)[0]!;
+    const three = Object.values(candidateAt(lever, 3).stepCost)[0]!;
+    const each = [1, 2, 3].map((s) => {
+      const from = { ...FRESH_INPUT, essence: { ...FRESH_INPUT.essence, flatDamage1: s - 1 } };
+      return Object.values(
+        candidateAt(enumerateLevers(from).find((l) => l.id === 'flatDamage1')!, 1).stepCost,
+      )[0]!;
+    });
+
+    expect(three).toBeCloseTo(each.reduce((a, b) => a + b, 0), 6);
+    expect(three).toBeGreaterThan(one);
   });
 
   it("prices a step as the row's own next level, not its cost to max", () => {
@@ -173,6 +207,7 @@ describe('marginal value', () => {
   it('scores damage in steps, since hits-to-mine is a whole number', () => {
     const candidate = enumerateCandidates(EXAMPLE_INPUT).find((c) => c.id === 'flatDamage1')!;
     expect(marginalValue(EXAMPLE_INPUT, candidate, baseline).delta.essencePerHour).toBe(0);
+    // Which is why the ranking does not stop at one level — see 'step sizes'.
 
     // Enough damage to remove at least one hit does show up.
     const stronger = structuredClone(EXAMPLE_INPUT);
@@ -423,6 +458,109 @@ describe('time to afford', () => {
     expect(compute(starved).altars.brine.supplyFactor).toBeLessThan(1);
     expect(compute(fed).altars.brine.supplyFactor).toBe(1);
     expect(brineOf(starved)!).toBeGreaterThan(brineOf(fed)!);
+  });
+});
+
+/**
+ * Step sizes.
+ *
+ * The optimizer used to price exactly one level of every row, which made every
+ * damage row permanently worthless: `hitsToMine` is a whole number of hits, so
+ * one point of damage buys nothing until it removes one. The ranking now prices
+ * the first few step sizes that move an objective and recommends the best.
+ */
+describe('step sizes', () => {
+  const baseline = objectives(compute(EXAMPLE_INPUT));
+
+  /** Score one lever at an arbitrary step, outside the breakpoint search. */
+  const at = (input: typeof EXAMPLE_INPUT, id: string, steps: number) => {
+    const lever = enumerateLevers(input).find((l) => l.id === id)!;
+    return marginalValue(input, candidateAt(lever, steps), objectives(compute(input)));
+  };
+
+  it('recommends the multi-level buy that a quantised row actually needs', () => {
+    // Damage is the case the one-level view could never see: no single level
+    // does anything, so the old ranking filtered every damage row out.
+    const entry = rankings(EXAMPLE_INPUT, 'essence')
+      .byResource.flatMap((q) => q.entries)
+      .find((m) => m.candidate.id === 'flatDamage1')!;
+
+    expect(entry.candidate.steps).toBeGreaterThan(1);
+    expect(entry.delta.essencePerHour).toBeGreaterThan(0);
+
+    // And it is the cheapest such buy: one level short does nothing at all.
+    expect(at(EXAMPLE_INPUT, 'flatDamage1', entry.candidate.steps - 1).delta.essencePerHour).toBe(0);
+  });
+
+  it('still recommends one level where one level works', () => {
+    // Loot scales continuously, so the cheapest step is the efficient one and
+    // the ranking looks exactly as it did before.
+    const entry = rankings(EXAMPLE_INPUT, 'essence')
+      .byResource.flatMap((q) => q.entries)
+      .find((m) => m.candidate.id === 'softMaxLoot')!;
+    expect(entry.candidate.steps).toBe(1);
+  });
+
+  /**
+   * The claim the recommendation rests on: within a row, nothing smaller is a
+   * better buy. Brute-forced against every step size the row allows, which is
+   * the search the ranking deliberately does not do at runtime.
+   */
+  it('is never beaten by a smaller step on the same row', () => {
+    for (const input of [EXAMPLE_INPUT, FRESH_INPUT]) {
+      for (const goal of ['essence', 'runes'] as const) {
+        for (const queue of rankings(input, goal).byResource) {
+          for (const entry of queue.entries) {
+            const chosen = goal === 'essence' ? entry.perCostEssence : entry.perCostRunes;
+            for (let steps = 1; steps < entry.candidate.steps; steps += 1) {
+              const rival = at(input, entry.candidate.id, steps);
+              const score = goal === 'essence' ? rival.perCostEssence : rival.perCostRunes;
+              expect(score, `${entry.candidate.id} @${steps} vs @${entry.candidate.steps}`)
+                .toBeLessThanOrEqual(chosen);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('never leaves a row out, and never lists it twice', () => {
+    const levers = enumerateLevers(EXAMPLE_INPUT).map((l) => l.id);
+    for (const goal of ['essence', 'runes'] as const) {
+      const { byResource, unpriced } = rankings(EXAMPLE_INPUT, goal);
+      const listed = [...byResource.flatMap((q) => q.entries), ...unpriced].map(
+        (m) => m.candidate.id,
+      );
+      expect([...listed].sort()).toEqual([...levers].sort());
+    }
+  });
+
+  it('prices a bounded number of steps per row', () => {
+    const perLever = new Map<string, number>();
+    for (const m of rankAll(EXAMPLE_INPUT)) {
+      perLever.set(m.candidate.id, (perLever.get(m.candidate.id) ?? 0) + 1);
+    }
+    for (const [id, count] of perLever) {
+      expect(count, id).toBeLessThanOrEqual(STEPS_PER_LEVER);
+    }
+  });
+
+  it('leaves a row that nothing can move in the ranking, scored zero', () => {
+    // Mines 3 and 4 are "Coming Soon" and change nothing. A row the UI shows
+    // must still appear, or the two panels would disagree about what exists.
+    const bought = structuredClone(EXAMPLE_INPUT);
+    bought.essence.essenceMine = 2;
+    const m = rankAll(bought).filter((x) => x.candidate.id === 'essenceMine');
+    expect(m).toHaveLength(1);
+    expect(m[0]!.candidate.steps).toBe(1);
+    expect(m[0]!.delta.essencePerHour).toBe(0);
+  });
+
+  it('leaves the input untouched however many levels it probes', () => {
+    const before = structuredClone(EXAMPLE_INPUT);
+    rankings(EXAMPLE_INPUT, 'essence');
+    expect(EXAMPLE_INPUT).toEqual(before);
+    expect(baseline).toEqual(objectives(compute(EXAMPLE_INPUT)));
   });
 });
 
