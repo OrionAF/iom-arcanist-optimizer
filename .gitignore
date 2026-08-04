@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.local
+docs/
 
 # Derived code graph, rebuilt from source by `graphify update .`.
 graphify-out/
