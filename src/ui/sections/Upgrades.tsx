@@ -315,8 +315,12 @@ export function Spells({ input, result, update }: Props) {
               <th role="columnheader" scope="col" className="effect">
                 Effects
               </th>
+              {/* "Potency" is dropped from the header and left to the help
+                  popover, which is titled with it. Spelled out, this header was
+                  the widest cell in the table — wider than any cost under it —
+                  and on its own worth about 70px of sideways scroll. */}
               <th role="columnheader" scope="col" style={{ textAlign: 'right' }}>
-                Potency next / remaining <Help id="potencyCost" />
+                Next / Remaining <Help id="potencyCost" />
               </th>
             </tr>
           </thead>
@@ -329,25 +333,31 @@ export function Spells({ input, result, update }: Props) {
 
               return (
                 <tr role="row" key={id} className={state.unlocked ? undefined : 'locked'}>
+                  {/* Name above, toggle and icon below it. Inline, the three of
+                      them made this the widest column in the table; stacked, it
+                      is only as wide as the name, and the room that frees goes
+                      to the effects beside it. */}
                   <td role="cell" className="name">
-                    <span className="named">
-                      {/* The buff icon once you own it, the spell item until then. */}
-                      <Icon
-                        src={state.unlocked ? SPELL_ACTIVE_ICONS[id] : SPELL_ICONS[id]}
-                        size={22}
-                        dim={!state.unlocked}
-                      />
-                      <Switch
-                        checked={state.unlocked}
-                        onChange={(next) =>
-                          update((draft) => {
-                            draft.spells[id].unlocked = next;
-                          })
-                        }
-                      >
-                        {def.label}
-                      </Switch>
-                    </span>
+                    <div className="spell-id">
+                      <span className="spell-label">{def.label}</span>
+                      <span className="named">
+                        <Switch
+                          checked={state.unlocked}
+                          label={`${def.label} unlocked`}
+                          onChange={(next) =>
+                            update((draft) => {
+                              draft.spells[id].unlocked = next;
+                            })
+                          }
+                        />
+                        {/* The buff icon once you own it, the spell item until then. */}
+                        <Icon
+                          src={state.unlocked ? SPELL_ACTIVE_ICONS[id] : SPELL_ICONS[id]}
+                          size={30}
+                          dim={!state.unlocked}
+                        />
+                      </span>
+                    </div>
                   </td>
                   <td role="cell" className="ctl" data-label="Level">
                     <LevelInput

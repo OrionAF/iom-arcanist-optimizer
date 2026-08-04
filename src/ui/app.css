@@ -664,6 +664,90 @@
   min-width: 150px;
 }
 
+/*
+ * The spells table stacks its name cell instead of running it inline.
+ *
+ * Inline — icon, checkbox, name — that column needed the 200px above while the
+ * effects column, which carries two readings per spell rather than one, sat at
+ * its 150px floor and wrapped every row onto three lines. The panel scrolled
+ * sideways anyway. Stacked, the column is only as wide as the spell's name, and
+ * the ~100px that frees is what buys each reading a line of its own below.
+ */
+.rows.spells .name {
+  min-width: 0;
+}
+
+.spell-id {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+/* Undo the flex-start alignment the inline names want: with the icon now taller
+   than the box beside it, these two centre on each other. */
+.rows.spells .name .named {
+  align-items: center;
+  gap: 9px;
+}
+
+.rows.spells .name .named .icon {
+  margin-top: 0;
+}
+
+.spell-label {
+  font-size: var(--fs-small);
+  white-space: nowrap;
+}
+
+/* Owning the spell brightens its name, the way the label inside the switch used
+   to. Locked rows keep the dimmed `.rows .locked td.name` colour. */
+.rows.spells tr:not(.locked) .spell-label {
+  color: var(--text);
+}
+
+/* One line per reading — the point of the whole rearrangement. */
+.rows.spells td.effect {
+  white-space: nowrap;
+}
+
+/*
+ * The last of the sideways scroll, taken off the two things that were paying
+ * for width they did not use.
+ *
+ * This is the only five-column table on the page, so it pays for its gutters
+ * one more time than the rest; three pixels either side of each cell is ~30px
+ * of table without reading as a change in rhythm. And both spell steppers hold
+ * two digits at most — level caps at 50, potency at 10 — where the essence
+ * table above them runs to three.
+ */
+.rows.spells th,
+.rows.spells td {
+  padding-left: 7px;
+  padding-right: 7px;
+}
+
+.rows.spells .level input {
+  width: 40px;
+}
+
+.rows.spells .level .of {
+  padding-right: 5px;
+}
+
+/*
+ * The cost header is allowed to wrap, unlike every other header on the page.
+ *
+ * At full width it does not — auto table layout hands a column its one-line
+ * preference whenever there is room, so this reads exactly as the rest do. It
+ * folds only in the 1040–1280 band, where the two-column grid leaves this panel
+ * around 660px and this header, not the costs beneath it, is what the column is
+ * being sized to.
+ */
+.rows.spells th:last-child {
+  white-space: normal;
+}
+
 .rows .cost {
   text-align: right;
   white-space: nowrap;
@@ -1727,6 +1811,12 @@ button.action.primary:hover {
 
   .rows.spells td.ctl:nth-of-type(3) {
     grid-area: ctl2;
+  }
+
+  /* No column to keep narrow here, and nowrap at 366px would push the readings
+     off the edge behind the sideways scroll this layout exists to avoid. */
+  .rows.spells td.effect {
+    white-space: normal;
   }
 
   .named {

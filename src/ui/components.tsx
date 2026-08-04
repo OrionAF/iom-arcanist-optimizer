@@ -311,19 +311,33 @@ export function LevelInput({
   );
 }
 
+/**
+ * A checkbox and the words beside it.
+ *
+ * Pass `label` instead of children where the words already sit elsewhere in the
+ * cell — the spells table prints the spell name above its icon — and the box
+ * goes out bare but still named to a screen reader.
+ */
 export function Switch({
   checked,
   onChange,
+  label,
   children,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
-  children: ReactNode;
+  label?: string;
+  children?: ReactNode;
 }) {
   return (
     <label className="switch">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span>{children}</span>
+      <input
+        type="checkbox"
+        checked={checked}
+        aria-label={children === undefined ? label : undefined}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      {children === undefined ? null : <span>{children}</span>}
     </label>
   );
 }
