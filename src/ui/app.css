@@ -1206,6 +1206,24 @@ button.action.primary:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * A second reading beside the headline rather than under it.
+ *
+ * `.stat-note` below is for caveats and sits on its own line in ember; this is
+ * for a figure that belongs to the same thought — the multiplier and the hit it
+ * produces — so it stays inline and merely recedes.
+ */
+.stat-aside {
+  color: var(--text-dim);
+  font-size: var(--fs-small);
+}
+
+.stat-aside::before {
+  content: '·';
+  color: var(--text-faint);
+  padding: 0 5px;
+}
+
 /* A qualifier under a stat, for when the headline number needs a caveat. */
 .stat-note {
   display: block;

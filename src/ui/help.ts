@@ -99,7 +99,7 @@ export const HELP = {
   },
   statCritDamage: {
     title: 'Crit damage',
-    body: 'Multiplier applied when a hit crits. A crit that also super crits multiplies again, which is why the expected multiplier is worth more than this number alone suggests.',
+    body: 'Multiplier applied when a hit crits. A crit that also super crits multiplies again, which is why the expected multiplier is worth more than this number alone suggests.\n\nThe figure beside it is what a crit lands for: your nominal Damage times this multiplier, before essence block armour comes off.',
   },
   statSuperCrit: {
     title: 'Super crit',
@@ -107,7 +107,7 @@ export const HELP = {
   },
   statSuperCritDamage: {
     title: 'Super crit damage',
-    body: 'Multiplier stacked on top of the crit multiplier when a hit super crits.',
+    body: 'Multiplier stacked on top of the crit multiplier when a hit super crits.\n\nThe figure beside it carries both multipliers, because a hit only reaches super crit by having crit first. It is what that hit lands for before essence block armour comes off.',
   },
   statArmorPen: {
     title: 'Armour penetration',

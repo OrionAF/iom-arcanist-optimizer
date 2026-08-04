@@ -473,26 +473,60 @@ export function Exchange({ result, update }: Props) {
 
 export function Stats({ result }: { result: ArcanistResult }) {
   const s = result.stats;
+
+  /*
+   * The crit figures are built from what is printed, not from the engine's full
+   * precision.
+   *
+   * Damage prints whole and the multipliers print to two places, so a reader
+   * checking the tiles against each other has only those digits to work with.
+   * Off the unrounded stats the answer was a point or two away from that
+   * arithmetic — accurate, and reading as a typo. The engine keeps its
+   * precision; only this readout rounds first, as the damage tile already did.
+   */
+  const damage = Math.round(s.damage);
+  const critDamage = Number(s.critDamage.toFixed(2));
+  const superCritDamage = Number(s.superCritDamage.toFixed(2));
+
   return (
     <Section title="Arcanist Stats" eyebrow="derived" flush>
       <dl className="stats">
-        <Stat label="Damage" help="statDamage" value={formatNumber(Math.round(s.damage))} />
+        <Stat label="Damage" help="statDamage" value={formatNumber(damage)} />
         <Stat
           label="Attack every"
           help="statAttackInterval"
           value={formatDuration(s.attackInterval)}
         />
         <Stat label="Crit chance" help="statCritChance" value={formatPercent(s.critChance)} />
+        {/* The multiplier stays the headline; the hit it produces rides beside
+            it, so the Damage stat above has something to be read against. Both
+            are pre-armour, as that one is. Super crit compounds the crit
+            multiplier into its figure because that is the only way to reach it:
+            a hit super crits by having crit first. */}
         <Stat
           label="Crit damage"
           help="statCritDamage"
-          value={`×${formatNumber(s.critDamage, 2)}`}
+          value={
+            <>
+              ×{formatNumber(critDamage, 2)}
+              <span className="stat-aside">
+                {formatNumber(Math.round(damage * critDamage))}
+              </span>
+            </>
+          }
         />
         <Stat label="Super crit" help="statSuperCrit" value={formatPercent(s.superCritChance)} />
         <Stat
           label="Super crit dmg"
           help="statSuperCritDamage"
-          value={`×${formatNumber(s.superCritDamage, 2)}`}
+          value={
+            <>
+              ×{formatNumber(superCritDamage, 2)}
+              <span className="stat-aside">
+                {formatNumber(Math.round(damage * critDamage * superCritDamage))}
+              </span>
+            </>
+          }
         />
         <Stat label="Armour pen" help="statArmorPen" value={formatNumber(s.armorPen)} />
         <Stat label="Stun negate" help="statStunNegate" value={formatPercent(s.stunNegate)} />
