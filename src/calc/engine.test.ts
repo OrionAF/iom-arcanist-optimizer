@@ -309,12 +309,12 @@ describe('spells (E45:L66)', () => {
 describe('total resource costs (A87:C110)', () => {
   /**
    * Orbs are spent only by essence and altar upgrades, so these still match the
-   * sheet exactly. The rune totals do not — the sheet's figures included
+   * sheet exactly — except white, which carries the damagePct cost correction
+   * below. The rune totals do not match either: the sheet's figures included
    * Exchange costs, which are no longer counted (see the exchange describe
    * block below).
    */
   const cases = [
-    ['whiteOrb', 'C89'],
     ['greenOrb', 'C90'],
     ['purpleOrb', 'C91'],
     ['orangeOrb', 'C92'],
@@ -323,6 +323,11 @@ describe('total resource costs (A87:C110)', () => {
 
   it.each(cases)('%s remaining matches %s', (resource, ref) => {
     expectMatchesSheet(result.totals.remaining[resource], ref, `${resource} remaining`);
+  });
+
+  /** The whole of the white-orb gap is the one corrected row, and nothing else. */
+  it('whiteOrb remaining is C89 plus the damagePct correction', () => {
+    expect(result.totals.remaining.whiteOrb).toBeCloseTo(sheet('C89') + sheet('G18') * 0.5, 6);
   });
 
   it('rune totals are the sheet minus the exchange costs', () => {
@@ -365,7 +370,6 @@ describe('per-row costs match the sheet cell for cell', () => {
     ['armorPen', 'G13'],
     ['superCrit1', 'G14'],
     ['flatDamage3', 'G16'],
-    ['damagePct', 'G18'],
     ['shinyLoot', 'G19'],
     ['shinyChance2', 'G20'],
     ['critChance2', 'G22'],
@@ -376,6 +380,20 @@ describe('per-row costs match the sheet cell for cell', () => {
     const row = result.rows.essence.find((r) => r.id === id);
     const amount = Object.values(row!.remaining)[0] ?? 0;
     expectMatchesSheet(amount, ref, `${id} cost remaining`);
+  });
+
+  /**
+   * Flat Damage +2% starts at 3 white orbs, not the sheet's 2 — see
+   * CORRECTIONS.md. The whole curve scales with its base, so every figure on
+   * this row is exactly 1.5x what the workbook cached. Assert the corrected
+   * value AND that the sheet still disagrees, so this stays an intentional
+   * deviation rather than a silent transcription slip.
+   */
+  it('essence damagePct: corrected cost base (G18)', () => {
+    const row = result.rows.essence.find((r) => r.id === 'damagePct')!;
+    const amount = Object.values(row.remaining)[0] ?? 0;
+    expect(amount).toBeCloseTo(sheet('G18') * 1.5, 6);
+    expect(sheet('G18'), 'sheet still has the understated base').toBeLessThan(amount);
   });
 
   const altarRows: [string, string, string][] = [

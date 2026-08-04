@@ -6,6 +6,8 @@
  * leaving a trailing "." when the "0.##" branch rounds to a whole number.
  */
 
+import type { Resource } from './types';
+
 const SCALE_NAMES = [
   '',
   'Thousand',
@@ -93,6 +95,41 @@ export function formatCompact(value: number): string {
   const index = scaleIndex(value);
   const { text } = scaleAndRound(value, index);
   return `${text}${SHORT_SUFFIXES[index] ?? ''}`;
+}
+
+/*
+ * Orb prices are whole numbers.
+ *
+ * The cost curves are geometric, so they land on values like 366.05 that the
+ * game itself would never quote — you cannot hold a twentieth of an orb. The
+ * engine keeps the exact figure, because that is what the golden test asserts
+ * and what the optimizer compares; only the display rounds, the same way the
+ * Arcanist Stats damage readout does.
+ *
+ * Runes and essence are deliberately left alone: they arrive as fractional
+ * per-hour rates, and rounding a rune price would imply a precision the
+ * time-to-afford figures beside it do not have.
+ */
+const ORB_RESOURCES = new Set<Resource>([
+  'whiteOrb',
+  'greenOrb',
+  'purpleOrb',
+  'orangeOrb',
+  'redOrb',
+]);
+
+export function isOrb(resource: Resource): boolean {
+  return ORB_RESOURCES.has(resource);
+}
+
+/** A price, for a dense table cell. Orbs are whole; everything else is not. */
+export function formatCost(resource: Resource, amount: number): string {
+  return formatCompact(isOrb(resource) ? Math.round(amount) : amount);
+}
+
+/** The same rule, in the Total Resources panel's long-scale style. */
+export function formatCostLong(resource: Resource, amount: number): string {
+  return formatShortScale(isOrb(resource) ? Math.round(amount) : amount);
 }
 
 /** Plain decimal with a fixed number of significant-ish digits. */

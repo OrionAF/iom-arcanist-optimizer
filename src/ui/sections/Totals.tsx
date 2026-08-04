@@ -1,5 +1,5 @@
 import { RESOURCE_GROUPS } from '../../calc/constants';
-import { formatShortScale } from '../../calc/format';
+import { formatCostLong } from '../../calc/format';
 import type { ArcanistResult } from '../../calc/types';
 import { ResourceName, Section } from '../components';
 
@@ -46,9 +46,11 @@ export function Totals({ result }: { result: ArcanistResult }) {
                   <td
                     style={{ color: remaining[resource] > 0 ? 'var(--text)' : 'var(--text-faint)' }}
                   >
-                    {formatShortScale(remaining[resource])}
+                    {formatCostLong(resource, remaining[resource])}
                   </td>
-                  <td style={{ color: 'var(--text-faint)' }}>{formatShortScale(total[resource])}</td>
+                  <td style={{ color: 'var(--text-faint)' }}>
+                    {formatCostLong(resource, total[resource])}
+                  </td>
                 </tr>
               ))}
             </tbody>

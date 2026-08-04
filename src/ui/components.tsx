@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { createPortal } from 'react-dom';
 
 import { RESOURCE_LABELS } from '../calc/constants';
-import { formatCompact } from '../calc/format';
+import { formatCost } from '../calc/format';
 import type { Resource, ResourceBundle } from '../calc/types';
 import { loadPanels, savePanel } from '../state/storage';
 import { HELP, type HelpEntry, type HelpId } from './help';
@@ -287,6 +287,9 @@ export function LevelInput({
       </button>
       <input
         type="number"
+        // Levels are whole numbers, so the phone keyboard should open without a
+        // decimal point on it.
+        inputMode="numeric"
         value={field.display}
         placeholder="0"
         min={0}
@@ -365,6 +368,7 @@ export function NumberField({
     <input
       className="plain"
       type="number"
+      inputMode="decimal"
       step={step}
       value={field.display}
       placeholder="0"
@@ -382,7 +386,7 @@ export function ResourceAmount({ resource, amount }: { resource: Resource; amoun
   const src = RESOURCE_ICONS[resource];
   return (
     <span className="res" title={RESOURCE_LABELS[resource]}>
-      <span className="num">{formatCompact(amount)}</span>
+      <span className="num">{formatCost(resource, amount)}</span>
       {src ? (
         <Icon src={src} size={16} alt={RESOURCE_LABELS[resource]} />
       ) : (
@@ -440,9 +444,9 @@ export function CostPair({ next, remaining }: { next: ResourceBundle; remaining:
     const src = RESOURCE_ICONS[sole];
     return (
       <span className="res" title={RESOURCE_LABELS[sole]}>
-        <span className="num">{formatCompact(next[sole] ?? 0)}</span>
+        <span className="num">{formatCost(sole, next[sole] ?? 0)}</span>
         <span className="cost-slash">/</span>
-        <span className="num spent">{formatCompact(remaining[sole] ?? 0)}</span>
+        <span className="num spent">{formatCost(sole, remaining[sole] ?? 0)}</span>
         {src ? (
           <Icon src={src} size={16} alt={RESOURCE_LABELS[sole]} />
         ) : (

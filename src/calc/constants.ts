@@ -227,7 +227,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'flatDamage1',
     row: 5,
-    label: 'Flat Damage',
+    label: 'Flat Damage +1',
     max: 25,
     cost: curveOn('whiteOrb', geo(1, 1.2)),
     effects: [{ key: 'flatDamage1', label: 'Flat Damage', perLevel: 1, display: 'flat' }],
@@ -235,7 +235,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'softMaxLoot',
     row: 6,
-    label: 'Soft Essence Max Loot',
+    label: 'Soft Essence Max Loot +1',
     max: 3,
     cost: curveOn('whiteOrb', arith(10, 30)),
     effects: [{ key: 'softMaxLoot', label: 'Soft Essence Max Loot', perLevel: 1, display: 'flat' }],
@@ -243,7 +243,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'shinyChance1',
     row: 7,
-    label: 'Essence Shiny Chance',
+    label: 'Essence Shiny Chance +0.30%',
     max: 20,
     cost: curveOn('whiteOrb', geo(3, 1.2)),
     effects: [
@@ -253,7 +253,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'critChance1',
     row: 8,
-    label: 'Crit Chance / Crit Damage',
+    label: 'Crit Chance +0.25% / Crit Damage +1%',
     max: 25,
     cost: curveOn('greenOrb', geo(2, 1.2)),
     effects: [
@@ -264,7 +264,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'flatDamage2',
     row: 10,
-    label: 'Flat Damage / Brittle Chance',
+    label: 'Flat Damage +1 / Brittle Chance +0.15%',
     max: 25,
     cost: curveOn('greenOrb', geo(3, 1.2)),
     effects: [
@@ -275,7 +275,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'denseMaxLoot',
     row: 12,
-    label: 'Dense Essence Max Loot',
+    label: 'Dense Essence Max Loot +1',
     max: 3,
     cost: curveOn('greenOrb', arith(10, 30)),
     effects: [
@@ -285,7 +285,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'armorPen',
     row: 13,
-    label: 'Essence Armor Pen',
+    label: 'Essence Armor Pen +1',
     max: 5,
     cost: curveOn('purpleOrb', arith(5, 5)),
     effects: [{ key: 'armorPen', label: 'Essence Armor Pen', perLevel: 1, display: 'flat' }],
@@ -293,7 +293,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'superCrit1',
     row: 14,
-    label: 'Super Crit Chance / Super Crit Damage',
+    label: 'Super Crit Chance +0.50% / Super Crit Damage +1%',
     max: 20,
     cost: curveOn('purpleOrb', geo(5, 1.2)),
     effects: [
@@ -304,7 +304,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'flatDamage3',
     row: 16,
-    label: 'Flat Damage / Stun Negate Chance',
+    label: 'Flat Damage +1 / Stun Negate Chance +2%',
     max: 10,
     cost: curveOn('purpleOrb', geo(8, 1.2)),
     effects: [
@@ -315,15 +315,15 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'damagePct',
     row: 18,
-    label: 'Damage',
+    label: 'Flat Damage +2%',
     max: 20,
-    cost: curveOn('whiteOrb', geo(2, 1.2)),
-    effects: [{ key: 'damagePct', label: 'Damage', perLevel: 0.02, display: 'percent' }],
+    cost: curveOn('whiteOrb', geo(3, 1.2)),
+    effects: [{ key: 'damagePct', label: 'Flat Damage', perLevel: 0.02, display: 'percent' }],
   },
   {
     id: 'shinyLoot',
     row: 19,
-    label: 'Shiny Essence Loot',
+    label: 'Shiny Essence Loot +1',
     max: 3,
     cost: curveOn('greenOrb', arith(15, 15)),
     effects: [{ key: 'shinyLoot', label: 'Shiny Essence Loot', perLevel: 1, display: 'flat' }],
@@ -331,7 +331,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'shinyChance2',
     row: 20,
-    label: 'Shiny Chance / Brittle Chance',
+    label: 'Shiny Chance +1% / Brittle Chance +1%',
     max: 3,
     cost: curveOn('purpleOrb', arith(20, 20)),
     effects: [
@@ -342,7 +342,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'critChance2',
     row: 22,
-    label: 'Crit Chance / Super Crit Chance',
+    label: 'Crit Chance +0.35% / Super Crit Chance +0.25%',
     max: 20,
     cost: curveOn('orangeOrb', geo(3, 1.2)),
     effects: [
@@ -353,7 +353,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
   {
     id: 'jaggedLoot',
     row: 24,
-    label: 'Jagged Essence Min / Max Loot',
+    label: 'Jagged Essence Min +1 / Max +1 Loot',
     max: 2,
     cost: curveOn('whiteOrb', arith(20, 20)),
     effects: [

@@ -54,6 +54,18 @@ damage multiplier `Z23`. The shift is small — the super crit branch carries
 about 0.13% of the weight — so with the workbook's inputs it does not move any
 hits-to-mine figure, which is rounded up to a whole hit.
 
+### 5. "Flat Damage +2%" priced its curve from the wrong base (`G18`)
+
+The sheet starts this row's white-orb curve at 2 and grows it by 1.2 per level,
+the same base it gives the Crit Chance / Crit Damage row. In game it starts at
+3. The base is the only thing that changed, and the curve is geometric, so
+every figure on the row — next level, remaining, and its share of the white orb
+total (`C89`) — is exactly 1.5x what the workbook cached.
+
+Pinned in `engine.test.ts` against the sheet value rather than a literal, so
+the assertion states the relationship rather than restating a number nobody can
+check.
+
 ## Not changed — unreleased content
 
 ### Ultra crit is inert
