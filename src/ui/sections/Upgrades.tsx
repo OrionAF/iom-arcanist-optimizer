@@ -36,14 +36,32 @@ interface Props {
   update: (mutate: (draft: ArcanistInput) => void) => void;
 }
 
+/*
+ * Every `.rows` table carries explicit ARIA roles.
+ *
+ * Below 720px these tables stop being tables: each row becomes a small grid, so
+ * the actionable cost sits beside the name instead of off the right edge behind
+ * a sideways scroll. Changing `display` away from `table` also drops the roles
+ * the browser was inferring from the tags, so they are spelled out here to put
+ * them back. On a wide screen they are exactly what the tags already meant.
+ */
 function RowsHead() {
   return (
-    <thead>
-      <tr>
-        <th>Upgrade</th>
-        <th>Level</th>
-        <th>Effect</th>
-        <th style={{ textAlign: 'right' }}>
+    <thead role="rowgroup">
+      <tr role="row">
+        <th role="columnheader" scope="col">
+          Upgrade
+        </th>
+        <th role="columnheader" scope="col">
+          Level
+        </th>
+        {/* Classed so that hiding the effect column on a narrow screen hides the
+            header with it — otherwise every following header shifts one column
+            left and the last one runs off the edge. */}
+        <th role="columnheader" scope="col" className="effect">
+          Effect
+        </th>
+        <th role="columnheader" scope="col" style={{ textAlign: 'right' }}>
           Next / Remaining <Help id="nextRemaining" />
         </th>
       </tr>
@@ -63,8 +81,8 @@ function CostRow({
   onChange: (next: number) => void;
 }) {
   return (
-    <tr className={row.level >= max ? 'maxed' : undefined}>
-      <td className="name" title={row.note}>
+    <tr role="row" className={row.level >= max ? 'maxed' : undefined}>
+      <td role="cell" className="name" title={row.note}>
         <span className="named">
           {icon ? <Icon src={icon} size={20} dim={row.level >= max} /> : null}
           <span>
@@ -73,15 +91,19 @@ function CostRow({
           </span>
         </span>
       </td>
-      <td>
+      {/* `data-label` is what the narrow layout prints in front of the stepper,
+          standing in for the column header it no longer sits under. */}
+      <td role="cell" className="ctl" data-label="Level">
         <LevelInput value={row.level} max={max} onChange={onChange} label={row.label} />
       </td>
-      <td className="effect">{row.effectText}</td>
+      <td role="cell" className="effect">
+        {row.effectText}
+      </td>
       {/* Cost to max is not shown per row: it never changes as you play, and
           the Total Resources panel already sums it. Next and remaining are the
           two numbers that move. */}
       {row.priced ? (
-        <td className="cost">
+        <td role="cell" className="cost">
           <CostPair next={row.next} remaining={row.remaining} />
         </td>
       ) : null}
@@ -95,9 +117,9 @@ export function EssenceUpgrades({ result, update }: Props) {
   return (
     <Section title="Essence Upgrades" icon={SECTION_ICONS.essence} eyebrow="orbs · runes" flush>
       <div className="scroll-x">
-        <table className="rows">
+        <table className="rows" role="table">
           <RowsHead />
-          <tbody>
+          <tbody role="rowgroup">
             {result.rows.essence.map((row, i) => {
               const def = ESSENCE_UPGRADES[i]!;
               return (
@@ -170,8 +192,31 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
       </div>
 
       <div className="scroll-x">
-        <table className="rows">
-          <tbody className={state.unlocked ? undefined : 'locked'}>
+        <table className="rows" role="table" aria-label={`${def.label} upgrades`}>
+          {/* The altar grids repeat the same four columns as the essence table
+              directly above them, so drawing the header three more times is
+              noise — but without one the columns are unlabelled to anyone who
+              cannot see that. Present for screen readers only. */}
+          <thead className="sr-only" role="rowgroup">
+            <tr role="row">
+              <th role="columnheader" scope="col">
+                Upgrade
+              </th>
+              <th role="columnheader" scope="col">
+                Level
+              </th>
+              {/* Classed like the visible headers so the narrow-screen rule drops
+                  it too — otherwise the header count stops matching the body and
+                  a screen reader announces each cost cell as "Effect". */}
+              <th role="columnheader" scope="col" className="effect">
+                Effect
+              </th>
+              <th role="columnheader" scope="col">
+                Next / Remaining
+              </th>
+            </tr>
+          </thead>
+          <tbody role="rowgroup" className={state.unlocked ? undefined : 'locked'}>
             {rows.map((row, i) => {
               const up = def.upgrades[i]!;
               return (
@@ -255,19 +300,27 @@ export function Spells({ input, result, update }: Props) {
   return (
     <Section title="Spells" icon={SECTION_ICONS.spells} eyebrow="runes" flush>
       <div className="scroll-x">
-        <table className="rows">
-          <thead>
-            <tr>
-              <th>Spell</th>
-              <th>Level</th>
-              <th>Potency</th>
-              <th>Effects</th>
-              <th style={{ textAlign: 'right' }}>
+        <table className="rows spells" role="table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader" scope="col">
+                Spell
+              </th>
+              <th role="columnheader" scope="col">
+                Level
+              </th>
+              <th role="columnheader" scope="col">
+                Potency
+              </th>
+              <th role="columnheader" scope="col" className="effect">
+                Effects
+              </th>
+              <th role="columnheader" scope="col" style={{ textAlign: 'right' }}>
                 Potency next / remaining <Help id="potencyCost" />
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {SPELL_IDS.map((id) => {
               const def = SPELLS[id];
               const state = input.spells[id];
@@ -275,8 +328,8 @@ export function Spells({ input, result, update }: Props) {
               const row = result.rows.spells.find((r) => r.id === `${id}.potency`)!;
 
               return (
-                <tr key={id} className={state.unlocked ? undefined : 'locked'}>
-                  <td className="name">
+                <tr role="row" key={id} className={state.unlocked ? undefined : 'locked'}>
+                  <td role="cell" className="name">
                     <span className="named">
                       {/* The buff icon once you own it, the spell item until then. */}
                       <Icon
@@ -296,7 +349,7 @@ export function Spells({ input, result, update }: Props) {
                       </Switch>
                     </span>
                   </td>
-                  <td>
+                  <td role="cell" className="ctl" data-label="Level">
                     <LevelInput
                       value={state.level}
                       max={def.maxLevel}
@@ -308,7 +361,7 @@ export function Spells({ input, result, update }: Props) {
                       }
                     />
                   </td>
-                  <td>
+                  <td role="cell" className="ctl" data-label="Potency">
                     <LevelInput
                       value={state.rank}
                       max={def.maxRank}
@@ -320,7 +373,7 @@ export function Spells({ input, result, update }: Props) {
                       }
                     />
                   </td>
-                  <td className="effect">
+                  <td role="cell" className="effect">
                     {def.primary.label} {formatPercent(outcome.primary)}
                     <br />
                     {def.secondary.label} {formatPercent(outcome.secondary)}
@@ -328,7 +381,7 @@ export function Spells({ input, result, update }: Props) {
                       <span style={{ color: 'var(--brine)' }}> ↩</span>
                     ) : null}
                   </td>
-                  <td className="cost">
+                  <td role="cell" className="cost">
                     <CostPair next={row.next} remaining={row.remaining} />
                     <div className="submeta">
                       {formatDuration(outcome.duration)} ·{' '}
@@ -363,15 +416,21 @@ export function Exchange({ result, update }: Props) {
       flush
     >
       <div className="scroll-x">
-        <table className="rows">
-          <thead>
-            <tr>
-              <th>Upgrade</th>
-              <th>Level</th>
-              <th>Effect</th>
+        <table className="rows" role="table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader" scope="col">
+                Upgrade
+              </th>
+              <th role="columnheader" scope="col">
+                Level
+              </th>
+              <th role="columnheader" scope="col" className="effect">
+                Effect
+              </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {result.rows.exchange.map((row, i) => {
               const def = EXCHANGE_UPGRADES[i]!;
               return (

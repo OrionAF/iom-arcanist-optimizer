@@ -1,9 +1,12 @@
 /* ---------------------------------------------------------------- shell -- */
 
+/* The insets are zero everywhere except a notched phone in landscape, where the
+   left or right cutout would otherwise sit over the first column of a table. */
 .app {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 24px 80px;
+  padding: 0 max(24px, env(safe-area-inset-right)) calc(80px + env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
 }
 
 .masthead {
@@ -66,11 +69,15 @@
 
 .ledger-cell {
   --tone: var(--soft);
-  background: linear-gradient(180deg, var(--stratum-2), var(--stratum));
+  /* The tone the headline uses when this essence is only a hypothetical: the
+     same hue pulled most of the way to the neutral faint grey, so it still reads
+     as soft/dense/jagged but no longer competes with the one being mined. */
+  --tone-muted: color-mix(in srgb, var(--tone) 60%, var(--text-faint));
+  background: var(--stratum);
   padding: 14px 16px 12px;
   min-width: 0;
   position: relative;
-  transition: background 140ms ease, opacity 140ms ease;
+  transition: background 140ms ease;
 }
 
 /* Covers the cell so clicking anywhere picks this essence. Sits beneath the
@@ -97,18 +104,56 @@
   pointer-events: auto;
 }
 
-/* The two you are not mining are showing a hypothetical, so they recede. */
+/*
+ * The two you are not mining are showing a hypothetical, so they recede — but
+ * by treatment, not by a veil.
+ *
+ * This was `opacity: 0.5` with a `:hover` lift to 0.78. On a mouse that reads
+ * well; on a phone there is no hover, so two of the three cells sat permanently
+ * at 2.2-3.1:1 against their own background — the jagged headline worst at
+ * 2.15:1. No opacity value fixes it: even 0.8 only reaches 4.16:1, by which
+ * point nothing has receded anyway.
+ *
+ * So recession is now carried by four signals that cost no contrast: the mined
+ * cell alone gets the tone bar along its top edge, the tinted background, a
+ * tone-coloured tag, and the full-strength headline. Everything on a hypothetical
+ * cell stays above 4.5:1 on its own.
+ */
 .ledger-cell:not([data-mining]) {
-  opacity: 0.5;
+  /* An unlit panel rather than a veiled one. Going darker recedes the cell and
+     *raises* its text contrast at the same time — the muted headline reads
+     5.6:1 here against 2.15:1 under the old opacity. */
+  background: color-mix(in srgb, var(--void) 55%, var(--stratum));
 }
 
+.ledger-cell:not([data-mining]) .ledger-net .value {
+  color: var(--tone-muted);
+}
+
+.ledger-cell:not([data-mining]) .ledger-lines .num {
+  color: var(--text-dim);
+}
+
+/* The bar is a pure graphic carrying no text, so it can be thinned the cheap
+   way without costing anyone a reading. */
+.ledger-cell:not([data-mining]) .drainbar {
+  opacity: 0.6;
+}
+
+.ledger-cell:not([data-mining]) .drainbar .kept {
+  background: var(--tone-muted);
+}
+
+/* Hover is now an invitation to click, not the only way to read the cell. */
 .ledger-cell:not([data-mining]):hover {
-  opacity: 0.78;
+  background: var(--stratum);
 }
 
 .ledger-cell[data-mining] {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 9%, var(--stratum-2)), var(--stratum));
-  box-shadow: inset 0 2px 0 0 var(--tone);
+  /* Carrying the whole "this is the live one" signal now that the other cells
+     are no longer veiled, so the tint and the bar are both a step stronger. */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 14%, var(--stratum-2)), var(--stratum));
+  box-shadow: inset 0 3px 0 0 var(--tone);
 }
 
 .ledger-tag {
@@ -248,6 +293,165 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   margin-bottom: 2px;
+}
+
+/* ----------------------------------------------------------- ledger rail -- */
+
+/*
+ * Only ever seen on a narrow screen: above 720px the ledger itself is sticky,
+ * so this is display:none there and the observer driving it costs nothing.
+ */
+.ledger-rail {
+  display: none;
+}
+
+.ledger-sentinel {
+  height: 1px;
+  margin-top: -1px;
+}
+
+@media (max-width: 720px) {
+  .ledger-rail {
+    --tone: var(--soft);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+
+    padding: 6px max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left));
+    padding-top: calc(6px + env(safe-area-inset-top));
+
+    background: color-mix(in srgb, var(--stratum) 92%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--seam);
+    box-shadow: 0 10px 26px -20px #000;
+
+    /* Out of the way, and out of the a11y tree, until the ledger scrolls off. */
+    transform: translateY(-100%);
+    visibility: hidden;
+    transition: transform 180ms ease, visibility 180ms;
+  }
+
+  .ledger-rail.is-shown {
+    transform: translateY(0);
+    visibility: visible;
+  }
+
+  .ledger-rail[data-type='soft'] {
+    --tone: var(--soft);
+  }
+  .ledger-rail[data-type='dense'] {
+    --tone: var(--dense);
+  }
+  .ledger-rail[data-type='jagged'] {
+    --tone: var(--jagged);
+  }
+
+  /* Tapping the figure goes back to the ledger it came from. */
+  .rail-current {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    flex: 1;
+    min-width: 0;
+
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 4px 2px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .rail-current .icon {
+    align-self: center;
+  }
+
+  /* Everything in the rail is one line or it is wrong: a two-line bar eats the
+     viewport it exists to save. */
+  .rail-name {
+    font-family: var(--mono);
+    font-size: var(--fs-micro);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+
+  /* Under about 420px the name, the figure and two chips do not all fit. The
+     icon and the tone of the number already say which essence this is, so the
+     spelled-out name is what goes. */
+  @media (max-width: 419px) {
+    .rail-name {
+      display: none;
+    }
+  }
+
+  .rail-value {
+    font-size: var(--fs-lead);
+    font-weight: 500;
+    color: var(--tone);
+    border-radius: 3px;
+    white-space: nowrap;
+    transition: background-color 480ms ease-out;
+  }
+
+  .rail-value.flash {
+    background-color: color-mix(in srgb, var(--tone) 22%, transparent);
+    transition: none;
+  }
+
+  .rail-value.negative {
+    color: var(--ember);
+  }
+
+  .rail-unit {
+    font-size: var(--fs-micro);
+    color: var(--text-faint);
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .rail-others {
+    display: flex;
+    gap: 6px;
+    flex: none;
+  }
+
+  /* 44px tall including the rail padding; the chip is what you tap to switch. */
+  .rail-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 9px;
+
+    background: var(--void);
+    border: 1px solid var(--seam);
+    border-radius: var(--r);
+    cursor: pointer;
+
+    font-size: var(--fs-tiny);
+    color: var(--text-dim);
+  }
+
+  .rail-chip[data-type='soft'] {
+    --tone: var(--soft);
+  }
+  .rail-chip[data-type='dense'] {
+    --tone: var(--dense);
+  }
+  .rail-chip[data-type='jagged'] {
+    --tone: var(--jagged);
+  }
+
+  .rail-chip .num {
+    color: color-mix(in srgb, var(--tone) 60%, var(--text-faint));
+  }
 }
 
 /* ---------------------------------------------------------------- grid --- */
@@ -414,8 +618,23 @@
   color: var(--text-dim);
 }
 
-.rows tr.locked {
-  opacity: 0.45;
+/*
+ * A locked row is inert, but its unlock toggle is the one control on it that
+ * matters, so it cannot be veiled either. `opacity: 0.45` put the cost cell at
+ * 2.18:1 and the effect text at 2.89:1; explicit colours recede just as clearly
+ * and stay legible. The icons already dim themselves via the `dim` prop.
+ */
+/* Matched on `.locked` rather than `tr.locked`: spells carry the class on the
+   row, the altar grids carry it on the whole tbody. */
+.rows .locked td,
+.rows .locked .num,
+.rows .locked .res .spent {
+  color: var(--text-faint);
+}
+
+.rows .locked td.name,
+.rows .locked .switch span {
+  color: var(--text-dim);
 }
 
 /* The original text width plus room for the icon and its gap. */
@@ -436,7 +655,10 @@
 /* Effects wrap rather than forcing the table wider than its panel — at this
    type size the two-effect rows are the widest thing on the page, and a row
    that runs to two lines beats a column the reader has to scroll to. */
-.rows .effect {
+/* Scoped to `td`: the matching `th` carries the class too, so that hiding the
+   column below 720px takes the header with it, but it must keep the `.rows th`
+   type treatment rather than picking up the body cell's. */
+.rows td.effect {
   color: var(--text-dim);
   font-size: var(--fs-small);
   min-width: 150px;
@@ -507,8 +729,10 @@ input::placeholder {
   color: var(--text);
 }
 
+/* A disabled control is exempt from the contrast minimum, but at 22px wide the
+   old 0.3 (1.98:1) was effectively invisible rather than merely inactive. */
 .level button:disabled {
-  opacity: 0.3;
+  opacity: 0.45;
   cursor: default;
 }
 
@@ -744,8 +968,10 @@ button.action.primary:hover {
   border-color: color-mix(in srgb, var(--gold) 35%, var(--seam));
 }
 
+/* Receding a slot you do not own by dropping the tile to 0.75 took the "Locked"
+   label with it, to 3.61:1. The muted border says the same thing for free. */
 .card-tile[data-tier='none'] {
-  opacity: 0.75;
+  border-color: color-mix(in srgb, var(--seam) 60%, transparent);
 }
 
 /* ------------------------------------------------------- pets & unlocks -- */
@@ -1009,8 +1235,10 @@ button.action.primary:hover {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 26px;
+  /* Clear of the iOS home indicator, which sits where the toast used to. */
+  bottom: calc(26px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
+  max-width: calc(100vw - 24px);
   background: var(--stratum-2);
   border: 1px solid var(--seam-bright);
   border-radius: var(--r);
@@ -1178,8 +1406,23 @@ button.action.primary:hover {
   line-height: 1;
   letter-spacing: 0;
   text-transform: none;
-  cursor: help;
+  /* `help` promises a hover tooltip; this opens a panel on click. */
+  cursor: pointer;
+  position: relative;
   transition: color 120ms ease, border-color 120ms ease;
+}
+
+/*
+ * The tappable area, decoupled from the drawn circle.
+ *
+ * The mark has to stay 15px to sit inside a line of text without pushing the
+ * baseline around, so the target is grown underneath it instead. On a mouse a
+ * few px of slack is enough; the coarse-pointer block below opens it out.
+ */
+.help-mark::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
 }
 
 .help-mark:hover,
@@ -1201,8 +1444,14 @@ button.action.primary:hover {
   z-index: 81;
   width: 320px;
   max-width: calc(100vw - 16px);
+  /* dvh, so a collapsing mobile URL bar does not leave the panel taller than
+     the space it is actually being given. vh stays as the fallback. */
   max-height: 60vh;
+  max-height: 60dvh;
   overflow-y: auto;
+  /* Scrolling to the end of the explanation must not start scrolling the page
+     underneath it. */
+  overscroll-behavior: contain;
 
   padding: 12px 14px;
   background: var(--stratum-2);
@@ -1265,6 +1514,75 @@ button.action.primary:hover {
   gap: 5px;
 }
 
+/* ----------------------------------------------------------------- touch -- */
+
+/*
+ * Sizes for a finger, keyed on the pointer rather than the viewport: a tablet at
+ * 1024px is still touched, and a narrow desktop window is still moused.
+ *
+ * Nothing here changes what the controls look like on a mouse. The targets that
+ * matter most are the level steppers — they were 22x24px, they sit in pairs, and
+ * they are the single most-tapped control in the app.
+ */
+@media (pointer: coarse) {
+  .level button {
+    width: 40px;
+  }
+
+  .level input {
+    width: 56px;
+    padding: 9px 4px;
+  }
+
+  .level .of {
+    padding: 0 10px 0 4px;
+  }
+
+  /* The drawn circle grows a little; the target grows to 42px. The four ledger
+     lines are 20px apart, so they need the extra gap or adjacent marks would
+     overlap each other's hit areas. */
+  .help-mark {
+    width: 18px;
+    height: 18px;
+    font-size: 11px;
+  }
+
+  .help-mark::after {
+    inset: -12px;
+  }
+
+  .ledger-lines {
+    gap: 8px;
+  }
+
+  .switch {
+    padding: 7px 0;
+  }
+
+  .switch input {
+    width: 20px;
+    height: 20px;
+  }
+
+  .switch input::after {
+    width: 9px;
+    height: 9px;
+  }
+
+  button.action {
+    padding: 11px 14px;
+  }
+
+  select,
+  input[type='number'].plain {
+    padding: 9px 8px;
+  }
+
+  .card-tile select {
+    padding: 9px 4px;
+  }
+}
+
 /* ------------------------------------------------------------ responsive -- */
 
 @media (max-width: 1040px) {
@@ -1275,7 +1593,8 @@ button.action.primary:hover {
 
 @media (max-width: 720px) {
   .app {
-    padding: 0 12px 60px;
+    padding: 0 max(12px, env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
   }
 
   .ledger {
@@ -1287,12 +1606,127 @@ button.action.primary:hover {
     font-size: 28px;
   }
 
-  .rows .effect {
-    display: none;
+  /*
+   * Rows stop being table rows and become small grids.
+   *
+   * The table wanted about 620px; at 390 that put the name in a 4-line column
+   * and pushed the cost — the number you are here for — off the right edge
+   * behind a sideways scroll nothing announced. As a grid, name and stepper
+   * share the first line and effect and cost share the second, all within the
+   * viewport. The effect text comes back rather than being hidden, which is why
+   * the `display: none` column trick is gone from here entirely.
+   *
+   * Grid order matches DOM order (name, level, effect, cost), so reading order
+   * and focus order stay in step. The explicit roles in Upgrades.tsx are what
+   * keep this a table to a screen reader once `display` stops saying so.
+   */
+  .rows,
+  .rows thead,
+  .rows tbody,
+  .rows tr,
+  .rows th,
+  .rows td {
+    display: block;
   }
 
-  .rows .name {
+  /* The headers no longer sit above anything; `data-label` carries them into
+     the rows instead. Kept in the tree for the roles to point at. */
+  .rows thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /*
+   * The name gets the full width.
+   *
+   * A 2x2 with the stepper beside the name was tried first and the stepper won
+   * the argument: at touch size it claims ~190px of 366, which left these labels
+   * — "Crit Chance +0.25% / Crit Damage +1%" and friends — wrapping to five
+   * lines. Across the whole row instead, nearly all of them fit on one.
+   *
+   * Areas run name, control, effect, cost, which is also their DOM order, so
+   * reading order and focus order stay identical.
+   */
+  .rows tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name name'
+      'ctl ctl'
+      'effect cost';
+    align-items: center;
+    gap: 6px 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--seam) 55%, transparent);
+  }
+
+  .rows tr:last-child {
+    border-bottom: 0;
+  }
+
+  .rows td {
+    padding: 0;
+    border: 0;
+  }
+
+  .rows td.name {
+    grid-area: name;
     min-width: 0;
+  }
+
+  .rows td.ctl {
+    grid-area: ctl;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  /* Standing in for the column header the stepper no longer sits under. */
+  .rows td.ctl::before {
+    content: attr(data-label);
+    font-family: var(--mono);
+    font-size: var(--fs-micro);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .rows td.effect {
+    grid-area: effect;
+    display: block;
+  }
+
+  .rows td.cost {
+    grid-area: cost;
+    text-align: right;
+  }
+
+  /* Exchange prices nothing, so its effect text takes the whole second line
+     rather than leaving a gap where a cost would have been. */
+  .rows tr:not(:has(td.cost)) td.effect {
+    grid-column: 1 / -1;
+  }
+
+  /*
+   * Spells carry two steppers. Side by side they need ~424px of a 366px row, so
+   * they stack — and stacked they need their labels, since two identical
+   * steppers one above the other say nothing about which is which.
+   */
+  .rows.spells tr {
+    grid-template-areas:
+      'name name'
+      'ctl ctl'
+      'ctl2 ctl2'
+      'effect cost';
+  }
+
+  .rows.spells td.ctl:nth-of-type(3) {
+    grid-area: ctl2;
   }
 
   .named {
@@ -1308,14 +1742,19 @@ button.action.primary:hover {
     max-width: 160px;
   }
 
+  /* Two columns rather than three: at 96px the tile was narrower than the card
+     names it had to hold, so every one of them wrapped. */
   .card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
     padding: 0 12px 12px;
   }
 }
 
-/* Wide tables scroll inside their own container, never the page. */
+/* Wide tables scroll inside their own container, never the page. `contain` stops
+   a swipe that reaches the end of a table from being handed to the browser as a
+   back-navigation gesture. */
 .scroll-x {
   overflow-x: auto;
+  overscroll-behavior-x: contain;
 }

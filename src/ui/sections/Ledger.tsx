@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 import { ESSENCE_LABELS } from '../../calc/constants';
 import { formatNumber } from '../../calc/format';
 import type { ArcanistInput, ArcanistResult, EssenceType } from '../../calc/types';
@@ -134,6 +136,87 @@ function LedgerCell({
   );
 }
 
+/** What a cell's headline says, or an em dash where there is no rate to state. */
+function headlineOf(result: ArcanistResult, type: EssenceType, mining: boolean): number | null {
+  const outcome = result.essence[type];
+  if (outcome.unmineable) return null;
+  return mining ? outcome.sustainedNet : outcome.netEssencePerHour;
+}
+
+/**
+ * The mined figure, kept on screen after the ledger has scrolled away.
+ *
+ * On a wide screen the ledger itself is sticky and this never appears. On a
+ * phone it cannot be: three stacked cells are some 600px of an 844px viewport.
+ * But the whole app is "change a level, watch net/hr move", and the mobile page
+ * runs to about 10,000px — so without this the number being optimised is nine
+ * screens above the control that changes it, and the flash-on-change fires
+ * where nobody can see it.
+ *
+ * The other two essences ride along as chips, because switching what you mine
+ * is the one ledger interaction worth keeping within reach.
+ */
+function LedgerRail({
+  input,
+  result,
+  update,
+  shown,
+}: {
+  input: ArcanistInput;
+  result: ArcanistResult;
+  update: (mutate: (draft: ArcanistInput) => void) => void;
+  shown: boolean;
+}) {
+  const mining = input.mining;
+  const headline = headlineOf(result, mining, true);
+  const flash = useFlashOnChange(headline ?? 0);
+
+  const toLedger = () => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+  };
+
+  return (
+    <div className={shown ? 'ledger-rail is-shown' : 'ledger-rail'} data-type={mining}>
+      <button type="button" className="rail-current" onClick={toLedger}>
+        <Icon src={ESSENCE_ICONS[mining]} size={18} />
+        <span className="rail-name">{ESSENCE_LABELS[mining]}</span>
+        <span
+          className={`num rail-value${flash ? ' flash' : ''}${
+            headline !== null && headline < 0 ? ' negative' : ''
+          }`}
+        >
+          {headline === null ? '—' : formatNumber(headline, 2)}
+        </span>
+        <span className="rail-unit">net / hr</span>
+      </button>
+
+      <div className="rail-others">
+        {ESSENCE_TYPES.filter((type) => type !== mining).map((type) => {
+          const value = headlineOf(result, type, false);
+          return (
+            <button
+              key={type}
+              type="button"
+              className="rail-chip"
+              data-type={type}
+              aria-label={`Mine ${ESSENCE_LABELS[type]}`}
+              onClick={() =>
+                update((draft) => {
+                  draft.mining = type;
+                })
+              }
+            >
+              <Icon src={ESSENCE_ICONS[type]} size={15} />
+              <span className="num">{value === null ? '—' : formatNumber(value, 0)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function Ledger({
   input,
   result,
@@ -143,21 +226,51 @@ export function Ledger({
   result: ArcanistResult;
   update: (mutate: (draft: ArcanistInput) => void) => void;
 }) {
+  const sentinel = useRef<HTMLDivElement>(null);
+  const [past, setPast] = useState(false);
+
+  /*
+   * An observer rather than a scroll handler: this fires twice per visit to the
+   * boundary instead of on every frame of every scroll, and it needs no layout
+   * reads of its own. The `top < 0` test distinguishes "scrolled up past the
+   * ledger", where the rail belongs, from "not yet scrolled down to it", which
+   * happens while the page is still settling.
+   */
+  useEffect(() => {
+    const element = sentinel.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        setPast(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+      },
+      { threshold: 0 },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="ledger" role="group" aria-label="Essence being mined">
-      {ESSENCE_TYPES.map((type) => (
-        <LedgerCell
-          key={type}
-          type={type}
-          result={result}
-          mining={input.mining === type}
-          onMine={() =>
-            update((draft) => {
-              draft.mining = type;
-            })
-          }
-        />
-      ))}
-    </div>
+    <>
+      <div className="ledger" role="group" aria-label="Essence being mined">
+        {ESSENCE_TYPES.map((type) => (
+          <LedgerCell
+            key={type}
+            type={type}
+            result={result}
+            mining={input.mining === type}
+            onMine={() =>
+              update((draft) => {
+                draft.mining = type;
+              })
+            }
+          />
+        ))}
+      </div>
+
+      <div ref={sentinel} className="ledger-sentinel" aria-hidden="true" />
+      <LedgerRail input={input} result={result} update={update} shown={past} />
+    </>
   );
 }

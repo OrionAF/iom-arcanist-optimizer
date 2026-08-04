@@ -158,11 +158,12 @@ export default function App() {
         </p>
       </footer>
 
-      {toast ? (
-        <div className="toast" role="status">
-          {toast}
-        </div>
-      ) : null}
+      {/* The live region is always mounted and only its contents change. Creating
+          a role="status" element at the same moment it gains text is a race some
+          screen readers lose, and the announcement is dropped. */}
+      <div role="status" aria-live="polite">
+        {toast ? <div className="toast">{toast}</div> : null}
+      </div>
     </div>
   );
 }
