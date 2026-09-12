@@ -69,6 +69,12 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className="update-banner" role="status">
+        <strong>Outdated after the latest update:</strong> Arcanist Part 2 just launched and this
+        calculator does not reflect it yet. Numbers here may be wrong — please be patient while
+        we update it.
+      </div>
+
       <header className="masthead">
         <h1>Arcanist</h1>
         <span className="sub">Idle Obelisk Miner · Ob70 planner</span>

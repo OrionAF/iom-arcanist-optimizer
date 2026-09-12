@@ -9,6 +9,25 @@
     max(24px, env(safe-area-inset-left));
 }
 
+/* Persistent, non-dismissible — the numbers below can be wrong until the
+   calculator catches up with the game update, so this stays up the whole time
+   rather than being a toast that goes away. */
+.update-banner {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--ember) 14%, var(--stratum));
+  border: 1px solid color-mix(in srgb, var(--ember) 45%, var(--seam));
+  border-radius: var(--r);
+  color: var(--text);
+  font-size: var(--fs-small);
+  line-height: 1.5;
+}
+
+.update-banner strong {
+  color: var(--ember);
+  font-weight: var(--w-strong);
+}
+
 .masthead {
   display: flex;
   flex-wrap: wrap;
