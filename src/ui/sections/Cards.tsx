@@ -1,22 +1,28 @@
 import { ALTARS, ALTAR_IDS, CARD_TIER_COUNT, SPELLS, SPELL_IDS } from '../../calc/constants';
 import { ESSENCE_LABELS } from '../../calc/constants';
-import type { ArcanistInput, ArcanistResult, CardTier, OrbCardId } from '../../calc/types';
+import type {
+  ArcanistInput,
+  ArcanistResult,
+  CardTier,
+  OrbCardId,
+  RhinoCardTier,
+} from '../../calc/types';
 import { CARD_TIERS, ESSENCE_TYPES, ORB_CARD_IDS } from '../../calc/types';
-import { Section, Subhead } from '../components';
+import { Subhead, TabBody } from '../components';
 import {
   ALTAR_ICONS,
   CARD_BACKINGS,
   ESSENCE_CARD_ICONS,
   ORB_CARD_ICONS,
-  SECTION_ICONS,
   SPELL_ACTIVE_ICONS,
 } from '../icons';
 
-export const TIER_LABELS: Record<CardTier, string> = {
+export const TIER_LABELS: Record<RhinoCardTier, string> = {
   none: 'None',
   normal: 'Normal',
   gilded: 'Gilded',
   polychrome: 'Polychrome',
+  infernal: 'Infernal',
 };
 
 /**
@@ -26,16 +32,19 @@ export const TIER_LABELS: Record<CardTier, string> = {
  * A card you do not own has no frame to draw, so the slot reads "Locked"
  * instead of showing a frameless icon that would look like a bug.
  */
-export function CardTile({
+export function CardTile<T extends RhinoCardTier = CardTier>({
   name,
   art,
   tier,
+  tiers = CARD_TIERS as readonly T[],
   onChange,
 }: {
   name: string;
   art: string;
-  tier: CardTier;
-  onChange: (next: CardTier) => void;
+  tier: T;
+  /** The tiers this card can reach. Arcanist cards stop at Polychrome. */
+  tiers?: readonly T[];
+  onChange: (next: T) => void;
 }) {
   return (
     <div className="card-tile" data-tier={tier}>
@@ -45,7 +54,12 @@ export function CardTile({
           <span className="card-locked">Locked</span>
         ) : (
           <span className="card-frame">
-            <img src={CARD_BACKINGS[tier]} alt="" aria-hidden="true" className="card-backing" />
+            <img
+              src={CARD_BACKINGS[tier as Exclude<RhinoCardTier, 'none'>]}
+              alt=""
+              aria-hidden="true"
+              className="card-backing"
+            />
             <img src={art} alt="" aria-hidden="true" className="card-inset" />
           </span>
         )}
@@ -53,9 +67,9 @@ export function CardTile({
       <select
         value={tier}
         aria-label={`${name} card tier`}
-        onChange={(e) => onChange(e.target.value as CardTier)}
+        onChange={(e) => onChange(e.target.value as T)}
       >
-        {CARD_TIERS.map((t) => (
+        {tiers.map((t) => (
           <option key={t} value={t}>
             {TIER_LABELS[t]}
           </option>
@@ -89,15 +103,10 @@ export function Cards({ input, result, update }: Props) {
     CARD_TIER_COUNT.polychrome;
 
   return (
-    <Section
-      title="Cards"
-      icon={SECTION_ICONS.cards}
-      eyebrow={`${owned} / ${max} tiers owned`}
-      flush
-    >
+    <TabBody eyebrow={`${owned} / ${max} tiers owned`} flush>
       <p className="note" style={{ padding: '10px 16px 0' }}>
         Tiers are cumulative — pick the highest you own. Arcanist cards stop at Polychrome. The
-        tier count above drives Essence Damage Per Arcane Card.
+        tier count above drives Essence Damage +1 Per Arcanist Card Tier Owned.
       </p>
 
       <Subhead>Essence · max loot</Subhead>
@@ -171,6 +180,6 @@ export function Cards({ input, result, update }: Props) {
         Orb cards change no Arcanist numbers, but they are Arcanist cards, so they count toward the
         tier total.
       </p>
-    </Section>
+    </TabBody>
   );
 }

@@ -6,13 +6,15 @@ import { EXAMPLE_INPUT } from './presets/example';
 import { FRESH_INPUT } from './presets/fresh';
 import { exportToFile, importFromFile, loadBuild, saveBuild } from './state/storage';
 import { buildShareUrl, readBuildFromHash } from './state/url';
-import { Contracts, Pets, Unlocks } from './ui/sections/Account';
+import { TabbedPanel } from './ui/components';
+import { SECTION_ICONS } from './ui/icons';
+import { OtherUnlocks, Pets } from './ui/sections/Account';
 import { Breakdown } from './ui/sections/Breakdown';
 import { Cards } from './ui/sections/Cards';
 import { Ledger } from './ui/sections/Ledger';
 import { Optimizer } from './ui/sections/Optimizer';
 import { Totals } from './ui/sections/Totals';
-import { Altars, EssenceUpgrades, Exchange, Spells, Stats } from './ui/sections/Upgrades';
+import { Altars, EssenceUpgrades, Spells, Stats } from './ui/sections/Upgrades';
 
 export default function App() {
   // A shared link wins over whatever was autosaved locally. Resolved during
@@ -122,18 +124,58 @@ export default function App() {
       {/* Left column takes every input; the right is read-only output only. */}
       <div className="columns">
         <div className="stack">
-          <EssenceUpgrades {...sectionProps} />
-          <Altars {...sectionProps} />
-          <Spells {...sectionProps} />
-          <Exchange {...sectionProps} />
-          <Cards {...sectionProps} />
-          <Pets {...sectionProps} />
-          <Unlocks {...sectionProps} />
-          <Contracts {...sectionProps} />
+          <TabbedPanel
+            id="upgrades"
+            label="Upgrades"
+            tabs={[
+              {
+                id: 'essence',
+                title: 'Essence Upgrades',
+                icon: SECTION_ICONS.essence,
+                content: <EssenceUpgrades {...sectionProps} />,
+              },
+              {
+                id: 'altars',
+                title: 'Altars',
+                icon: SECTION_ICONS.altars,
+                content: <Altars {...sectionProps} />,
+              },
+              {
+                id: 'spells',
+                title: 'Spells',
+                icon: SECTION_ICONS.spells,
+                content: <Spells {...sectionProps} />,
+              },
+              {
+                id: 'cards',
+                title: 'Cards',
+                icon: SECTION_ICONS.cards,
+                content: <Cards {...sectionProps} />,
+              },
+            ]}
+          />
+          <TabbedPanel
+            id="account"
+            label="Account"
+            tabs={[
+              {
+                id: 'unlocks',
+                title: 'Other Unlocks',
+                icon: SECTION_ICONS.unlocks,
+                content: <OtherUnlocks {...sectionProps} />,
+              },
+              {
+                id: 'pets',
+                title: 'Pets',
+                icon: SECTION_ICONS.pets,
+                content: <Pets {...sectionProps} />,
+              },
+            ]}
+          />
         </div>
 
         <div className="stack">
-          <Optimizer input={input} result={result} />
+          <Optimizer input={input} />
           <Stats result={result} />
           <Breakdown result={result} />
           <Totals result={result} />

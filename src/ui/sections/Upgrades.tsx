@@ -2,7 +2,6 @@ import {
   ALTARS,
   ALTAR_IDS,
   ESSENCE_UPGRADES,
-  EXCHANGE_UPGRADES,
   RESOURCE_LABELS,
   SPELLS,
   SPELL_IDS,
@@ -19,13 +18,12 @@ import {
   Stat,
   Subhead,
   Switch,
+  TabBody,
 } from '../components';
 import {
   ALTAR_ICONS,
   ESSENCE_UPGRADE_ICONS,
-  EXCHANGE_UPGRADE_ICONS,
   MISC_ICONS,
-  SECTION_ICONS,
   SPELL_ACTIVE_ICONS,
   SPELL_ICONS,
 } from '../icons';
@@ -80,14 +78,25 @@ function CostRow({
   icon?: string;
   onChange: (next: number) => void;
 }) {
+  const blocked = row.blockedBy && row.level === 0;
   return (
-    <tr role="row" className={row.level >= max ? 'maxed' : undefined}>
+    <tr
+      role="row"
+      className={row.level >= max ? 'maxed' : blocked ? 'locked' : undefined}
+    >
       <td role="cell" className="name" title={row.note}>
         <span className="named">
-          {icon ? <Icon src={icon} size={20} dim={row.level >= max} /> : null}
+          {icon ? <Icon src={icon} size={20} dim={row.level >= max || blocked} /> : null}
           <span>
             {row.label}
             {row.note ? <span style={{ color: 'var(--text-faint)' }}> ⁎</span> : null}
+            {row.blockedBy ? (
+              // Every prerequisite is the row directly above, so the long
+              // label rides in the tooltip rather than doubling the row.
+              <span className="requires" title={`Needs ${row.blockedBy.label} at level ${row.blockedBy.level}`}>
+                Needs Lv {row.blockedBy.level} of the upgrade above
+              </span>
+            ) : null}
           </span>
         </span>
       </td>
@@ -106,7 +115,12 @@ function CostRow({
         <td role="cell" className="cost">
           <CostPair next={row.next} remaining={row.remaining} />
         </td>
-      ) : null}
+      ) : (
+        // Unknown, not free: a blank here would read as costing nothing.
+        <td role="cell" className="cost" title={row.note}>
+          <span className="submeta">cost unknown</span>
+        </td>
+      )}
     </tr>
   );
 }
@@ -115,7 +129,7 @@ function CostRow({
 
 export function EssenceUpgrades({ result, update }: Props) {
   return (
-    <Section title="Essence Upgrades" icon={SECTION_ICONS.essence} eyebrow="orbs · runes" flush>
+    <TabBody eyebrow="orbs · runes" flush>
       <div className="scroll-x">
         <table className="rows" role="table">
           <RowsHead />
@@ -139,7 +153,7 @@ export function EssenceUpgrades({ result, update }: Props) {
           </tbody>
         </table>
       </div>
-    </Section>
+    </TabBody>
   );
 }
 
@@ -280,9 +294,7 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
 
 export function Altars(props: Props) {
   return (
-    <Section
-      title="Altars"
-      icon={SECTION_ICONS.altars}
+    <TabBody
       help="runeCraftMulti"
       eyebrow={`rune craft ×${formatNumber(props.result.runeCraftMulti, 4)}`}
       flush
@@ -290,7 +302,7 @@ export function Altars(props: Props) {
       {ALTAR_IDS.map((id) => (
         <Altar key={id} id={id} {...props} />
       ))}
-    </Section>
+    </TabBody>
   );
 }
 
@@ -298,7 +310,14 @@ export function Altars(props: Props) {
 
 export function Spells({ input, result, update }: Props) {
   return (
-    <Section title="Spells" icon={SECTION_ICONS.spells} eyebrow="runes" flush>
+    <TabBody
+      eyebrow={
+        result.derived.spellPower > 0
+          ? `runes · spell power +${formatPercent(result.derived.spellPower)}`
+          : 'runes'
+      }
+      flush
+    >
       <div className="scroll-x">
         <table className="rows spells" role="table">
           <thead role="rowgroup">
@@ -350,9 +369,9 @@ export function Spells({ input, result, update }: Props) {
                             })
                           }
                         />
-                        {/* The buff icon once you own it, the spell item until then. */}
+                        {/* The spell item once you own it, the buff icon until then. */}
                         <Icon
-                          src={state.unlocked ? SPELL_ACTIVE_ICONS[id] : SPELL_ICONS[id]}
+                          src={state.unlocked ? SPELL_ICONS[id] : SPELL_ACTIVE_ICONS[id]}
                           size={30}
                           dim={!state.unlocked}
                         />
@@ -390,6 +409,11 @@ export function Spells({ input, result, update }: Props) {
                     {def.secondary.feedsBack ? (
                       <span style={{ color: 'var(--brine)' }}> ↩</span>
                     ) : null}
+                    {outcome.levelUpChanceMulti > 1 ? (
+                      <span className="submeta" style={{ display: 'block' }}>
+                        Level-up chance ×{formatNumber(outcome.levelUpChanceMulti, 3)}
+                      </span>
+                    ) : null}
                   </td>
                   <td role="cell" className="cost">
                     <CostPair next={row.next} remaining={row.remaining} />
@@ -410,62 +434,7 @@ export function Spells({ input, result, update }: Props) {
       <p className="note" style={{ padding: '10px 16px 14px' }}>
         ↩ marks effects that feed back into these numbers. Locked spells grant nothing.
       </p>
-    </Section>
-  );
-}
-
-// --------------------------------------------------------------- exchange --
-
-export function Exchange({ result, update }: Props) {
-  return (
-    <Section
-      title="Exchange"
-      icon={SECTION_ICONS.exchange}
-      eyebrow="costs unknown"
-      help="exchange"
-      flush
-    >
-      <div className="scroll-x">
-        <table className="rows" role="table">
-          <thead role="rowgroup">
-            <tr role="row">
-              <th role="columnheader" scope="col">
-                Upgrade
-              </th>
-              <th role="columnheader" scope="col">
-                Level
-              </th>
-              <th role="columnheader" scope="col" className="effect">
-                Effect
-              </th>
-            </tr>
-          </thead>
-          <tbody role="rowgroup">
-            {result.rows.exchange.map((row, i) => {
-              const def = EXCHANGE_UPGRADES[i]!;
-              return (
-                <CostRow
-                  key={row.id}
-                  row={row}
-                  max={def.max}
-                  icon={EXCHANGE_UPGRADE_ICONS[def.id]}
-                  onChange={(next) =>
-                    update((draft) => {
-                      draft.exchange[def.id] = next;
-                    })
-                  }
-                />
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <p className="note" style={{ padding: '10px 16px 14px' }}>
-        Only the two Exchange upgrades the Arcanist actually reads are listed. Their costs are not
-        shown — they are not documented in game, and the figures the spreadsheet carried were
-        guesses rather than observations.
-      </p>
-    </Section>
+    </TabBody>
   );
 }
 
@@ -487,37 +456,53 @@ export function Stats({ result }: { result: ArcanistResult }) {
   const damage = Math.round(s.damage);
   const critDamage = Number(s.critDamage.toFixed(2));
   const superCritDamage = Number(s.superCritDamage.toFixed(2));
+  const ultraCritDamage = Number(s.ultraCritDamage.toFixed(2));
 
+  /*
+   * Seven rows of three, grouped the way the game groups them: offence, crit
+   * chances, crit multipliers, negates, shiny chances, shiny loot buffs, and
+   * brittle on its own. `stats three` fixes the grid at three columns so a row
+   * never reflows into the next group.
+   */
   return (
     <Section title="Arcanist Stats" eyebrow="derived" flush>
-      <dl className="stats">
+      <dl className="stats three">
         <Stat label="Damage" help="statDamage" value={formatNumber(damage)} />
         <Stat
-          label="Attack every"
+          label="Attack speed"
           help="statAttackInterval"
-          value={formatDuration(s.attackInterval)}
+          value={
+            <>
+              {/* Two places, as the game prints it: 1.86s, not 1.9s. */}
+              {formatNumber(s.attackInterval, 2)}s
+              {s.attackSpeed > 0 ? (
+                <span className="stat-aside">+{formatPercent(s.attackSpeed)}</span>
+              ) : null}
+            </>
+          }
         />
+        <Stat label="Armour pen" help="statArmorPen" value={formatNumber(s.armorPen)} />
+
         <Stat label="Crit chance" help="statCritChance" value={formatPercent(s.critChance)} />
+        <Stat label="Super crit chance" help="statSuperCrit" value={formatPercent(s.superCritChance)} />
+        <Stat label="Ultra crit chance" help="statUltraCrit" value={formatPercent(s.ultraCritChance)} />
+
         {/* The multiplier stays the headline; the hit it produces rides beside
             it, so the Damage stat above has something to be read against. Both
-            are pre-armour, as that one is. Super crit compounds the crit
-            multiplier into its figure because that is the only way to reach it:
-            a hit super crits by having crit first. */}
+            are pre-armour, as that one is. Each tier compounds the ones below
+            it, because a hit only reaches it by passing through them. */}
         <Stat
           label="Crit damage"
           help="statCritDamage"
           value={
             <>
               ×{formatNumber(critDamage, 2)}
-              <span className="stat-aside">
-                {formatNumber(Math.round(damage * critDamage))}
-              </span>
+              <span className="stat-aside">{formatNumber(Math.round(damage * critDamage))}</span>
             </>
           }
         />
-        <Stat label="Super crit" help="statSuperCrit" value={formatPercent(s.superCritChance)} />
         <Stat
-          label="Super crit dmg"
+          label="Super crit damage"
           help="statSuperCritDamage"
           value={
             <>
@@ -528,15 +513,47 @@ export function Stats({ result }: { result: ArcanistResult }) {
             </>
           }
         />
-        <Stat label="Armour pen" help="statArmorPen" value={formatNumber(s.armorPen)} />
-        <Stat label="Stun negate" help="statStunNegate" value={formatPercent(s.stunNegate)} />
-        <Stat label="Shiny chance" help="statShinyChance" value={formatPercent(s.shinyChance)} />
-        <Stat label="Shiny bonus" help="statShinyBonus" value={`+${formatNumber(s.shinyBonus)}`} />
         <Stat
-          label="Super shiny"
+          label="Ultra crit damage"
+          help="statUltraCritDamage"
+          value={
+            <>
+              ×{formatNumber(ultraCritDamage, 2)}
+              <span className="stat-aside">
+                {formatNumber(Math.round(damage * critDamage * superCritDamage * ultraCritDamage))}
+              </span>
+            </>
+          }
+        />
+
+        <Stat label="Stun negate" help="statStunNegate" value={formatPercent(s.stunNegate)} />
+        <Stat label="Weaken negate" help="statWeakenNegate" value={formatPercent(s.weakenNegate)} />
+        <Stat label="Daze negate" help="statDazeNegate" value={formatPercent(s.dazeNegate)} />
+
+        <Stat label="Shiny chance" help="statShinyChance" value={formatPercent(s.shinyChance)} />
+        <Stat
+          label="Super shiny chance"
           help="statSuperShiny"
           value={formatPercent(s.superShinyChance)}
         />
+        <Stat
+          label="Ultra shiny chance"
+          help="statUltraShiny"
+          value={formatPercent(s.ultraShinyChance)}
+        />
+
+        <Stat label="Shiny loot buff" help="statShinyBonus" value={`+${formatNumber(s.shinyBonus)}`} />
+        <Stat
+          label="Super shiny loot buff"
+          help="statSuperShinyBonus"
+          value={`+${formatNumber(s.superShinyBonus)}`}
+        />
+        <Stat
+          label="Ultra shiny loot buff"
+          help="statUltraShinyBonus"
+          value={`+${formatNumber(s.ultraShinyBonus)}`}
+        />
+
         <Stat
           label="Brittle chance"
           help="statBrittleChance"

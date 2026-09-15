@@ -10,6 +10,7 @@ import { SCHEMA_VERSION, fromSavedBuild, toSavedBuild } from './schema';
 
 const STORAGE_KEY = 'iom-arcanist-optimizer:build';
 const PANELS_KEY = 'iom-arcanist-optimizer:panels';
+const TABS_KEY = 'iom-arcanist-optimizer:tabs';
 
 export function loadBuild(): ArcanistInput | null {
   try {
@@ -67,6 +68,43 @@ export function savePanel(id: string, open: boolean): void {
   } catch {
     // Same bargain as the build autosave: a convenience, not a requirement.
   }
+}
+
+/**
+ * Which tab each tabbed panel shows, keyed by panel id. Same bargain as
+ * `loadPanels`: layout, not build, and a missing entry means the default.
+ */
+export function loadTabs(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(TABS_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'string') out[key] = value;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveTab(panelId: string, tabId: string): void {
+  try {
+    localStorage.setItem(TABS_KEY, JSON.stringify({ ...loadTabs(), [panelId]: tabId }));
+  } catch {
+    // A convenience, not a requirement.
+  }
+}
+
+/**
+ * The saved tab if the panel still has it, otherwise the first. A tab can
+ * disappear between visits — renamed, or moved to another panel — and a stale
+ * id must not leave a panel with nothing selected.
+ */
+export function pickTab(saved: string | undefined, tabIds: readonly string[]): string {
+  return saved !== undefined && tabIds.includes(saved) ? saved : (tabIds[0] ?? '');
 }
 
 export function exportToFile(input: ArcanistInput): void {

@@ -1,45 +1,46 @@
 # IOM Arcanist Optimizer
 
 A planner for the **Arcanist** (Ob70) content in *Idle Obelisk Miner*: essence
-upgrades, the three rune altars, six spells, exchange upgrades, and the mining
+upgrades, the five rune altars, thirteen spells, exchange upgrades, and the mining
 math that turns all of it into essence per hour.
 
 **→ https://OrionAF.github.io/iom-arcanist-optimizer/**
 
-It shows Soft, Dense and Jagged essence side by side — income, altar drain and
-net per hour — and recalculates as you change any level. You mine one essence at
-a time, so click the one you are on: the other two keep reporting what they
+It shows Soft, Dense, Jagged and Necrotic essence side by side — income, altar
+drain and net per hour — and recalculates as you change any level. You mine one
+essence at a time, so click the one you are on: the others keep reporting what they
 *would* pay, and the altars they feed report what they can actually sustain.
 
 ## Credit
 
 Based on the **Arcanist** sheet from
 [Obelisk Total Resources Calculator](https://docs.google.com/spreadsheets/d/1hj4YvYYNlAmXD9LHZNsDQS2n1pFI8H34_1-RS_RlU-E/edit?usp=sharing)
-by **Stonestriker**, heavily modified. All credit for working out the underlying
-formulas belongs there; this project ports them to a shareable web page and
-extends them.
+by **Stonestriker**, heavily modified. All credit for the original calculator
+belongs there; this project turns it into a shareable web page and extends it.
 
 Icons are game assets from the [wiki](https://shminer.wiki.gg/), vendored into
 `public/icons/` — see [ICON-CREDITS.md](ICON-CREDITS.md).
 
 ## Using it
 
-Everything you can change lives in the left column; the right column is
-read-only output.
+Everything you can change lives in the left column, in two tabbed panels; the
+right column is read-only output.
 
-- **Levels** — every row takes your current level, and prices it two ways: what
-  the next level costs, and what the rest of the row costs to max. Exchange
-  shows no cost, and only lists the two upgrades the Arcanist actually reads —
-  see [CORRECTIONS.md](CORRECTIONS.md).
-- **Cards, Pets, Unlocks, Contracts** — what the rest of your account
-  contributes. Defaults are all zero, so fill these in or the numbers read low.
-  Cards are picked by tier; the tier total drives Essence Damage Per Arcane Card.
+- **Essence Upgrades, Altars, Spells** — every row takes your current level, and
+  prices it two ways: what the next level costs, and what the rest of the row
+  costs to max. Every price comes from the game's own data.
+- **Cards, Other Unlocks, Pets** — what the rest of your account contributes.
+  Defaults are all zero, so fill these in or the numbers read low. Cards are
+  picked by tier; the tier total drives Essence Damage +1 Per Arcanist Card Tier
+  Owned. Other Unlocks also holds the Exchange upgrades that change an Arcanist
+  number, with no cost: they are bought with resources from elsewhere in the
+  game that this planner does not track.
 - **?** — every derived number has one. It explains what the figure is and, where
   the shape of the calculation is the answer, how it is worked out.
 - **Show the math** — the full derivation: crit/shiny/brittle probability
   tables, per-block stats, hits to mine, and where the essence goes.
-- **Sections fold.** Which ones you leave closed is remembered locally, and is
-  not part of the build a share link carries.
+- **Panels fold.** Which ones you leave closed, and which tab each shows, is
+  remembered locally, and is not part of the build a share link carries.
 - Builds autosave locally. **Export** writes a JSON file; **Share link** puts
   the whole build in the URL.
 
@@ -48,33 +49,37 @@ read-only output.
 ```sh
 npm install
 npm run dev      # local dev server
-npm test         # golden test against the workbook's cached values
+npm test         # formula and game-data tests
 npm run build    # production build
 ```
 
-If you have the source workbook, put it in the project root and run `npm run
-fixture` to regenerate the golden fixture. `tools/extract_arcanist.py` reads the
-`.xlsx` with the Python standard library (no openpyxl) and writes every Arcanist
-cell's cached value to `src/calc/__fixtures__/arcanist-sheet.json`.
-
-To take screenshots, `node tools/shoot.mjs <url> <out.png> [waitMs] [width]
-[height]` drives headless Edge over the DevTools Protocol with a real wait,
-which `--screenshot --virtual-time-budget` cannot do.
-
 ## Design notes
+
+### Game data
+
+`arcanist_costs.md` is an extract of the game's own code (Idle Obelisk Miner
+2.2.20) and is the only source of truth for upgrade names, maxima, effects,
+prerequisites, prices, unlock costs, altars and spells. It and the extractor
+that turns it into `src/calc/__fixtures__/game-costs.json` are kept locally
+rather than in the repo; the committed fixture is what
+`src/calc/gamedata.test.ts` holds `src/calc/constants.ts` to.
+
+Game data lives in `src/calc/constants.ts`. A balance patch should be fixable by
+editing that one file.
 
 ### How it fits together
 
 The calculator is a pure function — `compute(input)` in `src/calc/engine.ts` —
 with no DOM or React anywhere near it. It returns every intermediate value, not
 just the headline numbers, which is what lets the "show the math" panel, the
-golden test and the optimizer all read from one source.
+tests and the optimizer all read from one source.
 
-Costs are closed-form (`src/calc/costs.ts`) rather than the sheet's
-`SUMPRODUCT` loops, so the engine stays cheap enough to call in a search loop.
+Costs (`src/calc/costs.ts`) round each level's price to a whole unit before
+summing, as the game does. No row has more than 30 levels, so the engine stays
+cheap enough to call in a search loop.
 
-Game data lives in `src/calc/constants.ts`. A balance patch should be fixable by
-editing that one file.
+Each spell potency rank adds 5% to the spell's effect, its duration and its
+level-up chance. Cast cost does not change.
 
 ### The optimizer
 
@@ -101,9 +106,9 @@ tests pin both halves of it.
 
 ### Essence supply
 
-The workbook models all three essences as earning at once and lets an altar
-drain a pool past empty. Neither is true: you mine one essence at a time, and an
-altar stalls on an empty pool rather than going negative.
+You mine one essence at a time, and an altar stalls on an empty pool rather than
+going negative. Ash and Brine drain Soft, Chasm and Drift drain Dense, Echo
+drains Jagged, and nothing drains Necrotic.
 
 So every altar carries two rates. `runesPerHour` is the nominal one — what it
 would produce if fed. `sustainedRunesPerHour` multiplies that by
@@ -111,9 +116,8 @@ would produce if fed. `sustainedRunesPerHour` multiplies that by
 the altars and collapses toward zero when it does not. The optimizer reads the
 sustained figure, because the nominal one describes an altar nobody can feed.
 
-`netEssencePerHour` keeps the workbook's formula and stays asserted against the
-sheet, so the golden test remains a transcription check. `sustainedNet` is what
-the UI shows; it is never negative.
+`netEssencePerHour` is plain income less drain and can go negative;
+`sustainedNet` is what the UI shows, and it never is.
 
 One consequence worth knowing: on a starved pool, capacity buys nothing. An
 altar converts at `(1 + craft × 0.2) × (1 + card) × runeCraftMulti`, which has

@@ -1,17 +1,20 @@
 /**
  * Bonuses the Arcanist receives from the rest of the account: the Rhino pet,
- * one-off unlocks, and contract levels.
+ * and unlocks — one-off toggles and levelled ones like the Hydra Star, the
+ * Rune Craft Multi contract and the Exchange upgrades.
  *
  * Each control is the thing the player owns — a pet level, an unlock, a card
- * tier — rather than the derived number the workbook stored, so this can be
- * filled in by looking at the game.
+ * tier — rather than a derived number, so this can be filled in by looking at
+ * the game.
  */
 
-import { CONTRACT_RUNE_CRAFT, PET, UNLOCKS } from '../../calc/constants';
-import { formatPercent } from '../../calc/format';
+import { CONTRACT_RUNE_CRAFT, EXCHANGE_UPGRADES, PET, UNLOCKS } from '../../calc/constants';
+import { formatNumber, formatPercent } from '../../calc/format';
 import type { ArcanistInput, ArcanistResult } from '../../calc/types';
-import { Field, Icon, LevelInput, Section, Switch } from '../components';
-import { MISC_ICONS, PET_ICONS, SECTION_ICONS, UNLOCK_ICONS } from '../icons';
+import { RHINO_CARD_TIERS } from '../../calc/types';
+import { MAX_RHINO_ULTRA_SHINY_PERCENT } from '../../state/schema';
+import { Field, Help, Icon, LevelInput, NumberField, Subhead, Switch, TabBody } from '../components';
+import { EXCHANGE_UPGRADE_ICONS, MISC_ICONS, PET_ICONS, UNLOCK_ICONS } from '../icons';
 import { CardTile } from './Cards';
 
 interface Props {
@@ -50,12 +53,46 @@ function UnlockRow({
   );
 }
 
+/**
+ * A levelled unlock: the same card as a toggle, with a stepper where the
+ * checkbox would be. Highlighted once it has any levels.
+ */
+function LevelRow({
+  icon,
+  label,
+  effects,
+  value,
+  max,
+  onChange,
+}: {
+  icon: string;
+  label: string;
+  effects: string;
+  value: number;
+  max: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className={value > 0 ? 'unlock on' : 'unlock'}>
+      <Icon src={icon} size={28} dim={value === 0} />
+      <div className="unlock-body">
+        <span className="unlock-title">{label}</span>
+        <div className="unlock-effects">{effects}</div>
+        <div className="unlock-sub">
+          <span>Level</span>
+          <LevelInput value={value} max={max} label={label} onChange={onChange} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Pets({ input, result, update }: Props) {
   const { pets } = input.external;
   const { derived } = result;
 
   return (
-    <Section title="Pets" icon={SECTION_ICONS.pets} eyebrow="rhino" flush>
+    <TabBody eyebrow="rhino" flush>
       <div className="pet-grid">
         <div className="pet-main">
           <Field
@@ -121,6 +158,29 @@ export function Pets({ input, result, update }: Props) {
               ) : null}
             </UnlockRow>
           </div>
+
+          {/* Here rather than under the card: the card column is too narrow for
+              a labelled input, and this is where the other Rhino values live. */}
+          {pets.rhinoCard === 'infernal' ? (
+            <Field
+              label="Infernal Rhino card · Ultra Shiny %"
+              hint="type the Essence Ultra Shiny Chance printed on the card"
+            >
+              <NumberField
+                value={pets.rhinoInfernalUltraShiny}
+                step={0.01}
+                label="Infernal Rhino card Essence Ultra Shiny Chance, percent"
+                onChange={(next) =>
+                  update((draft) => {
+                    draft.external.pets.rhinoInfernalUltraShiny = Math.min(
+                      Math.max(next, 0),
+                      MAX_RHINO_ULTRA_SHINY_PERCENT,
+                    );
+                  })
+                }
+              />
+            </Field>
+          ) : null}
         </div>
 
         <div className="pet-card">
@@ -128,6 +188,7 @@ export function Pets({ input, result, update }: Props) {
             name="Rhino Pet"
             art={PET_ICONS.rhino}
             tier={pets.rhinoCard}
+            tiers={RHINO_CARD_TIERS}
             onChange={(next) =>
               update((draft) => {
                 draft.external.pets.rhinoCard = next;
@@ -135,16 +196,16 @@ export function Pets({ input, result, update }: Props) {
             }
           />
           <p className="note">
-            Essence Super Shiny Chance. Not one of the Arcanist card blocks, so it does not count
-            toward Arcane Card damage.
+            Essence Super Shiny Chance; Infernal keeps that and adds Essence Ultra Shiny Chance.
+            Not one of the Arcanist card blocks, so it does not count toward Essence Damage +1 Per Arcanist Card Tier Owned.
           </p>
         </div>
       </div>
-    </Section>
+    </TabBody>
   );
 }
 
-export function Unlocks({ input, update }: Props) {
+export function OtherUnlocks({ input, result, update }: Props) {
   const { unlocks } = input.external;
   const set = <K extends keyof typeof unlocks>(key: K, value: (typeof unlocks)[K]) =>
     update((draft) => {
@@ -154,8 +215,9 @@ export function Unlocks({ input, update }: Props) {
   const pct = (n: number) => formatPercent(n);
 
   return (
-    <Section title="Unlocks" icon={SECTION_ICONS.unlocks} eyebrow="account-wide">
+    <TabBody eyebrow="account-wide">
       <div className="unlock-list">
+        <Subhead>World Quests</Subhead>
         <UnlockRow
           icon={UNLOCK_ICONS.worldQuest25}
           label="World Quest 25 completed"
@@ -170,6 +232,8 @@ export function Unlocks({ input, update }: Props) {
           checked={unlocks.worldQuest29}
           onChange={(v) => set('worldQuest29', v)}
         />
+
+        <Subhead>Skill-tree</Subhead>
         <UnlockRow
           icon={UNLOCK_ICONS.straightOuttaYanille}
           label="Straight Outta Yanille"
@@ -179,17 +243,30 @@ export function Unlocks({ input, update }: Props) {
           checked={unlocks.straightOuttaYanille}
           onChange={(v) => set('straightOuttaYanille', v)}
         />
+
+        <Subhead>Value Packs</Subhead>
         <UnlockRow
           icon={UNLOCK_ICONS.arcanistBundle}
           label="Arcanist Bundle"
           effects={`+${pct(UNLOCKS.bundleShiny)} Essence Shiny Chance · +${pct(
+            UNLOCKS.bundleBrittle,
+          )} Essence Brittle Chance · +${pct(
             UNLOCKS.bundleRuneCraft,
-          )} Rune Craft Multi · +${pct(
-            UNLOCKS.bundleSpellDuration,
-          )} Spell Duration · +10% Wizard Loot Multi`}
+          )} Rune Craft Multi · +10% Wizard Loot Multi`}
           checked={unlocks.arcanistBundle}
           onChange={(v) => set('arcanistBundle', v)}
         />
+        <UnlockRow
+          icon={UNLOCK_ICONS.spellslingerBundle}
+          label="Spellslinger Bundle"
+          effects={`+${pct(UNLOCKS.spellslingerSpellDuration)} Spell Duration · +${pct(
+            UNLOCKS.spellslingerSpellPower,
+          )} Spell Power · +10% Spell Level Up Chance`}
+          checked={unlocks.spellslingerBundle}
+          onChange={(v) => set('spellslingerBundle', v)}
+        />
+
+        <Subhead>Construction</Subhead>
         <UnlockRow
           icon={UNLOCK_ICONS.statueOfNature}
           label="Statue of Nature gilded"
@@ -217,40 +294,97 @@ export function Unlocks({ input, update }: Props) {
             </div>
           ) : null}
         </UnlockRow>
+
+        <Subhead>Stargazing</Subhead>
+        <UnlockRow
+          icon={UNLOCK_ICONS.blackHole30}
+          label="Black Hole Level 30"
+          effects={`+${pct(UNLOCKS.blackHole30SpellPower)} Arcanist Spell Power`}
+          checked={unlocks.blackHole30}
+          onChange={(v) => set('blackHole30', v)}
+        />
+        <LevelRow
+          icon={UNLOCK_ICONS.hydraStar}
+          label="Hydra Star"
+          effects={`+${pct(UNLOCKS.hydraStarSpellPowerPerLevel)} Arcanist Spell Power per level · now +${pct(
+            unlocks.hydraStarLevel * UNLOCKS.hydraStarSpellPowerPerLevel,
+          )}`}
+          value={unlocks.hydraStarLevel}
+          max={UNLOCKS.maxHydraStarLevel}
+          onChange={(v) => set('hydraStarLevel', v)}
+        />
+
+        <Subhead>Challenges</Subhead>
+        <UnlockRow
+          icon={UNLOCK_ICONS.divineChallenge23}
+          label="Divine Challenge 23"
+          effects={`+${pct(UNLOCKS.divineChallenge23SpellPower)} Arcanist Spell Power`}
+          checked={unlocks.divineChallenge23}
+          onChange={(v) => set('divineChallenge23', v)}
+        />
+
+        <Subhead>Contracts</Subhead>
+        <LevelRow
+          icon={MISC_ICONS.runeCraft}
+          label="Rune Craft Multi"
+          effects={`+${pct(CONTRACT_RUNE_CRAFT.perLevel)} Rune Craft Multi per level · now +${pct(
+            result.derived.contractRuneCraft,
+          )}`}
+          value={input.external.contractRuneCraftLevel}
+          max={CONTRACT_RUNE_CRAFT.maxLevel}
+          onChange={(next) =>
+            update((draft) => {
+              draft.external.contractRuneCraftLevel = next;
+            })
+          }
+        />
+
+        <Subhead>
+          Exchange <Help id="exchange" />
+        </Subhead>
+        {EXCHANGE_UPGRADES.map((def) => {
+          const level = Math.min(input.exchange[def.id], def.max);
+          const setLevel = (next: number) =>
+            update((draft) => {
+              draft.exchange[def.id] = next;
+            });
+
+          // A single-level upgrade is owned or not, so it reads as a toggle.
+          if (def.perLevel === undefined) {
+            return (
+              <UnlockRow
+                key={def.id}
+                icon={EXCHANGE_UPGRADE_ICONS[def.id]}
+                label={def.label}
+                effects={def.note ?? ''}
+                checked={level >= def.max}
+                onChange={(v) => setLevel(v ? def.max : 0)}
+              />
+            );
+          }
+
+          const perLevel = def.perLevel;
+          const format = (n: number) =>
+            def.display === 'percent' ? `+${pct(n)}` : `+${formatNumber(n)}`;
+          return (
+            <LevelRow
+              key={def.id}
+              icon={EXCHANGE_UPGRADE_ICONS[def.id]}
+              label={def.label}
+              effects={`${format(perLevel)} ${def.effectLabel ?? def.label} per level · now ${format(
+                level * perLevel,
+              )}${def.note ? ` · ${def.note}` : ''}`}
+              value={input.exchange[def.id]}
+              max={def.max}
+              onChange={setLevel}
+            />
+          );
+        })}
       </div>
       <p className="note" style={{ marginTop: 10 }}>
         Mana regen and Wizard Loot Multi are listed for completeness; neither feeds any number the
         Arcanist calculator produces.
       </p>
-    </Section>
-  );
-}
-
-export function Contracts({ input, result, update }: Props) {
-  const level = input.external.contractRuneCraftLevel;
-
-  return (
-    <Section title="Contracts" icon={SECTION_ICONS.contracts}>
-      <Field
-        label="Rune Craft Multi"
-        hint={`+${formatPercent(CONTRACT_RUNE_CRAFT.perLevel)} per level · now ${formatPercent(
-          result.derived.contractRuneCraft,
-        )}`}
-      >
-        <span className="named">
-          <Icon src={MISC_ICONS.runeCraft} size={20} />
-          <LevelInput
-            value={level}
-            max={CONTRACT_RUNE_CRAFT.maxLevel}
-            label="Contract Rune Craft Multi"
-            onChange={(next) =>
-              update((draft) => {
-                draft.external.contractRuneCraftLevel = next;
-              })
-            }
-          />
-        </span>
-      </Field>
-    </Section>
+    </TabBody>
   );
 }

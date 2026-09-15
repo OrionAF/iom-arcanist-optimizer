@@ -1,10 +1,19 @@
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 import { RESOURCE_LABELS } from '../calc/constants';
 import { formatCost } from '../calc/format';
 import type { Resource, ResourceBundle } from '../calc/types';
-import { loadPanels, savePanel } from '../state/storage';
+import { loadPanels, loadTabs, pickTab, savePanel, saveTab } from '../state/storage';
 import { HELP, type HelpEntry, type HelpId } from './help';
 import { RESOURCE_ICONS } from './icons';
 
@@ -218,6 +227,226 @@ export function Section({
       </summary>
       <div className={flush ? 'body flush' : 'body'}>{children}</div>
     </details>
+  );
+}
+
+export interface PanelTab {
+  id: string;
+  title: string;
+  icon: string;
+  content: ReactNode;
+}
+
+/**
+ * Several sections sharing one panel, one visible at a time.
+ *
+ * The page had grown long enough that reaching the lower inputs meant a lot of
+ * scrolling, and most visits only touch one or two of them. The tab strip
+ * stays visible when the panel is folded, so a folded panel is still one click
+ * from any of its tabs.
+ *
+ * Inactive tabs stay mounted and are hidden with `until-found`, so browser
+ * find-in-page still reaches their text and a match switches to that tab —
+ * the same thing a folded `<details>` section allows. The attribute is set on
+ * the element directly because React's `hidden` prop only takes a boolean.
+ * Browsers that do not know `until-found` treat it as plain `hidden`.
+ */
+export function TabbedPanel({ id, label, tabs }: { id: string; label: string; tabs: PanelTab[] }) {
+  const tabIds = tabs.map((tab) => tab.id);
+  const foldKey = `tabs:${id}`;
+  const [open, setOpen] = useState(() => loadPanels()[foldKey] ?? true);
+  const [active, setActive] = useState(() => pickTab(loadTabs()[id], tabIds));
+  const [edges, setEdges] = useState({ start: false, end: false });
+  const base = useId();
+  const strip = useRef<HTMLDivElement>(null);
+  const tabEls = useRef(new Map<string, HTMLButtonElement>());
+  const panelEls = useRef(new Map<string, HTMLDivElement>());
+
+  const current = pickTab(active, tabIds);
+
+  const fold = useCallback(
+    (next: boolean) => {
+      setOpen(next);
+      savePanel(foldKey, next);
+    },
+    [foldKey],
+  );
+
+  const select = useCallback(
+    (tabId: string) => {
+      setActive(tabId);
+      saveTab(id, tabId);
+      fold(true);
+    },
+    [id, fold],
+  );
+
+  // Which edges of the strip have tabs scrolled out past them.
+  const measure = useCallback(() => {
+    const el = strip.current;
+    if (!el) return;
+    const start = el.scrollLeft > 1;
+    const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    setEdges((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
+  }, []);
+
+  useEffect(() => {
+    const el = strip.current;
+    if (!el) return;
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [measure]);
+
+  // Bring the selected tab into the strip's view. Adjusted by hand rather than
+  // with scrollIntoView, which would also scroll the page to a panel that is
+  // merely below the fold when the page loads.
+  useEffect(() => {
+    const el = strip.current;
+    const tab = tabEls.current.get(current);
+    if (!el || !tab) return;
+    const left = tab.offsetLeft;
+    const right = left + tab.offsetWidth;
+    if (left < el.scrollLeft) el.scrollLeft = left;
+    else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth;
+    measure();
+  }, [current, measure]);
+
+  useLayoutEffect(() => {
+    for (const [tabId, el] of panelEls.current) {
+      if (open && tabId === current) el.removeAttribute('hidden');
+      else el.setAttribute('hidden', 'until-found');
+    }
+  }, [open, current]);
+
+  useEffect(() => {
+    const cleanups = [...panelEls.current].map(([tabId, el]) => {
+      const onMatch = () => select(tabId);
+      el.addEventListener('beforematch', onMatch);
+      return () => el.removeEventListener('beforematch', onMatch);
+    });
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }, [select]);
+
+  const onKeyDown = (e: ReactKeyboardEvent) => {
+    const at = tabIds.indexOf(current);
+    const target =
+      e.key === 'ArrowRight'
+        ? tabIds[(at + 1) % tabIds.length]
+        : e.key === 'ArrowLeft'
+          ? tabIds[(at - 1 + tabIds.length) % tabIds.length]
+          : e.key === 'Home'
+            ? tabIds[0]
+            : e.key === 'End'
+              ? tabIds[tabIds.length - 1]
+              : undefined;
+    if (target === undefined) return;
+    e.preventDefault();
+    select(target);
+    tabEls.current.get(target)?.focus();
+  };
+
+  return (
+    <section className={open ? 'section tabbed open' : 'section tabbed'} aria-label={label}>
+      <div className="tab-head">
+        <div className="tab-scroller" data-start={edges.start} data-end={edges.end}>
+          <div
+            ref={strip}
+            className="tab-strip"
+            role="tablist"
+            aria-label={label}
+            onScroll={measure}
+            onKeyDown={onKeyDown}
+          >
+            {tabs.map((tab) => {
+              const selected = tab.id === current;
+              return (
+                <button
+                  key={tab.id}
+                  ref={(el) => {
+                    if (el) tabEls.current.set(tab.id, el);
+                    else tabEls.current.delete(tab.id);
+                  }}
+                  type="button"
+                  role="tab"
+                  id={`${base}-tab-${tab.id}`}
+                  className="tab"
+                  aria-selected={selected}
+                  aria-controls={`${base}-panel-${tab.id}`}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => select(tab.id)}
+                >
+                  <Icon src={tab.icon} size={22} />
+                  <span>{tab.title}</span>
+                </button>
+              );
+            })}
+          </div>
+          {/* Only a hint that there is more; swiping or the arrow keys get there. */}
+          <span className="tab-edge start" aria-hidden="true">
+            ◂
+          </span>
+          <span className="tab-edge end" aria-hidden="true">
+            ▸
+          </span>
+        </div>
+        <button
+          type="button"
+          className="tab-fold"
+          aria-label={`Show ${label}`}
+          aria-expanded={open}
+          aria-controls={`${base}-panel-${current}`}
+          onClick={() => fold(!open)}
+        >
+          <span>▸</span>
+        </button>
+      </div>
+      {tabs.map((tab) => (
+        <div
+          key={tab.id}
+          ref={(el) => {
+            if (el) panelEls.current.set(tab.id, el);
+            else panelEls.current.delete(tab.id);
+          }}
+          role="tabpanel"
+          id={`${base}-panel-${tab.id}`}
+          aria-labelledby={`${base}-tab-${tab.id}`}
+          className="tab-panel"
+        >
+          {tab.content}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/**
+ * A tab's content: the help mark and eyebrow a section would carry in its
+ * header, then the body. The tab strip shows only icon and name, so the
+ * per-section context sits here instead.
+ */
+export function TabBody({
+  help,
+  eyebrow,
+  flush,
+  children,
+}: {
+  help?: HelpId;
+  eyebrow?: ReactNode;
+  flush?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      {help || eyebrow ? (
+        <div className="tab-meta">
+          {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
+          {help ? <Help id={help} /> : null}
+        </div>
+      ) : null}
+      <div className={flush ? 'body flush' : 'body'}>{children}</div>
+    </>
   );
 }
 
