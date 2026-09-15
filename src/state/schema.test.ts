@@ -36,6 +36,80 @@ describe('packed round trip', () => {
     expect(compute(restored)).toEqual(compute(EXAMPLE_INPUT));
   });
 
+  /**
+   * Batch 2 appended its fields instead of moving PACK_FORMAT, so a link shared
+   * before it must decode to the same build with every new field at its fresh
+   * value. The v4 array is exactly the current one minus the appended tail.
+   */
+  it('decodes a pre-batch-2 (v4) array unchanged', () => {
+    // 15 essence + 15 altar + 18 spell + 2 exchange + 18 cards + 5 pet
+    // + 6 unlock + contract + mining.
+    const V4_FIELD_COUNT = 81;
+    const v4 = packFields(EXAMPLE_INPUT).slice(0, V4_FIELD_COUNT);
+    expect(unpackFields(v4)).toEqual(EXAMPLE_INPUT);
+    // And the v4 prefix really is where it was: mining is its last field.
+    const necrotic = structuredClone(EXAMPLE_INPUT);
+    necrotic.mining = 'necrotic';
+    expect(packFields(necrotic)[V4_FIELD_COUNT - 1]).toBe(3);
+  });
+
+  it('carries every batch 2 field through a link', () => {
+    const build = structuredClone(EXAMPLE_INPUT);
+    build.essence.shinyChanceUltraShiny = 7;
+    build.essence.superShinyChanceAttackSpeed = 20;
+    build.exchange.spellPower = 15;
+    build.exchange.runePolychromeCard = 4;
+    build.external.unlocks.spellslingerBundle = true;
+    build.external.pets.rhinoCard = 'infernal';
+    build.external.pets.rhinoInfernalUltraShiny = 1.25;
+    build.mining = 'necrotic';
+    expect(decodeBuild(encodeBuild(build))).toEqual(build);
+  });
+
+  /**
+   * v6 appended the Drift and Echo altars with their rune cards, seven spells,
+   * and the Necrotic Essence and batch 2 spell cards after the v5 tail.
+   */
+  it('decodes a v5 array unchanged', () => {
+    // v4 + 19 essence + 2 exchange + Spellslinger Bundle + Infernal Rhino value.
+    const V5_FIELD_COUNT = 104;
+    // v6: 2 altars ×5, 2 rune cards, 7 spells ×3, Necrotic card, 7 spell cards.
+    // v7: Black Hole Level 30, Hydra Star level, Divine Challenge 23.
+    expect(PACKED_FIELD_COUNT).toBe(V5_FIELD_COUNT + 2 * 5 + 2 + 7 * 3 + 1 + 7 + 3);
+    const v5 = packFields(EXAMPLE_INPUT).slice(0, V5_FIELD_COUNT);
+    expect(unpackFields(v5)).toEqual(EXAMPLE_INPUT);
+    // And the v5 tail really is where it was: the Infernal Rhino value is last.
+    const infernal = structuredClone(EXAMPLE_INPUT);
+    infernal.external.pets.rhinoInfernalUltraShiny = 1.5;
+    expect(packFields(infernal)[V5_FIELD_COUNT - 1]).toBe(1.5);
+  });
+
+  it('carries the Drift and Echo altars and the batch 2 spells through a link', () => {
+    const build = structuredClone(EXAMPLE_INPUT);
+    build.altars.drift = { unlocked: true, active: true, capacity: 12, travel: 4, craft: 7 };
+    build.altars.echo = { unlocked: true, active: false, capacity: 3, travel: 10, craft: 1 };
+    build.external.cards.rune.drift = 'gilded';
+    build.external.cards.rune.echo = 'polychrome';
+    build.spells.draconicHoard = { unlocked: true, level: 22, rank: 6 };
+    build.spells.bugMagnet = { unlocked: false, level: 0, rank: 10 };
+    build.external.cards.essence.necrotic = 'normal';
+    build.external.cards.spell.partyFever = 'gilded';
+    build.external.cards.spell.bugMagnet = 'polychrome';
+    build.external.unlocks.blackHole30 = true;
+    build.external.unlocks.hydraStarLevel = 33;
+    build.external.unlocks.divineChallenge23 = true;
+    expect(decodeBuild(encodeBuild(build))).toEqual(build);
+  });
+
+  /** The example build has no Rhino card, which is how this once went unnoticed. */
+  it('carries every Rhino card tier', () => {
+    for (const tier of ['normal', 'gilded', 'polychrome', 'infernal'] as const) {
+      const build = structuredClone(EXAMPLE_INPUT);
+      build.external.pets.rhinoCard = tier;
+      expect(unpackFields(packFields(build)).external.pets.rhinoCard, tier).toBe(tier);
+    }
+  });
+
   it('fills the tail with defaults when a link predates a new field', () => {
     const truncated = packFields(EXAMPLE_INPUT).slice(0, 20);
     const restored = unpackFields(truncated);
@@ -53,7 +127,7 @@ describe('share links', () => {
   });
 
   it('stay short enough to paste', () => {
-    expect(encodeBuild(EXAMPLE_INPUT).length).toBeLessThan(400);
+    expect(encodeBuild(EXAMPLE_INPUT).length).toBeLessThan(450);
   });
 
   it('reject garbage instead of throwing', () => {
@@ -108,6 +182,18 @@ describe('share links', () => {
 });
 
 describe('coercion of untrusted input', () => {
+  it('offers Infernal to the Rhino card and to no Arcanist card', () => {
+    const coerced = coerceInput({
+      external: {
+        cards: { rune: { ash: 'infernal' } },
+        pets: { rhinoCard: 'infernal', rhinoInfernalUltraShiny: -3 },
+      },
+    });
+    expect(coerced.external.cards.rune.ash).toBe('none');
+    expect(coerced.external.pets.rhinoCard).toBe('infernal');
+    expect(coerced.external.pets.rhinoInfernalUltraShiny).toBe(0);
+  });
+
   it('rebuilds a complete input from nothing', () => {
     expect(coerceInput(null)).toEqual(FRESH_INPUT);
     expect(coerceInput('nonsense')).toEqual(FRESH_INPUT);
@@ -192,11 +278,16 @@ describe('v1 to v2 migration', () => {
       soft: 'polychrome',
       dense: 'normal',
       jagged: 'normal',
+      // v1 predates Necrotic Essence.
+      necrotic: 'none',
     });
     expect(migrated.external.cards.rune).toEqual({
       ash: 'polychrome',
       brine: 'gilded',
       chasm: 'none',
+      // v1 predates the Drift and Echo altars.
+      drift: 'none',
+      echo: 'none',
     });
     expect(migrated.external.cards.spell.runicSurge).toBe('gilded');
     expect(migrated.external.cards.spell.veinboyant).toBe('none');
@@ -221,7 +312,10 @@ describe('v1 to v2 migration', () => {
     expect(after.contractRuneCraft).toBeCloseTo(before.contractRuneCraft, 10);
     expect(after.statueSuperShiny).toBeCloseTo(before.constructSuperShiny, 10);
     expect(after.storeRuneCraft).toBeCloseTo(before.storeRuneCraft, 10);
-    expect(after.spellDurationMulti).toBeCloseTo(before.spellDurationMulti, 10);
+    // v1's 1.1 came from the Arcanist Bundle, which stopped granting spell
+    // duration in Arcanist batch 2. The migration is still exact; the game moved.
+    expect(before.spellDurationMulti).toBeCloseTo(1.1, 10);
+    expect(after.spellDurationMulti).toBe(1);
   });
 
   it('collapses the two Yanille halves into one unlock', () => {

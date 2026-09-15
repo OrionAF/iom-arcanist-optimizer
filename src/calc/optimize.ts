@@ -10,20 +10,22 @@
  * Scoring is empirical rather than analytical: clone the input, add some levels,
  * run `compute` again, diff the outcome. Nothing here duplicates a formula from
  * the engine, so a balance patch to `constants.ts` moves the rankings without
- * touching this file. `compute` is pure and its costs are closed form, which is
+ * touching this file. Recomputes replay combat only for the mined essence (the
+ * only one either goal reads), and the replay caches by combat inputs, which is
  * what makes a few hundred recomputes per keystroke affordable.
  *
- * A step is not always one level. Several of the engine's outputs are quantised
- * — `hitsToMine` is a whole number of hits — so a single point of damage usually
- * buys nothing at all, and a one-level view reports every damage row as worth
- * exactly zero forever. What the player needs is the *cheapest purchase on that
- * row that actually does something*, which may be four levels. So each lever is
+ * A step is not always one level, because the game quantises some stats. Crit
+ * chances roll out of 100, so +0.25% crit does nothing until it completes a
+ * whole percent, and damage rounds to a whole number, so +1.5% damage can round
+ * to no change. A one-level view reports those rows as worth exactly zero. What
+ * the player needs is the *cheapest purchase on that row that actually does
+ * something*, which may be four levels. So each lever is
  * probed for the first few step sizes that move an objective, and the ranking
  * picks between them; see `breakpoints`.
  *
  * Two objectives are tracked, because the player has two:
  *
- *   essence/hr — sum of net essence across the three tiers
+ *   essence/hr — sum of net essence across every essence
  *   runes/hr   — sum across altars that are actually unlocked and running
  *
  * They compete less than they appear to. In `computeAltars`, capacity and
@@ -47,7 +49,7 @@ import {
   SPELLS,
   SPELL_IDS,
 } from './constants';
-import { compute } from './engine';
+import { compute, unmetRequirement, type ComputeOptions } from './engine';
 import type {
   AltarId,
   ArcanistInput,
@@ -82,7 +84,7 @@ export interface Lever {
   section: CandidateSection;
   level: number;
   max: number;
-  /** False for rows with no cost data at all (Exchange), distinct from free. */
+  /** False for rows with no price (Exchange, running an idle altar), distinct from free. */
   priced: boolean;
   /** Cost of going from `level` to `level + steps`. Empty when unpriced. */
   cost: (steps: number) => ResourceBundle;
@@ -133,6 +135,9 @@ export function enumerateLevers(input: ArcanistInput): Lever[] {
   for (const def of ESSENCE_UPGRADES) {
     const level = clamp(input.essence[def.id], def.max);
     if (level >= def.max) continue;
+    // Not for sale until its prerequisite is met, so not a move you can make.
+    if (unmetRequirement(input, def)) continue;
+    const spec = def.cost;
 
     out.push({
       id: def.id,
@@ -140,13 +145,16 @@ export function enumerateLevers(input: ArcanistInput): Lever[] {
       section: 'essence',
       level,
       max: def.max,
-      priced: true,
+      // A row with no known price would rank by effect only.
+      priced: spec !== undefined,
       // A multi-level step across a tier boundary spans two resources, and is
       // handled the way altar unlocks are: ranked by gain, never by price.
       cost: (steps) =>
-        def.cost.kind === 'tiered'
-          ? tieredCost(def.cost.tiers, level, level + steps)
-          : { [def.cost.resource]: curveCost(def.cost.curve, level, level + steps) },
+        spec === undefined
+          ? {}
+          : spec.kind === 'tiered'
+            ? tieredCost(spec.tiers, level, level + steps)
+            : { [spec.resource]: curveCost(spec.curve, level, level + steps) },
       apply: (draft, steps) => {
         draft.essence[def.id] = level + steps;
       },
@@ -232,8 +240,8 @@ export function enumerateLevers(input: ArcanistInput): Lever[] {
     });
   }
 
-  // Exchange upgrades are deliberately unpriced (see ExchangeUpgradeDef). They
-  // can still be ranked by effect, just never by efficiency.
+  // Exchange upgrades are bought with resources this app does not track, so
+  // they rank by effect only.
   for (const def of EXCHANGE_UPGRADES) {
     const level = clamp(input.exchange[def.id], def.max);
     if (level >= def.max) continue;
@@ -293,7 +301,7 @@ export function enumerateCandidates(input: ArcanistInput): Candidate[] {
 // ---------------------------------------------------------------------------
 
 export interface Objectives {
-  /** Sum of net essence per hour across the three tiers. */
+  /** Sum of net essence per hour across every essence. */
   essencePerHour: number;
   /** Sum of runes per hour across altars that are unlocked and running. */
   runesPerHour: number;
@@ -349,7 +357,7 @@ export interface Marginal {
    * Hours to afford this step from nothing, at the current sustained rate.
    *
    * Only defined for rune costs. Orb income is not modelled anywhere in this
-   * app — the Arcanist sheet has no notion of it — and an invented figure would
+   * app, and an invented figure would
    * be worse than a blank, so orb-priced rows simply carry no time.
    *
    * A one-purchase horizon on purpose. Rates move every time you buy something,
@@ -378,8 +386,8 @@ export function runeIncome(result: ArcanistResult): Partial<Record<Resource, num
 const zeroObjectives = (): Objectives => ({
   essencePerHour: 0,
   runesPerHour: 0,
-  perEssence: { soft: 0, dense: 0, jagged: 0 },
-  perAltar: { ash: 0, brine: 0, chasm: 0 },
+  perEssence: { soft: 0, dense: 0, jagged: 0, necrotic: 0 },
+  perAltar: { ash: 0, brine: 0, chasm: 0, drift: 0, echo: 0 },
 });
 
 function subtract(after: Objectives, before: Objectives): Objectives {
@@ -413,7 +421,8 @@ function applied(input: ArcanistInput, candidate: Candidate): ArcanistInput {
  * What `candidate` is worth, by recomputing with it bought.
  *
  * `baseline` is passed in rather than recomputed so a full ranking pays for the
- * unmodified result once instead of once per candidate.
+ * unmodified result once instead of once per candidate. It must come from
+ * `scoringCompute`.
  */
 export function marginalValue(
   input: ArcanistInput,
@@ -423,7 +432,7 @@ export function marginalValue(
   /** The outcome with the step bought, when the caller already has it. */
   after?: Objectives,
 ): Marginal {
-  const delta = subtract(after ?? objectives(compute(applied(input, candidate))), baseline);
+  const delta = subtract(after ?? objectives(scoringCompute(applied(input, candidate))), baseline);
 
   const size = bundleSize(candidate.stepCost);
   const priced = candidate.priced && size > 0;
@@ -513,8 +522,9 @@ function nextBreakpoint(
  *
  * Only the sizes at which something changes. On a continuous row that is 1, 2,
  * 3 and the cheapest wins on efficiency, so the ranking looks exactly as it did
- * before. On a quantised row — damage, where `hitsToMine` is a whole number —
- * it is the levels that actually remove a hit, which is the whole point.
+ * before. On a quantised row, such as crit chance that only rolls in whole
+ * percents, it is the levels that actually change a roll, which is the whole
+ * point.
  */
 function breakpoints(
   lever: Lever,
@@ -540,9 +550,27 @@ function breakpoints(
   return out.length > 0 ? out : [1];
 }
 
+/**
+ * Blocks replayed per build while scoring. Fewer than the on-screen figures
+ * use, because a ranking recomputes hundreds of times. Every build faces the
+ * same random rolls, so most of the sampling noise cancels in a difference
+ * between two builds: that difference is what gets ranked, and it is much
+ * steadier than either build's own figure.
+ */
+export const OPTIMIZER_SAMPLES = 1000;
+
+const SCORING: ComputeOptions = { replay: 'mined', samples: OPTIMIZER_SAMPLES };
+
+/**
+ * The recompute every score is measured with. A baseline and the builds scored
+ * against it must come from here: figures replayed at different sample counts
+ * face different rolls, and their difference would be noise.
+ */
+export const scoringCompute = (input: ArcanistInput): ArcanistResult => compute(input, SCORING);
+
 /** Score every available candidate against the current build. */
-export function rankAll(input: ArcanistInput, result?: ArcanistResult): Marginal[] {
-  const base = result ?? compute(input);
+export function rankAll(input: ArcanistInput): Marginal[] {
+  const base = scoringCompute(input);
   const baseline = objectives(base);
   const income = runeIncome(base);
 
@@ -554,7 +582,7 @@ export function rankAll(input: ArcanistInput, result?: ArcanistResult): Marginal
     const at = (steps: number) => {
       let outcome = seen.get(steps);
       if (outcome === undefined) {
-        outcome = objectives(compute(applied(input, candidateAt(lever, steps))));
+        outcome = objectives(scoringCompute(applied(input, candidateAt(lever, steps))));
         seen.set(steps, outcome);
       }
       return outcome;
@@ -587,7 +615,7 @@ export interface Rankings {
   /** Priced candidates grouped by the resource they cost, best first. */
   byResource: ResourceQueue[];
   /**
-   * Unpriced levers (Exchange rows, and any multi-resource cost) ranked by raw
+   * Unpriced levers (Exchange rows, altar toggles, and any multi-resource cost) ranked by raw
    * effect. They carry no efficiency number because they have no known price.
    */
   unpriced: Marginal[];
@@ -646,8 +674,8 @@ function bestPerLever(all: Marginal[], goal: Goal): Marginal[] {
  * A lever appears once, at its best step size for this goal. The two goals can
  * disagree about that size as freely as they disagree about the order.
  */
-export function rankings(input: ArcanistInput, goal: Goal, result?: ArcanistResult): Rankings {
-  return groupRankings(rankAll(input, result), goal);
+export function rankings(input: ArcanistInput, goal: Goal): Rankings {
+  return groupRankings(rankAll(input), goal);
 }
 
 /**

@@ -1,12 +1,9 @@
 /**
- * Number formatting, matching the workbook's short-scale display.
- *
- * The sheet implements this as a 40-line INDEX/MATCH/TEXT expression repeated
- * in every D-column cell; this is the same behaviour, minus Excel's artefact of
- * leaving a trailing "." when the "0.##" branch rounds to a whole number.
+ * Number formatting: short-scale names ("1.73 Thousand") for totals, compact
+ * suffixes ("1.73K") for dense cells.
  */
 
-import type { Resource } from './types';
+import type { EffectDisplay, Resource } from './types';
 
 const SCALE_NAMES = [
   '',
@@ -69,14 +66,14 @@ function scaleIndex(value: number): number {
 function scaleAndRound(value: number, index: number): { text: string; scaled: number } {
   const scaled = value / 10 ** (index * 3);
   const rounded = Math.round(scaled * 100) / 100;
-  // Whole numbers print without a decimal part, matching the sheet's "0" branch.
+  // Whole numbers print without a decimal part.
   const text = Number.isInteger(rounded)
     ? rounded.toFixed(0)
     : rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   return { text, scaled };
 }
 
-/** "1.73 Thousand", "386.29 Septillion" — the sheet's D-column style. */
+/** "1.73 Thousand", "386.29 Septillion". */
 export function formatShortScale(value: number): string {
   if (!Number.isFinite(value)) return value > 0 ? '∞' : '—';
   if (value === 0) return '0';
@@ -98,38 +95,19 @@ export function formatCompact(value: number): string {
 }
 
 /*
- * Orb prices are whole numbers.
- *
- * The cost curves are geometric, so they land on values like 366.05 that the
- * game itself would never quote — you cannot hold a twentieth of an orb. The
- * engine keeps the exact figure, because that is what the golden test asserts
- * and what the optimizer compares; only the display rounds, the same way the
- * Arcanist Stats damage readout does.
- *
- * Runes and essence are deliberately left alone: they arrive as fractional
- * per-hour rates, and rounding a rune price would imply a precision the
- * time-to-afford figures beside it do not have.
+ * Prices. The engine already charges whole units, as the game does, so these
+ * only pick the style. The resource is kept in the signature so a per-resource
+ * rule has somewhere to live.
  */
-const ORB_RESOURCES = new Set<Resource>([
-  'whiteOrb',
-  'greenOrb',
-  'purpleOrb',
-  'orangeOrb',
-  'redOrb',
-]);
 
-export function isOrb(resource: Resource): boolean {
-  return ORB_RESOURCES.has(resource);
+/** A price, for a dense table cell. */
+export function formatCost(_resource: Resource, amount: number): string {
+  return formatCompact(amount);
 }
 
-/** A price, for a dense table cell. Orbs are whole; everything else is not. */
-export function formatCost(resource: Resource, amount: number): string {
-  return formatCompact(isOrb(resource) ? Math.round(amount) : amount);
-}
-
-/** The same rule, in the Total Resources panel's long-scale style. */
-export function formatCostLong(resource: Resource, amount: number): string {
-  return formatShortScale(isOrb(resource) ? Math.round(amount) : amount);
+/** A price, in the Total Resources panel's long-scale style. */
+export function formatCostLong(_resource: Resource, amount: number): string {
+  return formatShortScale(amount);
 }
 
 /** Plain decimal with a fixed number of significant-ish digits. */
@@ -146,9 +124,18 @@ export function formatPercent(value: number, digits = 2): string {
   return `${text}%`;
 }
 
-export function formatEffect(value: number, display: 'flat' | 'percent'): string {
-  if (value === 0) return display === 'percent' ? '+0%' : '+0';
-  return display === 'percent' ? `+${formatPercent(value)}` : `+${formatNumber(value)}`;
+export function formatEffect(value: number, display: EffectDisplay): string {
+  switch (display) {
+    case 'percent':
+      return value === 0 ? '+0%' : `+${formatPercent(value)}`;
+    case 'flat':
+      return value === 0 ? '+0' : `+${formatNumber(value)}`;
+    // Reductions are stored as positive amounts and printed as what they take off.
+    case 'minus':
+      return value === 0 ? '−0' : `−${formatNumber(value)}`;
+    case 'minusSeconds':
+      return value === 0 ? '−0s' : `−${formatNumber(value)}s`;
+  }
 }
 
 /**

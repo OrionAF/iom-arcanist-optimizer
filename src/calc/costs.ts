@@ -1,27 +1,31 @@
 import type { CostCurve, ResourceBundle, Resource } from './types';
 
 /**
- * Cost of buying levels `from+1 .. to`, in closed form.
+ * The price of buying level `level` (1-based), as the game charges it.
  *
- * The sheet spells these out as SUMPRODUCT over ROW(INDIRECT(...)) ranges,
- * which is O(levels). Closed form keeps a goal-seek affordable. The two forms
- * differ in the last few float bits from a running sum, so tests compare with
- * relative tolerance.
+ * The game's `upg_add` rounds every level's price half up to a whole unit, and
+ * buying several levels sums those rounded prices. Every price here is
+ * positive, so `Math.round` is exactly round-half-up.
+ */
+export function levelPrice(curve: CostCurve, level: number): number {
+  const raw =
+    curve.kind === 'geometric'
+      ? curve.base * curve.ratio ** (level - 1)
+      : curve.first + (level - 1) * curve.step;
+  return Math.round(raw);
+}
+
+/**
+ * Cost of buying levels `from+1 .. to`.
+ *
+ * A running sum rather than closed form, because each term is rounded before
+ * it is added. No row has more than 30 levels, so this stays cheap enough for
+ * the optimizer's recompute loop.
  */
 export function curveCost(curve: CostCurve, from: number, to: number): number {
-  const n = to - from;
-  if (n <= 0) return 0;
-
-  if (curve.kind === 'geometric') {
-    const { base, ratio } = curve;
-    // sum_{i=from+1..to} base * ratio^(i-1)
-    if (ratio === 1) return base * n;
-    return (base * ratio ** from * (ratio ** n - 1)) / (ratio - 1);
-  }
-
-  // sum_{i=from+1..to} first + (i-1) * step
-  const { first, step } = curve;
-  return n * first + (step * n * (from + to - 1)) / 2;
+  let sum = 0;
+  for (let level = from + 1; level <= to; level += 1) sum += levelPrice(curve, level);
+  return sum;
 }
 
 /** Sum the tier bundles for levels `from+1 .. to`. */

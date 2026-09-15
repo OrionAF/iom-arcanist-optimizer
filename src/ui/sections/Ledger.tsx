@@ -8,12 +8,10 @@ import { Help, Icon, useFlashOnChange } from '../components';
 import { ESSENCE_ICONS } from '../icons';
 
 /**
- * The three essences, and which one you are mining.
+ * Every essence, and which one you are mining.
  *
- * The spreadsheet showed one at a time behind a dropdown because it ran out of
- * room; all three are computed either way, so all three are shown. What the
- * sheet never modelled is that you can only mine one of them at once — so the
- * other two are showing an income you are not receiving.
+ * All of them are computed, so all of them are shown. You can only mine one at
+ * once, though — so the others are showing an income you are not receiving.
  *
  * Rather than add a separate control for that, the cells *are* the control:
  * click one to mine it. The mined cell shows what you are banking; the others
@@ -64,11 +62,11 @@ function LedgerCell({
       {outcome.unmineable ? (
         <div className="ledger-blocked">
           <strong>Can't mine</strong>
-          {outcome.armor >= result.stats.damage
+          {outcome.hitDamage <= 0
             ? `Armour ${formatNumber(outcome.armor)} meets or beats your ${formatNumber(
                 result.stats.damage,
               )} damage.`
-            : `Regen ${formatNumber(outcome.avgRegen)}/hit outpaces your damage after armour.`}
+            : `Its regen of ${formatNumber(outcome.regenAmount)} every 10s outpaces your damage.`}
         </div>
       ) : (
         <>

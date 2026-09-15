@@ -1,8 +1,8 @@
 /**
  * Optimizer tests.
  *
- * The engine's own correctness is covered by the golden test against the
- * workbook. What matters here is that the ranking is a faithful reading of the
+ * The engine's own correctness is covered by engine.test.ts and
+ * gamedata.test.ts. What matters here is that the ranking is a faithful reading of the
  * engine: that every candidate maps to a real input field, that scores come out
  * of an actual recompute, and that the structural claims the module's design
  * rests on still hold if `constants.ts` changes under it.
@@ -20,12 +20,34 @@ import {
   rankAll,
   rankings,
   runeIncome,
+  scoringCompute,
   STEPS_PER_LEVER,
 } from './optimize';
 import { EXAMPLE_INPUT } from '../presets/example';
 import { FRESH_INPUT } from '../presets/fresh';
 import { ALTAR_IDS } from './constants';
 import { ESSENCE_TYPES } from './types';
+
+/**
+ * A fresh Arcanist with just enough of the upgrade chain to open Flat Damage
+ * +2%, which leaves 20 damage: one level of it rounds to 20.4 → 20, two to 21.
+ */
+const ROUNDED_DAMAGE_INPUT = (() => {
+  const input = structuredClone(FRESH_INPUT);
+  Object.assign(input.essence, {
+    flatDamage1: 3,
+    softMaxLoot: 1,
+    shinyChance1: 3,
+    critChance1: 5,
+    flatDamage2: 5,
+    denseMaxLoot: 1,
+    armorPen: 3,
+    superCrit1: 2,
+    flatDamage3: 2,
+    damagePct: 0,
+  });
+  return input;
+})();
 
 describe('candidates', () => {
   it('covers every unmaxed row the engine prices', () => {
@@ -162,7 +184,7 @@ describe('objectives', () => {
 
   it('follows the mined essence when it changes', () => {
     const onJagged = { ...EXAMPLE_INPUT, mining: 'jagged' as const };
-    const obj = objectives(compute(onJagged));
+    const obj = objectives(scoringCompute(onJagged));
 
     expect(obj.perEssence.soft).toBe(0);
     expect(obj.perEssence.jagged).toBeGreaterThan(0);
@@ -173,50 +195,45 @@ describe('objectives', () => {
     // notional output would make the `active` toggle look free.
     const idle = structuredClone(EXAMPLE_INPUT);
     for (const id of ALTAR_IDS) idle.altars[id].active = false;
-    expect(objectives(compute(idle)).runesPerHour).toBe(0);
+    expect(objectives(scoringCompute(idle)).runesPerHour).toBe(0);
 
     const running = structuredClone(idle);
     running.altars.ash.unlocked = true;
     running.altars.ash.active = true;
-    expect(objectives(compute(running)).runesPerHour).toBeGreaterThan(0);
+    expect(objectives(scoringCompute(running)).runesPerHour).toBeGreaterThan(0);
   });
 });
 
 describe('marginal value', () => {
-  const baseline = objectives(compute(EXAMPLE_INPUT));
+  const baseline = objectives(scoringCompute(EXAMPLE_INPUT));
 
   it('scores a loot upgrade as a gain to essence', () => {
     // Soft Max Loot, because the example build mines Soft and loot scales the
-    // yield continuously. Damage does not: hits-to-mine is a whole number, so
-    // a single point of damage usually buys nothing until it crosses a ceiling
-    // — see the test below, which pins that as a property rather than a bug.
+    // yield continuously. A damage percentage does not always: the game rounds
+    // damage to a whole number, so a small one can buy nothing — see the test
+    // below, which pins that as a property rather than a bug.
     const candidate = enumerateCandidates(EXAMPLE_INPUT).find((c) => c.id === 'softMaxLoot')!;
     const m = marginalValue(EXAMPLE_INPUT, candidate, baseline);
     expect(m.delta.essencePerHour).toBeGreaterThan(0);
   });
 
   /**
-   * Damage arrives in steps, not slopes.
-   *
-   * `hitsToMine` is rounded up to a whole hit, so damage that does not remove a
-   * hit from the count changes nothing. Under the old model this was masked:
-   * the objective summed all three essences, so a point of damage that did
-   * nothing for Soft could still cross a ceiling for Dense or Jagged and look
-   * like a smooth gain. Mining one essence at a time exposes it.
+   * The game rounds damage to a whole number, so a percentage too small to
+   * change the rounded figure changes nothing at all.
    */
-  it('scores damage in steps, since hits-to-mine is a whole number', () => {
-    const candidate = enumerateCandidates(EXAMPLE_INPUT).find((c) => c.id === 'flatDamage1')!;
-    expect(marginalValue(EXAMPLE_INPUT, candidate, baseline).delta.essencePerHour).toBe(0);
-    // Which is why the ranking does not stop at one level — see 'step sizes'.
+  it('scores a damage buy the rounding swallows at exactly zero', () => {
+    const input = ROUNDED_DAMAGE_INPUT;
+    expect(compute(input).stats.damage).toBe(20);
+    const candidate = enumerateCandidates(input).find((c) => c.id === 'damagePct')!;
+    const base = objectives(scoringCompute(input));
+    // 20 × 1.02 = 20.4 still rounds to 20.
+    expect(marginalValue(input, candidate, base).delta.essencePerHour).toBe(0);
 
-    // Enough damage to remove at least one hit does show up.
-    const stronger = structuredClone(EXAMPLE_INPUT);
-    stronger.essence.flatDamage1 = 25;
-    const mined = EXAMPLE_INPUT.mining;
-    expect(compute(stronger).essence[mined].hitsToMine).toBeLessThan(
-      compute(EXAMPLE_INPUT).essence[mined].hitsToMine,
-    );
-    expect(objectives(compute(stronger)).essencePerHour).toBeGreaterThan(baseline.essencePerHour);
+    // A second level reaches 20.8, which rounds to 21, and shows up.
+    const stronger = structuredClone(input);
+    stronger.essence.damagePct = 2;
+    expect(compute(stronger).stats.damage).toBe(21);
+    expect(objectives(scoringCompute(stronger)).essencePerHour).toBeGreaterThan(base.essencePerHour);
   });
 
   it('leaves the input untouched', () => {
@@ -315,8 +332,8 @@ describe('the essence/rune tradeoff', () => {
     const more = structuredClone(fed);
     for (const id of ALTAR_IDS) more.altars[id].capacity = fed.altars[id].capacity + 1;
 
-    const before = objectives(compute(fed));
-    const after = objectives(compute(more));
+    const before = objectives(scoringCompute(fed));
+    const after = objectives(scoringCompute(more));
 
     expect(compute(fed).altars.brine.supplyFactor).toBe(1);
     expect(after.runesPerHour).toBeGreaterThan(before.runesPerHour);
@@ -377,8 +394,8 @@ describe('the essence/rune tradeoff', () => {
     toBrine.altars.brine.capacity = shared.altars.brine.capacity + 10;
 
     expect(compute(shared).altars.ash.supplyFactor).toBeLessThan(1);
-    expect(objectives(compute(toBrine)).runesPerHour).toBeGreaterThan(
-      objectives(compute(shared)).runesPerHour,
+    expect(objectives(scoringCompute(toBrine)).runesPerHour).toBeGreaterThan(
+      objectives(scoringCompute(shared)).runesPerHour,
     );
   });
 });
@@ -402,10 +419,9 @@ describe('time to afford', () => {
 
   it('divides a rune cost by the rate that rune actually sustains', () => {
     const input = running();
-    const result = compute(input);
-    const income = runeIncome(result);
+    const income = runeIncome(scoringCompute(input));
 
-    for (const m of rankAll(input, result)) {
+    for (const m of rankAll(input)) {
       const resource = m.candidate.resource;
       if (resource === undefined || !m.candidate.priced) continue;
 
@@ -464,32 +480,34 @@ describe('time to afford', () => {
 /**
  * Step sizes.
  *
- * The optimizer used to price exactly one level of every row, which made every
- * damage row permanently worthless: `hitsToMine` is a whole number of hits, so
- * one point of damage buys nothing until it removes one. The ranking now prices
- * the first few step sizes that move an objective and recommends the best.
+ * Pricing exactly one level of every row calls a quantised row worthless: the
+ * game rounds damage to a whole number and rolls crit chance in whole percents,
+ * so one level can buy nothing until the next one completes a step. The ranking
+ * prices the first few step sizes that move an objective and recommends the best.
  */
 describe('step sizes', () => {
-  const baseline = objectives(compute(EXAMPLE_INPUT));
+  const baseline = objectives(scoringCompute(EXAMPLE_INPUT));
 
   /** Score one lever at an arbitrary step, outside the breakpoint search. */
   const at = (input: typeof EXAMPLE_INPUT, id: string, steps: number) => {
     const lever = enumerateLevers(input).find((l) => l.id === id)!;
-    return marginalValue(input, candidateAt(lever, steps), objectives(compute(input)));
+    return marginalValue(input, candidateAt(lever, steps), objectives(scoringCompute(input)));
   };
 
   it('recommends the multi-level buy that a quantised row actually needs', () => {
-    // Damage is the case the one-level view could never see: no single level
-    // does anything, so the old ranking filtered every damage row out.
-    const entry = rankings(EXAMPLE_INPUT, 'essence')
+    // One level of Flat Damage +2% rounds away to nothing on 20 damage, so
+    // the one-level view would call the row worthless.
+    const entry = rankings(ROUNDED_DAMAGE_INPUT, 'essence')
       .byResource.flatMap((q) => q.entries)
-      .find((m) => m.candidate.id === 'flatDamage1')!;
+      .find((m) => m.candidate.id === 'damagePct')!;
 
     expect(entry.candidate.steps).toBeGreaterThan(1);
     expect(entry.delta.essencePerHour).toBeGreaterThan(0);
 
     // And it is the cheapest such buy: one level short does nothing at all.
-    expect(at(EXAMPLE_INPUT, 'flatDamage1', entry.candidate.steps - 1).delta.essencePerHour).toBe(0);
+    expect(
+      at(ROUNDED_DAMAGE_INPUT, 'damagePct', entry.candidate.steps - 1).delta.essencePerHour,
+    ).toBe(0);
   });
 
   it('still recommends one level where one level works', () => {
@@ -560,7 +578,7 @@ describe('step sizes', () => {
     const before = structuredClone(EXAMPLE_INPUT);
     rankings(EXAMPLE_INPUT, 'essence');
     expect(EXAMPLE_INPUT).toEqual(before);
-    expect(baseline).toEqual(objectives(compute(EXAMPLE_INPUT)));
+    expect(baseline).toEqual(objectives(scoringCompute(EXAMPLE_INPUT)));
   });
 });
 

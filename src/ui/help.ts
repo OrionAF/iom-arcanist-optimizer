@@ -6,8 +6,8 @@
  * place, and a label that gains a "?" only needs an entry added here.
  *
  * `formula` is optional and only present where the shape of the calculation is
- * the answer. It is written the way the engine computes it, not the way the
- * source workbook spelled it, so it stays checkable against `engine.ts`.
+ * the answer. It is written the way the engine computes it, so it stays
+ * checkable against `engine.ts`.
  */
 
 export interface HelpEntry {
@@ -28,7 +28,7 @@ export const HELP = {
   },
   potencyCost: {
     title: 'Potency next / remaining',
-    body: 'Runes to raise this spell\'s potency by one rank, then runes to carry it to rank 10. Each spell requires one rune type only, and the cost multiplies by 1.25 every rank.\n\nSpell level and potency are priced separately; only potency is priced here.',
+    body: 'Runes to raise this spell\'s potency by one rank, then runes to carry it to rank 10. Each spell requires one rune type only, and the cost multiplies by 1.25 every rank.\n\nEach potency rank adds 5% to the spell\'s effect, its duration and the chance that casting it levels it up. Cast cost does not change.',
   },
 
   // ------------------------------------------------------------------ ledger
@@ -45,7 +45,7 @@ export const HELP = {
   },
   ledgerDrain: {
     title: 'Altar drain',
-    body: 'Essence per hour consumed by every altar that is unlocked and running on this essence. Ash and Brine altars both draw on Soft essence, Chasm draws on Dense, and nothing draws on Jagged.\n\nAn altar that is unlocked but not running drains nothing and produces nothing.',
+    body: 'Essence per hour consumed by every altar that is unlocked and running on this essence. Ash and Brine altars both draw on Soft essence, Chasm and Drift draw on Dense, Echo draws on Jagged, and nothing draws on Necrotic.\n\nAn altar that is unlocked but not running drains nothing and produces nothing.',
   },
   ledgerLootRange: {
     title: 'Loot per block',
@@ -80,22 +80,24 @@ export const HELP = {
   },
   runeCraftMulti: {
     title: 'Rune craft multiplier',
-    body: 'A single multiplier applied to every altar\'s rune output, gathered from outside the altar itself: the Arcanist store bundle, the Rune Craft contract, the Exchange upgrade, and Prismism\'s potency.\n\nBecause it multiplies all three altars at once, it is usually the highest-leverage thing on the page for runes.',
+    body: 'A single multiplier applied to every altar\'s rune output, gathered from outside the altar itself: the Arcanist store bundle, the Rune Craft contract, the Exchange upgrade, and Prismism\'s potency.\n\nBecause it multiplies every altar at once, it is usually the highest-leverage thing on the page for runes.',
   },
 
   // --------------------------------------------------------------- stats box
 
   statDamage: {
     title: 'Damage',
-    body: 'Your nominal hit before essence block armour. Essence block armour is subtracted from it and crits multiply it, so what actually lands is the Damage per hit figure under Show the math.',
+    body: 'Your hit before essence block armour: flat damage times the damage percentage, rounded to a whole number (.5 rounds up). Armour comes off it, then crits multiply what is left.',
+    formula: 'damage = round((10 + flat) × (1 + damage %))',
   },
   statAttackInterval: {
-    title: 'Attack every',
-    body: 'Seconds between your attacks. Combined with damage per hit, this sets how fast you mine an essence block.',
+    title: 'Attack speed',
+    body: 'Seconds between swings, after Attack Speed; the figure beside it is your total Attack Speed bonus. Your swing timer is a bar that fills at 0.5 × (1 + attack speed) per second and swings when full.\n\nDaze halves how fast the bar fills without resetting it, and a stun freezes it until the stun ends.',
+    formula: 'interval = 1 ÷ (0.5 × (1 + attack speed))',
   },
   statCritChance: {
     title: 'Crit chance',
-    body: 'Chance for a hit to crit. Crits, super crits and ultra crits are checked in sequence, and the expected damage multiplier that falls out of that ladder is the Crit tier table under Show the math.',
+    body: 'Chance for a hit to crit. The game rolls a whole number out of 100, so only the whole percent counts: 4.7% crits 4% of the time, and 0.25% never crits. The Crit tier table under Show the math uses the chance that actually rolls.',
   },
   statCritDamage: {
     title: 'Crit damage',
@@ -103,35 +105,63 @@ export const HELP = {
   },
   statSuperCrit: {
     title: 'Super crit',
-    body: 'Chance for a hit that already crit to crit a second time. It is conditional, not independent — a hit that never crit cannot super crit.',
+    body: 'Chance for a hit that already crit to crit a second time. It is conditional, not independent: a hit that never crit cannot super crit. Like crit chance, only the whole percent counts.',
   },
   statSuperCritDamage: {
     title: 'Super crit damage',
     body: 'Multiplier stacked on top of the crit multiplier when a hit super crits.\n\nThe figure beside it carries both multipliers, because a hit only reaches super crit by having crit first. It is what that hit lands for before essence block armour comes off.',
   },
+  statUltraCrit: {
+    title: 'Ultra crit',
+    body: 'Chance for a hit that already super crit to crit a third time, multiplying again. Conditional like super crit, and only the whole percent counts.',
+  },
   statArmorPen: {
     title: 'Armour penetration',
-    body: 'Flat armour ignored on every hit. Essence block armour is subtracted from your damage before anything else, so against a heavily armoured essence a point of penetration can be worth far more than a point of damage.',
+    body: 'Flat armour ignored on every hit. What is left of the block\'s armour comes off your damage before crits multiply it, so against a heavily armoured essence a point of penetration can be worth far more than a point of damage. It also softens weaken, which cuts your damage before armour comes off.',
   },
   statStunNegate: {
     title: 'Stun negate',
-    body: 'Chance to shrug off the essence block\'s stun. A stun costs you attack time, so negating it raises your effective mine rate without touching damage at all.',
+    body: 'Each second the block rolls to stun you; when it succeeds you roll this chance to block the stun outright. A stun freezes your swing timer for its full duration, and a new stun resets that duration rather than adding to it.',
+  },
+  statWeakenNegate: {
+    title: 'Weaken negate',
+    body: 'Chance to block a weaken the block has just rolled on you, All Debuff Negate Chance included. A weakened hit multiplies your damage before armour comes off, so it can cost far more than its multiplier suggests. Only Jagged and Necrotic weaken.',
+  },
+  statDazeNegate: {
+    title: 'Daze negate',
+    body: 'Chance to block a daze the block has just rolled on you, All Debuff Negate Chance included. Daze halves how fast your swing timer fills for its duration. Only Necrotic dazes.',
+  },
+  statUltraCritDamage: {
+    title: 'Ultra crit damage',
+    body: 'Multiplier stacked on top of the crit and super crit multipliers when a hit ultra crits.\n\nThe figure beside it carries all three multipliers, because a hit only reaches ultra crit through the other two. It is what that hit lands for before essence block armour comes off.',
   },
   statShinyChance: {
     title: 'Shiny chance',
-    body: 'Chance for a mined essence block to drop bonus loot. Super shiny is rolled on top of it, so the expected bonus per mined essence block is the Shiny proc table under Show the math rather than this number times the bonus.',
+    body: 'Chance for an essence block to spawn shiny and drop bonus loot. The game rolls out of 1,000, so only the first decimal of the percent counts. Super shiny is rolled on top of it, so the expected bonus per block is the Shiny proc table under Show the math.',
   },
   statShinyBonus: {
-    title: 'Shiny bonus',
-    body: 'Extra essence a shiny essence block drops, on top of its normal roll.',
+    title: 'Shiny loot buff',
+    body: 'Extra essence a shiny essence block drops, on top of its normal roll. All Shiny Essence Loot adds to this and to the super and ultra shiny buffs alike.',
+  },
+  statSuperShinyBonus: {
+    title: 'Super shiny loot buff',
+    body: 'Extra essence a super shiny essence block drops on top of the shiny buff. A super shiny block pays both.',
+  },
+  statUltraShinyBonus: {
+    title: 'Ultra shiny loot buff',
+    body: 'Extra essence an ultra shiny essence block drops on top of the shiny and super shiny buffs. An ultra shiny block pays all three.',
   },
   statSuperShiny: {
     title: 'Super shiny',
     body: 'Chance for a mined essence block that already went shiny to go shiny again, dropping the bonus a second time. Fed mostly by world quests, gilded statues and the Rhino card.',
   },
+  statUltraShiny: {
+    title: 'Ultra shiny',
+    body: 'Chance for a mined essence block that already went super shiny to go ultra shiny, dropping the ultra shiny buff on top of the other two. Fed by upgrades and the Infernal Rhino card.',
+  },
   statBrittleChance: {
     title: 'Brittle chance',
-    body: 'Chance for a mined essence block to leave the next essence block brittle, so it needs less than its nominal health. It shows up as the expected health fraction under Show the math and as brittle essence blocks per hour.',
+    body: 'Chance for an essence block to spawn brittle, starting at 20% of its health. Its max health is unchanged, so regen can still heal it back up. It shows up in the Brittle table under Show the math and as brittle essence blocks per hour.',
   },
 
   // -------------------------------------------------------- show the math --
@@ -142,11 +172,11 @@ export const HELP = {
   },
   mathCritTable: {
     title: 'Crit tier table',
-    body: 'The crit ladder resolved into exclusive outcomes: no crit, crit, crit and super crit, and so on, each with its damage multiplier.\n\nThe average at the bottom is your real expected damage multiplier, which is what damage per hit is built on.',
+    body: 'The crit ladder resolved into exclusive outcomes: no crit, crit, crit and super crit, and so on, each with its damage multiplier. Chances are the ones the game can actually roll, whole percents only.\n\nThe average at the bottom is your expected damage multiplier. A multiplied hit that lands on a fraction rounds up with probability equal to the fraction, so on average nothing is lost to rounding.',
   },
   mathBrittleTable: {
     title: 'Brittle table',
-    body: 'How much of a block\'s nominal health you actually have to work through, weighted by how often it is brittle. A value below 1 means the average block breaks to less damage than its health bar claims.',
+    body: 'How often an essence block spawns brittle, and the share of its health it starts with. A brittle block starts at 20% health, but regen can still heal it toward its full max.',
   },
   mathHealth: {
     title: 'Health',
@@ -154,38 +184,66 @@ export const HELP = {
   },
   mathArmor: {
     title: 'Armour (after pen)',
-    body: 'What is left of the block\'s armour once your penetration is subtracted, shown against the full value. Armour comes off every hit before crits are applied, so if it meets or beats your damage you cannot mine this essence at all, no matter how fast you attack.',
+    body: 'What is left of the block\'s armour once your penetration is subtracted, shown against the full value. It comes off every hit before crits multiply it. There is no minimum hit, so if armour meets your damage every hit does nothing.',
   },
   mathStun: {
-    title: 'Average stun factor',
-    body: 'The share of your attack time that survives the block\'s stuns, after your stun negation. 1 means you are never stunned; lower means some of your attacks never happen.',
+    title: 'Stun lands per roll',
+    body: 'Every second while the block stands it rolls for stun, and this is the chance one of those rolls lands after your stun negate. A landed stun freezes your swing timer for the full duration; a stun landing during another resets the duration instead of stacking.',
   },
   mathWeaken: {
-    title: 'Average weaken factor',
-    body: 'The average multiplier the block\'s weaken debuff applies to your damage, weighted by how often it lands and how long it lasts. Below 1 means you are weakened some of the time.',
+    title: 'Weaken lands per roll',
+    body: 'The chance each 1-second roll weakens you, after your weaken negate. While weakened, every hit multiplies your damage by the weaken effect before armour comes off. It resets rather than stacks.',
+  },
+  mathDaze: {
+    title: 'Daze lands per roll',
+    body: 'The chance each 1-second roll dazes you, after your daze negate. While dazed your swing timer fills at half speed; progress already made is kept. It resets rather than stacks.',
   },
   mathRegen: {
-    title: 'Regen per hit',
-    body: 'Health the block regenerates, expressed per attack of yours so it can be set directly against your damage. If it matches your damage after armour, the block repairs itself as fast as you break it and never yields.',
+    title: 'Regen every 10 seconds',
+    body: 'The block heals this much in one burst every 10 seconds, counted from when it spawns, never above its max health. A burst that lands at the same instant as your final hit comes first, so the block can survive that hit.',
   },
   mathDamagePerHit: {
-    title: 'Damage per hit',
-    body: 'What one hit really takes off a block: your damage less its armour, scaled by the expected crit multiplier and the weaken factor, less the health it regenerates back.',
-    formula: 'per hit = (damage − armour) × crit multi × weaken − regen',
+    title: 'Hit after armour',
+    body: 'What a normal hit takes off a block before crits: your damage less the armour left after penetration, never below zero.',
+    formula: 'hit = max(damage − armour, 0)',
+  },
+  mathWeakenedHit: {
+    title: 'Weakened hit',
+    body: 'A hit while weakened. Weaken multiplies your damage first, rounding .5 up, and only then does armour come off, so against armour a weakened hit can be a much smaller share of a normal one than the weaken multiplier suggests.',
+    formula: 'weakened = max(round(damage × weaken) − armour, 0)',
+  },
+  mathExpectedHit: {
+    title: 'Average hit with crits',
+    body: 'A normal hit after armour times your expected crit multiplier from the Crit tier table. A rough guide only: the time to mine comes from the replay, which also counts weaken, stuns, daze and regen.',
+    formula: 'avg hit = hit × crit multi',
   },
   mathHitsToMine: {
     title: 'Hits to mine',
-    body: 'Attacks needed to break one block, using the brittle-adjusted health rather than the nominal figure. A dash means the block regenerates faster than you break it and the count is infinite.',
-    formula: 'hits = health × brittle multi ÷ damage per hit',
+    body: 'Average swings needed to break one block, counting the swing that lands the instant it spawns. It is an average over replayed blocks, which is why it is not a whole number: crits, brittle spawns and regen make every block different.',
+  },
+  mathStunnedTime: {
+    title: 'Time stunned per block',
+    body: 'Average seconds of each block you spend stunned, with your swing timer frozen. Stuns carry on through the respawn wait, but none lasts long enough to reach the next block.',
+  },
+  mathWeakenedShare: {
+    title: 'Weakened hits',
+    body: 'Share of your hits on a block that land while you are weakened. Each of those deals the weakened hit instead of the normal one.',
+  },
+  mathDazedTime: {
+    title: 'Time dazed per block',
+    body: 'Average seconds of each block you spend dazed, with your swing timer filling at half speed.',
+  },
+  mathHeals: {
+    title: 'Heals per block',
+    body: 'Average regen bursts a block gets before it breaks. A block broken within 10 seconds of spawning never heals.',
   },
   mathTimeToMine: {
     title: 'Time to mine',
-    body: 'Hits to mine spread over your attack interval, stretched by the time stuns take away from you.',
-    formula: 'time = hits × attack interval ÷ stun factor',
+    body: 'Average time from a block spawning to its final hit. It is found by replaying 10,000 blocks exactly as the game runs them, with swings, per-second debuff rolls, regen bursts, crits and brittle spawns, then averaging. The ± figure is how far that average could be from the true one due to the finite replay.',
   },
   mathRespawn: {
     title: 'Respawn',
-    body: 'Idle time between one block breaking and the next appearing. A game constant, and the hard ceiling on blocks per hour — once time to mine is small next to respawn, more damage buys you almost nothing.',
+    body: 'Idle time between one block breaking and the next appearing, after Essence Respawn Timer upgrades. The hard ceiling on blocks per hour — once time to mine is small next to respawn, more damage buys you almost nothing.',
   },
   mathLootRange: {
     title: 'Loot range',
@@ -202,12 +260,12 @@ export const HELP = {
   },
   mathBlocksPerHour: {
     title: 'Blocks / hour',
-    body: 'One hour divided by a full mining cycle — the time to break a block plus the time to wait for the next one to appear.',
+    body: 'One hour divided by a full mining cycle: the average time to break a block plus the respawn wait before the next one appears.',
     formula: 'blocks/hr = 3600 ÷ (time to mine + respawn)',
   },
   mathBrittleBlocks: {
     title: 'Brittle blocks / hour',
-    body: 'How many of those blocks were left brittle by the one before. Shown separately because it is the part of your mining rate that brittle chance is buying.',
+    body: 'How many of those blocks spawn brittle. Shown separately because it is the part of your mining rate that brittle chance is buying.',
   },
   mathEssencePerHour: {
     title: 'Essence / hour',
@@ -216,7 +274,7 @@ export const HELP = {
   },
   mathAltarDrain: {
     title: 'Altar drain / hour',
-    body: 'Essence per hour taken out of this essence by running altars. Ash and Brine draw on Soft, Chasm draws on Dense, Jagged is never drained.',
+    body: 'Essence per hour taken out of this essence by running altars. Ash and Brine draw on Soft, Chasm and Drift on Dense, Echo on Jagged; Necrotic is never drained.',
   },
   mathNet: {
     title: 'Net / hour',
@@ -227,15 +285,15 @@ export const HELP = {
 
   optimizer: {
     title: 'Optimizer',
-    body: 'What each upgrade is worth, measured by buying it, recomputing the whole model, and diffing the result. Nothing here is estimated.\n\nThe arrows show how many levels the recommendation is for, and the price is for exactly that. It is usually one level, but not always: hits to mine a block is a whole number, so a single point of damage often buys nothing at all until it removes a hit. Where that happens the row is priced at the smallest buy that does something, and compared against the alternatives on that footing.\n\nThere are two lists because there are two goals and they do not always agree — altar throughput buys runes with essence, so an upgrade can be near the top of one list and negative on the other. Within a list, upgrades are grouped by the resource they cost, since a pile of white orbs cannot buy a rune upgrade.\n\nBoth goals count only what you can sustain. Essence counts the essence you are mining, not all three at once; runes count what your altars can actually be fed. An upgrade that raises an altar past what the pool supports shows no gain, because it would give you none.',
+    body: 'What each upgrade is worth, measured by buying it, recomputing the whole model, and diffing the result. Nothing here is estimated.\n\nThe arrows show how many levels the recommendation is for, and the price is for exactly that. It is usually one level, but not always: the game rolls crit chance in whole percents and rounds damage to a whole number, so a single level can buy nothing at all until it completes the next step. Where that happens the row is priced at the smallest buy that does something, and compared against the alternatives on that footing.\n\nThere are two lists because there are two goals and they do not always agree — altar throughput buys runes with essence, so an upgrade can be near the top of one list and negative on the other. Within a list, upgrades are grouped by the resource they cost, since a pile of white orbs cannot buy a rune upgrade.\n\nBoth goals count only what you can sustain. Essence counts the essence you are mining, not all three at once; runes count what your altars can actually be fed. An upgrade that raises an altar past what the pool supports shows no gain, because it would give you none.',
   },
   exchange: {
     title: 'Exchange',
-    body: 'Only the two Exchange upgrades that change an Arcanist number are listed: Essence Damage Per Arcane Card, which grants flat damage equal to your Arcane card count, and the Rune Craft Multiplier, which lifts every altar\'s output.\n\nThe Exchange sells eleven more. They are real upgrades, but none of them touch anything on this page, so listing them would only suggest they did.',
+    body: 'Only the Exchange upgrades that change an Arcanist number are listed: Essence Damage +1 Per Arcanist Card Tier Owned; Rune Craft Multi, which lifts every altar\'s output; Arcanist Spell Power, which strengthens every spell; and Poly Rune Multi, which adds to Polychrome Rune cards only.\n\nThe Exchange sells many more. They are real upgrades, but none of them touch anything on this page, so listing them would only suggest they did.\n\nNo costs are shown: Exchange upgrades are bought with resources from elsewhere in the game that this planner does not track.',
   },
   totalsPanel: {
     title: 'Total resources',
-    body: 'Everything still owed to max every priced upgrade on the page, and what those upgrades cost end to end.\n\nOnly resources something can actually cost appear. Exchange upgrades carry no prices — the workbook\'s figures for them were invented rather than observed — so the resources only they consumed are absent instead of sitting at a misleading zero.',
+    body: 'Everything still owed to max every priced upgrade on the page, and what those upgrades cost end to end.\n\nOnly resources something on the page actually costs appear, so nothing sits at a misleading zero.',
   },
 } as const satisfies Record<string, HelpEntry>;
 

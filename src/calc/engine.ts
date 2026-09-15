@@ -1,13 +1,13 @@
 ﻿/**
  * The Arcanist calculator.
  *
- * `compute` is a pure function of its inputs with no allocation-heavy work
- * beyond the result object, so a future goal-seek can call it in a loop.
+ * `compute` is a pure function of its inputs. How long a block takes to die is
+ * replayed by `combat.ts`, which caches by combat inputs, so the optimizer can
+ * call this in a loop.
  *
  * Order matters in one place: Prismism's secondary effect and the Rune Craft
- * Multiplier exchange upgrade both feed `runeCraftMulti`, which feeds altar
- * output. The sheet expresses this as a cross-sheet cycle
- * (Statmath!C372 -> Arcanist!E62); here it is simply resolved first.
+ * Multi exchange upgrade both feed `runeCraftMulti`, which feeds altar output,
+ * so it is resolved first.
  */
 
 import {
@@ -25,11 +25,25 @@ import {
   PET,
   RESOURCES,
   SPELLS,
+  POTENCY_PER_RANK,
+  SPELL_EFFECT_PER_LEVEL,
   SPELL_IDS,
-  SPELL_LEVEL_PER_RANK,
   UNLOCKS,
   cardValue,
 } from './constants';
+import {
+  BRITTLE_HP_FRACTION,
+  COMBAT_SAMPLES,
+  averageKill,
+  chanceOf,
+  critOutcomes,
+  critRollChance,
+  roundHalfUp,
+  shinyRollChance,
+  tenThousandthChance,
+  type CombatParams,
+  type KillAverages,
+} from './combat';
 import { addBundle, curveCost, tieredCost } from './costs';
 import { formatEffect } from './format';
 import type {
@@ -44,6 +58,8 @@ import type {
   EffectKey,
   EssenceOutcome,
   EssenceType,
+  EssenceUpgradeDef,
+  ExchangeUpgradeId,
   ExternalBonuses,
   Resource,
   ResourceBundle,
@@ -66,10 +82,18 @@ const emptyResourceRecord = (): Record<Resource, number> => {
   return out;
 };
 
-function deriveBonuses(ext: ExternalBonuses): DerivedBonuses {
+/** An Exchange upgrade's total effect at the player's level. */
+function exchangeEffect(input: ArcanistInput, id: ExchangeUpgradeId): number {
+  const def = EXCHANGE_UPGRADES.find((d) => d.id === id);
+  if (!def) return 0;
+  return clampLevel(input.exchange[id], def.max) * (def.perLevel ?? 0);
+}
+
+function deriveBonuses(input: ArcanistInput): DerivedBonuses {
+  const ext = input.external;
   const { cards, pets, unlocks } = ext;
 
-  // Cumulative tiers, matching how the workbook counts its four tier flags.
+  // Tiers are cumulative: a Polychrome card counts as three owned tiers.
   const countTiers = (tiers: Record<string, CardTier>) =>
     Object.values(tiers).reduce((n, tier) => n + CARD_TIER_COUNT[tier], 0);
 
@@ -77,6 +101,7 @@ function deriveBonuses(ext: ExternalBonuses): DerivedBonuses {
   const questLevel = clampLevel(pets.rhinoQuestLevel, PET.maxQuestLevel);
   // Level 0 already grants the first step, hence the +1.
   const questSteps = pets.rhinoQuestSkin ? questLevel + 1 : 0;
+  const petSpellPower = questSteps * PET.questSpellPowerPerStep;
 
   return {
     arcaneCardCount:
@@ -86,12 +111,30 @@ function deriveBonuses(ext: ExternalBonuses): DerivedBonuses {
       countTiers(cards.orb),
     petBrittle: rhinoLevel * PET.brittlePerLevel,
     petQuestShiny: questSteps * PET.questShinyPerStep,
-    petSpellPower: questSteps * PET.questSpellPowerPerStep,
+    petSpellPower,
+    // The sources multiply in game: each is its own (1 + bonus) factor. A
+    // levelled source (Hydra Star, the Exchange, the quest skin) adds up its own
+    // levels first. Stored as the combined bonus, so 0 still means none.
+    spellPower:
+      [
+        petSpellPower,
+        unlocks.spellslingerBundle ? UNLOCKS.spellslingerSpellPower : 0,
+        unlocks.blackHole30 ? UNLOCKS.blackHole30SpellPower : 0,
+        unlocks.divineChallenge23 ? UNLOCKS.divineChallenge23SpellPower : 0,
+        clampLevel(unlocks.hydraStarLevel, UNLOCKS.maxHydraStarLevel) *
+          UNLOCKS.hydraStarSpellPowerPerLevel,
+        exchangeEffect(input, 'spellPower'),
+      ].reduce((multi, bonus) => multi * (1 + bonus), 1) - 1,
+    // Typed in as the card prints it, in percent.
+    rhinoUltraShiny:
+      pets.rhinoCard === 'infernal' && Number.isFinite(pets.rhinoInfernalUltraShiny)
+        ? Math.max(pets.rhinoInfernalUltraShiny, 0) / 100
+        : 0,
     petMaxEssenceLoot: pets.rhinoSkin ? PET.skinMaxLoot : 0,
     statueSuperShiny: unlocks.statueOfNatureGilded
       ? Math.max(unlocks.w4GildedStatues, 0) * UNLOCKS.statueSuperShinyPerStatue
       : 0,
-    spellDurationMulti: 1 + (unlocks.arcanistBundle ? UNLOCKS.bundleSpellDuration : 0),
+    spellDurationMulti: 1 + (unlocks.spellslingerBundle ? UNLOCKS.spellslingerSpellDuration : 0),
     storeRuneCraft: unlocks.arcanistBundle ? UNLOCKS.bundleRuneCraft : 0,
     contractRuneCraft:
       clampLevel(ext.contractRuneCraftLevel, CONTRACT_RUNE_CRAFT.maxLevel) *
@@ -115,26 +158,22 @@ function collectEffects(input: ArcanistInput): Effects {
   return effects;
 }
 
-/**
- * A spell's effect multiplier. The sheet gates only the primary effect on the
- * unlock flag and nests Runic Surge's pet bonus differently from the other
- * five; both are normalised here (see CORRECTIONS.md).
- */
+/** A spell's effect. A locked spell grants nothing. */
 function spellEffect(
   base: number,
   unlocked: boolean,
   level: number,
   rank: number,
   cardBonus: number,
-  petPotency: number,
+  spellPower: number,
 ): number {
   if (!unlocked) return 0;
   return (
     base *
     (1 + cardBonus) *
-    (1 + level * SPELL_LEVEL_PER_RANK) *
-    (1 + rank * SPELL_LEVEL_PER_RANK) *
-    (1 + petPotency)
+    (1 + level * SPELL_EFFECT_PER_LEVEL) *
+    (1 + rank * POTENCY_PER_RANK) *
+    (1 + spellPower)
   );
 }
 
@@ -148,14 +187,17 @@ function computeSpells(input: ArcanistInput, ext: ExternalBonuses, derived: Deri
     const level = clampLevel(raw.level, def.maxLevel);
     const rank = clampLevel(raw.rank, def.maxRank);
     const cardBonus = cardValue(CARD_SCALES.spell, ext.cards.spell[id]);
-    const spellPower = derived.petSpellPower;
+    const spellPower = derived.spellPower;
 
     outcomes[id] = {
       id,
       unlocked,
       primary: spellEffect(def.primary.base, unlocked, level, rank, cardBonus, spellPower),
       secondary: spellEffect(def.secondary.base, unlocked, level, rank, cardBonus, spellPower),
-      duration: def.durationBase * (1 + rank * SPELL_LEVEL_PER_RANK) * derived.spellDurationMulti,
+      duration: def.durationBase * (1 + rank * POTENCY_PER_RANK) * derived.spellDurationMulti,
+      levelUpChanceMulti:
+        (1 + rank * POTENCY_PER_RANK) *
+        (1 + (ext.unlocks.spellslingerBundle ? UNLOCKS.spellslingerLevelUpChance : 0)),
       potencyCostNext: rank >= def.maxRank ? 0 : curveCost(def.potencyCurve, rank, rank + 1),
       potencyCostRemaining: curveCost(def.potencyCurve, rank, def.maxRank),
       potencyCostTotal: curveCost(def.potencyCurve, 0, def.maxRank),
@@ -178,69 +220,111 @@ function computeStats(
 
   const flatDamage =
     BASE_STATS.baseDamage +
+    effects.flatDamage +
     effects.flatDamage1 +
     effects.flatDamage2 +
     effects.flatDamage3 +
     arcaneCardDamage;
 
+  // Rhino Infernal keeps its Polychrome super shiny bonus; the ultra shiny it
+  // adds is resolved in `derived`.
+  const rhinoTier = pets.rhinoCard === 'infernal' ? 'polychrome' : pets.rhinoCard;
+
   return {
-    damage: flatDamage * (1 + effects.damagePct),
-    attackInterval: BASE_STATS.attackInterval,
-    critChance: effects.critChance1 + effects.critChance2,
+    // The game rounds damage to a whole number once, after the percentage.
+    damage: roundHalfUp(flatDamage * (1 + effects.damagePct)),
+    // Attack Speed scales the rate, so +10% speed is 1/1.1 of the interval.
+    attackInterval: 1 / (BASE_STATS.attackRate * (1 + effects.attackSpeed)),
+    attackSpeed: effects.attackSpeed,
+    critChance: effects.critChance1 + effects.critChance2 + effects.critChance,
     critDamage: BASE_STATS.critDamage * (1 + effects.critDamage),
-    superCritChance: effects.superCritChance1 + effects.superCritChance2,
+    superCritChance: effects.superCritChance1 + effects.superCritChance2 + effects.superCritChance,
     superCritDamage: BASE_STATS.superCritDamage * (1 + effects.superCritDamage),
-    ultraCritChance: BASE_STATS.ultraCritChance,
+    ultraCritChance: BASE_STATS.ultraCritChance + effects.ultraCritChance,
     ultraCritDamage: BASE_STATS.ultraCritDamage,
     armorPen: effects.armorPen,
-    stunNegate: effects.stunNegate,
+    stunNegate: effects.stunNegate + effects.debuffNegate,
+    weakenNegate: effects.weakenNegate + effects.debuffNegate,
+    dazeNegate: effects.dazeNegate + effects.debuffNegate,
     shinyChance:
       effects.shinyChance1 +
       effects.shinyChance2 +
+      effects.shinyChance +
       spells.runicSurge.secondary +
       (unlocks.worldQuest25 ? UNLOCKS.worldQuest25Shiny : 0) +
       (unlocks.straightOuttaYanille ? UNLOCKS.yanilleShiny : 0) +
       (unlocks.arcanistBundle ? UNLOCKS.bundleShiny : 0) +
       derived.petQuestShiny,
-    shinyBonus: BASE_STATS.shinyBonusBase + effects.shinyLoot,
+    shinyBonus: BASE_STATS.shinyBonusBase + effects.shinyLoot + effects.allShinyLoot,
     superShinyChance:
-      cardValue(CARD_SCALES.superShiny, pets.rhinoCard) +
+      cardValue(CARD_SCALES.superShiny, rhinoTier) +
       derived.statueSuperShiny +
+      effects.superShinyChance +
       (unlocks.worldQuest29 ? UNLOCKS.worldQuest29SuperShiny : 0),
-    superShinyBonus: BASE_STATS.superShinyBonus,
+    superShinyBonus:
+      BASE_STATS.superShinyBonus + effects.superShinyLoot + effects.allShinyLoot,
+    ultraShinyChance: effects.ultraShinyChance + derived.rhinoUltraShiny,
+    ultraShinyBonus: BASE_STATS.ultraShinyBonus + effects.allShinyLoot,
     brittleChance:
       effects.brittleChance1 +
       effects.brittleChance2 +
+      effects.brittleChance +
       (unlocks.straightOuttaYanille ? UNLOCKS.yanilleBrittle : 0) +
+      (unlocks.arcanistBundle ? UNLOCKS.bundleBrittle : 0) +
       derived.petBrittle,
+    regenReduction: effects.regenReduction,
+    respawnReduction: effects.respawnReduction,
   };
 }
 
-/** The sheet's Y3:AA33 probability tables, kept as tables so the UI can show them. */
+/** Crit tier chances as the game's rolls out of 100 can hit them. */
+function critChances(stats: Stats) {
+  return {
+    critP: critRollChance(stats.critChance),
+    superP: critRollChance(stats.superCritChance),
+    ultraP: critRollChance(stats.ultraCritChance),
+  };
+}
+
+/**
+ * The shiny, crit and brittle probability tables, kept as tables so the UI can
+ * show them. Every chance is what the game's integer rolls can actually hit:
+ * crits roll out of 100, shiny out of 1,000 and brittle out of 10,000, so a
+ * displayed 12.95% crit chance is 12% in play.
+ */
 function computeAverages(stats: Stats): Averages {
-  const { shinyChance, superShinyChance, shinyBonus, superShinyBonus } = stats;
+  // A ladder like the crit one: super shiny rolls only on a shiny, ultra shiny
+  // only on a super shiny, and each adds its bonus on top of the ones below.
+  const sc = shinyRollChance(stats.shinyChance);
+  const ssc = shinyRollChance(stats.superShinyChance);
+  const usc = shinyRollChance(stats.ultraShinyChance);
+  const { shinyBonus, superShinyBonus, ultraShinyBonus } = stats;
   const shinyTable: WeightedOutcome[] = [
-    { label: 'normal', chance: 1 - shinyChance, value: 0 },
-    { label: 'shiny', chance: shinyChance * (1 - superShinyChance), value: shinyBonus },
+    { label: 'normal', chance: 1 - sc, value: 0 },
+    { label: 'shiny', chance: sc * (1 - ssc), value: shinyBonus },
     {
       label: 'super shiny',
-      chance: shinyChance * superShinyChance,
+      chance: sc * ssc * (1 - usc),
       value: shinyBonus + superShinyBonus,
+    },
+    {
+      label: 'ultra shiny',
+      chance: sc * ssc * usc,
+      value: shinyBonus + superShinyBonus + ultraShinyBonus,
     },
   ];
 
-  const { critChance: cc, superCritChance: scc, ultraCritChance: ucc } = stats;
-  const { critDamage: cd, superCritDamage: scd, ultraCritDamage: ucd } = stats;
-  const critTable: WeightedOutcome[] = [
-    { label: 'no crit', chance: 1 - cc, value: 1 },
-    { label: 'crit', chance: cc * (1 - scc), value: cd },
-    { label: 'super crit', chance: cc * scc * (1 - ucc), value: cd * scd },
-    { label: 'ultra crit', chance: cc * scc * ucc, value: cd * scd * ucd },
-  ];
+  const critTable = critOutcomes({
+    ...critChances(stats),
+    critMult: stats.critDamage,
+    superMult: stats.superCritDamage,
+    ultraMult: stats.ultraCritDamage,
+  });
 
+  const brittle = tenThousandthChance(stats.brittleChance);
   const brittleTable: WeightedOutcome[] = [
-    { label: 'normal', chance: 1 - stats.brittleChance, value: 1 },
-    { label: 'brittle', chance: stats.brittleChance, value: BASE_STATS.brittleMult },
+    { label: 'normal', chance: 1 - brittle, value: 1 },
+    { label: 'brittle', chance: brittle, value: BRITTLE_HP_FRACTION },
   ];
 
   const weighted = (rows: WeightedOutcome[]) =>
@@ -252,6 +336,7 @@ function computeAverages(stats: Stats): Averages {
     critTable,
     critMult: weighted(critTable),
     brittleTable,
+    brittleChance: brittle,
     brittleMult: weighted(brittleTable),
   };
 }
@@ -263,26 +348,59 @@ function lootRange(
   ext: ExternalBonuses,
   derived: DerivedBonuses,
 ): { min: number; max: number } {
-  const shared =
-    derived.petMaxEssenceLoot + cardValue(CARD_SCALES.essenceMaxLoot, ext.cards.essence[type]);
+  const card = cardValue(CARD_SCALES.essenceMaxLoot, ext.cards.essence[type]);
+  const min = block.baseMinLoot + effects.allMinLoot;
+  const max = block.baseMaxLoot + effects.allMaxLoot + derived.petMaxEssenceLoot + card;
 
   switch (type) {
     case 'soft':
-      return {
-        min: block.baseMinLoot,
-        max: block.baseMaxLoot + effects.softMaxLoot + shared,
-      };
+      return { min, max: max + effects.softMaxLoot };
     case 'dense':
-      return {
-        min: block.baseMinLoot,
-        max: block.baseMaxLoot + effects.denseMaxLoot + shared,
-      };
+      return { min, max: max + effects.denseMaxLoot };
     case 'jagged':
-      return {
-        min: block.baseMinLoot + effects.jaggedMinLoot,
-        max: block.baseMaxLoot + effects.jaggedMaxLoot + shared,
-      };
+      return { min: min + effects.jaggedMinLoot, max: max + effects.jaggedMaxLoot };
+    case 'necrotic':
+      return { min, max };
   }
+}
+
+const NOT_REPLAYED: KillAverages = {
+  time: NaN,
+  timeStdErr: NaN,
+  hits: NaN,
+  weakenedShare: NaN,
+  heals: NaN,
+  stunnedTime: NaN,
+  dazedTime: NaN,
+  unmineable: false,
+};
+
+/** A block and the Arcanist facing it, reduced to what the combat replay reads. */
+export function combatParams(type: EssenceType, stats: Stats): CombatParams {
+  const block = BLOCKS[type];
+  // Block chances are whole percents; negates roll out of 10,000.
+  const lands = (chance: number, negate: number) =>
+    chanceOf(chance * 100, 100) * (1 - tenThousandthChance(Math.min(Math.max(negate, 0), 1)));
+  return {
+    atk: stats.damage,
+    atkSpd: 1 / stats.attackInterval,
+    armorLeft: Math.max(block.armor - stats.armorPen, 0),
+    ...critChances(stats),
+    critMult: stats.critDamage,
+    superMult: stats.superCritDamage,
+    ultraMult: stats.ultraCritDamage,
+    maxHp: block.health,
+    regenAmount: Math.max(block.regen - stats.regenReduction, 0),
+    regenTime: block.regenInterval,
+    stunP: lands(block.stunChance, stats.stunNegate),
+    stunDuration: block.stunDuration,
+    weakenP: lands(block.weakenChance, stats.weakenNegate),
+    weakenEffect: block.weakenMulti,
+    weakenDuration: block.weakenDuration,
+    dazeP: lands(block.dazeChance, stats.dazeNegate),
+    dazeEffect: block.dazeMulti,
+    dazeDuration: block.dazeDuration,
+  };
 }
 
 function computeEssence(
@@ -293,50 +411,68 @@ function computeEssence(
   ext: ExternalBonuses,
   derived: DerivedBonuses,
   drain: number,
+  /** Blocks to replay; 0 skips the replay. */
+  samples = COMBAT_SAMPLES,
 ): EssenceOutcome {
+  const replay = samples > 0;
   const block = BLOCKS[type];
+  const params = combatParams(type, stats);
+  const kill = replay
+    ? averageKill(params, averages.brittleChance, averages.critMult, samples)
+    : NOT_REPLAYED;
+  const { unmineable } = kill;
 
-  const armor = Math.max(block.armor - stats.armorPen, 0);
-  const avgStun = 1 - block.stunChance * (1 - stats.stunNegate) * block.stunDuration;
-  const avgWeaken =
-    1 - block.weakenChance * block.weakenDuration + block.weakenChance * block.weakenDuration * block.weakenMulti;
-  const avgRegen = block.regen / block.regenInterval;
+  const hitDamage = Math.max(params.atk - params.armorLeft, 0);
+  // Weaken multiplies damage before armour comes off, and rounds half up.
+  const weakenedHitDamage = Math.max(
+    roundHalfUp(params.atk * params.weakenEffect) - params.armorLeft,
+    0,
+  );
 
-  const effectiveDamagePerHit =
-    (stats.damage - armor) * averages.critMult * avgStun * avgWeaken - avgRegen;
-
-  const unmineable = effectiveDamagePerHit <= 0;
-  const hitsToMine = unmineable
-    ? Infinity
-    : Math.ceil((block.health * averages.brittleMult) / effectiveDamagePerHit);
-
-  const timeToMine = hitsToMine * stats.attackInterval;
-  const cycleTime = timeToMine + block.respawn;
-  const blocksPerHour = unmineable ? 0 : 3600 / cycleTime;
+  const respawn = Math.max(block.respawn - stats.respawnReduction, 0);
+  // Blocks are independent (see combat.ts), so the long-run rate is one hour
+  // over the average cycle, and loot per block does not depend on how it died.
+  const cycleTime = kill.time + respawn;
+  const blocksPerHour = unmineable || !replay ? 0 : 3600 / cycleTime;
 
   const { min, max } = lootRange(type, block, effects, ext, derived);
   const minLootAvg = min + averages.shinyBonus;
   const maxLootAvg = max + averages.shinyBonus;
   // The best single block, for the range the player sees rather than the mean.
   // A bonus that cannot proc is not part of anyone's range, hence the gates.
+  const canRoll = (tier: number) => (averages.shinyTable[tier]?.chance ?? 0) > 0;
+  const canUltraShiny = canRoll(3);
+  const canSuperShiny = canUltraShiny || canRoll(2);
+  const canShiny = canSuperShiny || canRoll(1);
   const luckiestLoot =
     max +
-    (stats.shinyChance > 0 ? stats.shinyBonus : 0) +
-    (stats.shinyChance > 0 && stats.superShinyChance > 0 ? stats.superShinyBonus : 0);
+    (canShiny ? stats.shinyBonus : 0) +
+    (canSuperShiny ? stats.superShinyBonus : 0) +
+    (canUltraShiny ? stats.ultraShinyBonus : 0);
+  // `irandom_range(min, max)` is inclusive, so its mean is the midpoint.
   const trueLootAvg = (minLootAvg + maxLootAvg) / 2;
   const essencePerHour = blocksPerHour * trueLootAvg;
 
   return {
     type,
-    armor,
+    armor: params.armorLeft,
     minLoot: min,
     maxLoot: max,
-    avgStun,
-    avgWeaken,
-    avgRegen,
-    effectiveDamagePerHit,
-    hitsToMine,
-    timeToMine,
+    hitDamage,
+    weakenedHitDamage,
+    expectedHitDamage: hitDamage * averages.critMult,
+    regenAmount: params.regenAmount,
+    stunChancePerRoll: params.stunP,
+    weakenChancePerRoll: params.weakenP,
+    dazeChancePerRoll: params.dazeP,
+    hitsToMine: kill.hits,
+    timeToMine: kill.time,
+    timeToMineStdErr: kill.timeStdErr,
+    weakenedShare: kill.weakenedShare,
+    healsPerBlock: kill.heals,
+    stunnedTime: kill.stunnedTime,
+    dazedTime: kill.dazedTime,
+    respawn,
     cycleTime,
     blocksPerHour,
     minLootAvg,
@@ -344,7 +480,7 @@ function computeEssence(
     luckiestLoot,
     trueLootAvg,
     essencePerHour,
-    brittleBlocksPerHour: blocksPerHour * stats.brittleChance,
+    brittleBlocksPerHour: blocksPerHour * averages.brittleChance,
     altarDrain: drain,
     netEssencePerHour: essencePerHour - drain,
     // Overwritten by applySupply, which needs every pool's income at once.
@@ -367,7 +503,12 @@ function computeAltars(
     const travel = clampLevel(raw.travel, 10);
     const craft = clampLevel(raw.craft, 10);
 
-    const cardBonus = cardValue(CARD_SCALES.altarCraft, ext.cards.rune[id]);
+    const tier = ext.cards.rune[id];
+    // The Exchange's Rune Polychrome Card Multiplier adds to the Polychrome
+    // value only; a card below Polychrome gets nothing from it.
+    const cardBonus =
+      cardValue(CARD_SCALES.altarCraft, tier) +
+      (tier === 'polychrome' ? exchangeEffect(input, 'runePolychromeCard') : 0);
 
     const cycleTime = def.baseCycle * (1 - travel * ALTAR_TRAVEL_PER_LEVEL) * 2;
     const cyclesPerHour = 3600 / cycleTime;
@@ -451,19 +592,38 @@ function costRow(
   cost: (typeof ESSENCE_UPGRADES)[number]['cost'] | undefined,
   effectText: string,
   note?: string,
+  blockedBy?: UpgradeCost['blockedBy'],
 ): UpgradeCost {
-  const common = { id, label, level, max, effectText, note, available: level < max };
+  const common = {
+    id,
+    label,
+    level,
+    max,
+    effectText,
+    note,
+    available: level < max && !blockedBy,
+    ...(blockedBy ? { blockedBy } : {}),
+  };
   const maxed = level >= max;
 
-  // No cost data for this row (every Exchange upgrade). Distinct from free.
+  // No cost data for this row. Distinct from free.
   if (!cost) return { ...common, next: {}, remaining: {}, total: {}, priced: false };
 
   if (cost.kind === 'tiered') {
+    const real = Math.min(max, cost.placeholderFrom ?? max);
     return {
       ...common,
       next: maxed ? {} : tieredCost(cost.tiers, level, level + 1),
       remaining: tieredCost(cost.tiers, level, max),
       total: tieredCost(cost.tiers, 0, max),
+      ...(real < max
+        ? {
+            counted: {
+              remaining: tieredCost(cost.tiers, Math.min(level, real), real),
+              total: tieredCost(cost.tiers, 0, real),
+            },
+          }
+        : {}),
       priced: true,
     };
   }
@@ -478,6 +638,23 @@ function costRow(
   };
 }
 
+/**
+ * The prerequisite an essence upgrade is still waiting on, or undefined once
+ * it is met. Shared with the optimizer, which must not rank a row the game will
+ * not sell yet.
+ */
+export function unmetRequirement(
+  input: ArcanistInput,
+  def: EssenceUpgradeDef,
+): UpgradeCost['blockedBy'] {
+  const req = def.requires;
+  if (!req) return undefined;
+  const parent = ESSENCE_UPGRADES.find((d) => d.id === req.id);
+  if (!parent) return undefined;
+  if (clampLevel(input.essence[req.id], parent.max) >= req.level) return undefined;
+  return { label: parent.label, level: req.level };
+}
+
 function buildRows(
   input: ArcanistInput,
   spells: Record<SpellId, SpellOutcome>,
@@ -487,7 +664,8 @@ function buildRows(
     const effectText = def.effects
       .map((e) => `${e.label} ${formatEffect(level * e.perLevel, e.display)}`)
       .join(' · ');
-    return costRow(def.id, def.label, level, def.max, def.cost, effectText, def.note);
+    const blockedBy = unmetRequirement(input, def);
+    return costRow(def.id, def.label, level, def.max, def.cost, effectText, def.note, blockedBy);
   });
 
   const altars = {} as Record<AltarId, UpgradeCost[]>;
@@ -560,7 +738,8 @@ function buildRows(
         ? level >= def.max
           ? 'Purchased'
           : 'Not purchased'
-        : `${def.label} ${formatEffect(level * def.perLevel, def.display ?? 'flat')}`;
+        : `${def.effectLabel ?? def.label} ${formatEffect(level * def.perLevel, def.display ?? 'flat')}`;
+    // Exchange upgrades are bought with resources this app does not track.
     return costRow(def.id, def.label, level, def.max, undefined, effectText, def.note);
   });
 
@@ -586,10 +765,11 @@ function sumTotals(rows: ArcanistResult['rows']): ArcanistResult['totals'] {
 
   for (const row of all) {
     if (!row.priced) continue;
-    addBundle(remaining as ResourceBundle, row.remaining);
-    addBundle(total as ResourceBundle, row.total);
-    for (const resource of Object.keys(row.total) as Resource[]) {
-      if ((row.total[resource] ?? 0) > 0) spendable.add(resource);
+    const counted = row.counted ?? row;
+    addBundle(remaining as ResourceBundle, counted.remaining);
+    addBundle(total as ResourceBundle, counted.total);
+    for (const resource of Object.keys(counted.total) as Resource[]) {
+      if ((counted.total[resource] ?? 0) > 0) spendable.add(resource);
     }
   }
 
@@ -598,16 +778,26 @@ function sumTotals(rows: ArcanistResult['rows']): ArcanistResult['totals'] {
 
 // ---------------------------------------------------------------------------
 
-export function compute(input: ArcanistInput): ArcanistResult {
+export interface ComputeOptions {
+  /**
+   * Replay combat for every essence (the default), or only the one being
+   * mined. The optimizer's goals read only the mined essence, and replaying the
+   * other three is most of the cost of a recompute. Essences that are skipped
+   * report no income, and their combat figures are NaN.
+   */
+  replay?: 'all' | 'mined';
+  /** Blocks replayed per average. Defaults to `COMBAT_SAMPLES`. */
+  samples?: number;
+}
+
+export function compute(input: ArcanistInput, options: ComputeOptions = {}): ArcanistResult {
   const ext = input.external;
-  const derived = deriveBonuses(ext);
+  const derived = deriveBonuses(input);
   const effects = collectEffects(input);
   const spells = computeSpells(input, ext, derived);
 
   // Resolve the rune craft multiplier before altars (see module comment).
-  const exchangeRuneCraft =
-    clampLevel(input.exchange.runeCraftMulti, 15) *
-    (EXCHANGE_UPGRADES.find((d) => d.id === 'runeCraftMulti')?.perLevel ?? 0);
+  const exchangeRuneCraft = exchangeEffect(input, 'runeCraftMulti');
   const runeCraftMulti =
     (1 + spells.prismism.secondary + exchangeRuneCraft) *
     (1 + derived.contractRuneCraft) *
@@ -617,7 +807,8 @@ export function compute(input: ArcanistInput): ArcanistResult {
   const averages = computeAverages(stats);
   const altars = computeAltars(input, ext, runeCraftMulti);
 
-  const drain: Record<EssenceType, number> = { soft: 0, dense: 0, jagged: 0 };
+  const drain = {} as Record<EssenceType, number>;
+  for (const type of ESSENCE_TYPES) drain[type] = 0;
   for (const id of ALTAR_IDS) {
     const altar = altars[id];
     if (altar.active && altar.unlocked) {
@@ -627,7 +818,17 @@ export function compute(input: ArcanistInput): ArcanistResult {
 
   const essence = {} as Record<EssenceType, EssenceOutcome>;
   for (const type of ESSENCE_TYPES) {
-    essence[type] = computeEssence(type, stats, averages, effects, ext, derived, drain[type]);
+    const replay = options.replay !== 'mined' || type === input.mining;
+    essence[type] = computeEssence(
+      type,
+      stats,
+      averages,
+      effects,
+      ext,
+      derived,
+      drain[type],
+      replay ? (options.samples ?? COMBAT_SAMPLES) : 0,
+    );
   }
 
   applySupply(altars, essence, drain, input.mining);

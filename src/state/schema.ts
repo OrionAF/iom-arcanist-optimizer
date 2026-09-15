@@ -20,16 +20,19 @@ import {
   SPELL_IDS,
   UNLOCKS,
 } from '../calc/constants';
-import { CARD_TIERS, ESSENCE_TYPES, ORB_CARD_IDS } from '../calc/types';
+import { CARD_TIERS, ESSENCE_TYPES, ORB_CARD_IDS, RHINO_CARD_TIERS } from '../calc/types';
 import type {
   AltarId,
   ArcanistInput,
   CardTier,
   EssenceType,
+  EssenceUpgradeDef,
   EssenceUpgradeId,
+  ExchangeUpgradeDef,
   ExchangeUpgradeId,
   ExternalBonuses,
   OrbCardId,
+  RhinoCardTier,
   SpellId,
 } from '../calc/types';
 import { FRESH_INPUT } from '../presets/fresh';
@@ -39,14 +42,21 @@ import { FRESH_INPUT } from '../presets/fresh';
  * 2 — cards / pets / unlocks groups, with levels and unlocks as the input.
  * 3 — Exchange trimmed to the two upgrades the Arcanist reads.
  * 4 — `mining`: which essence the Arcanist is currently mining.
+ * 5 — Arcanist batch 2: nineteen essence upgrades, two Exchange upgrades,
+ *     Necrotic as a fourth `mining` value, the Spellslinger Bundle, and the
+ *     Infernal Rhino card with its typed-in ultra shiny chance.
+ * 6 — the Drift and Echo altars with their rune cards, seven batch 2 spells,
+ *     and cards for Necrotic Essence and the batch 2 spells.
+ * 7 — Black Hole Level 30, the Hydra Star and Divine Challenge 23, all
+ *     Arcanist Spell Power.
  *
- * JSON needs no migration for either: parsing walks the definitions it knows
- * and defaults anything absent, so an older export loads with `mining` at its
- * fresh value and any dropped Exchange levels quietly discarded. The packed
- * share format is positional and cannot absorb that, which is why PACK_FORMAT
- * moves alongside.
+ * JSON needs no migration for any of these: parsing walks the definitions it
+ * knows and defaults anything absent, so an older export loads with `mining`
+ * at its fresh value and any dropped Exchange levels quietly discarded. The
+ * packed share format is positional; v3 and v4 had to move PACK_FORMAT, but v5
+ * and v6 only append fields, so v4 links still decode.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 7;
 
 export interface SavedBuild {
   version: number;
@@ -70,6 +80,18 @@ const tier = (value: unknown, fallback: CardTier): CardTier =>
     ? (value as CardTier)
     : fallback;
 
+const rhinoTier = (value: unknown, fallback: RhinoCardTier): RhinoCardTier =>
+  typeof value === 'string' && (RHINO_CARD_TIERS as readonly string[]).includes(value)
+    ? (value as RhinoCardTier)
+    : fallback;
+
+/**
+ * The most an Infernal Rhino card's ultra shiny chance is accepted as, in
+ * percent. Not a game figure — the real range is unknown — only a guard
+ * against a typo or a hand-edited link producing a chance above certainty.
+ */
+export const MAX_RHINO_ULTRA_SHINY_PERCENT = 100;
+
 const asRecord = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 
@@ -89,7 +111,7 @@ const clamp = (value: number, max: number) => Math.min(Math.max(value, 0), max);
 function migrateExternalV1(raw: Record<string, unknown>): unknown {
   const spellCards = asRecord(raw.cardSpell);
 
-  // Pets!E108 = (questLevel * step) + step, so level 0 already grants one step.
+  // Quest shiny = (questLevel * step) + step, so level 0 already grants one step.
   const questShiny = num(raw.petShiny, 0);
   const questSteps = questShiny > 0 ? Math.round(questShiny / PET.questShinyPerStep) : 0;
 
@@ -171,15 +193,23 @@ function coerceExternal(raw: unknown): ExternalBonuses {
       rhinoSkin: bool(pets.rhinoSkin, false),
       rhinoQuestSkin: bool(pets.rhinoQuestSkin, false),
       rhinoQuestLevel: clamp(int(pets.rhinoQuestLevel, 0), PET.maxQuestLevel),
-      rhinoCard: tier(pets.rhinoCard, 'none'),
+      rhinoCard: rhinoTier(pets.rhinoCard, 'none'),
+      rhinoInfernalUltraShiny: clamp(
+        num(pets.rhinoInfernalUltraShiny, 0),
+        MAX_RHINO_ULTRA_SHINY_PERCENT,
+      ),
     },
     unlocks: {
       worldQuest25: bool(unlocks.worldQuest25, false),
       worldQuest29: bool(unlocks.worldQuest29, false),
       straightOuttaYanille: bool(unlocks.straightOuttaYanille, false),
       arcanistBundle: bool(unlocks.arcanistBundle, false),
+      spellslingerBundle: bool(unlocks.spellslingerBundle, false),
       statueOfNatureGilded: bool(unlocks.statueOfNatureGilded, false),
       w4GildedStatues: clamp(int(unlocks.w4GildedStatues, 0), UNLOCKS.maxW4GildedStatues),
+      blackHole30: bool(unlocks.blackHole30, false),
+      divineChallenge23: bool(unlocks.divineChallenge23, false),
+      hydraStarLevel: clamp(int(unlocks.hydraStarLevel, 0), UNLOCKS.maxHydraStarLevel),
     },
     contractRuneCraftLevel: clamp(
       int(data.contractRuneCraftLevel, 0),
@@ -281,15 +311,103 @@ const cardField = (
 const petField = (key: keyof ExternalBonuses['pets']): Field => ({
   get: (input) => {
     const value = input.external.pets[key];
-    return typeof value === 'boolean' ? (value ? 1 : 0) : typeof value === 'number' ? value : 0;
+    if (typeof value === 'boolean') return value ? 1 : 0;
+    if (typeof value === 'number') return value;
+    // The Rhino card. This used to fall through to 0, so every link shipped
+    // before batch 2 carried the card as None whatever its tier.
+    return Math.max(RHINO_CARD_TIERS.indexOf(value), 0);
   },
   set: (input, value) => {
     const current = input.external.pets[key];
     if (typeof current === 'boolean') (input.external.pets[key] as boolean) = value === 1;
     else if (typeof current === 'number') (input.external.pets[key] as number) = value;
-    else (input.external.pets[key] as CardTier) = tierAt(value);
+    else (input.external.pets[key] as RhinoCardTier) = RHINO_CARD_TIERS[value] ?? 'none';
   },
 });
+
+const essenceField = (def: EssenceUpgradeDef): Field => ({
+  get: (input) => input.essence[def.id],
+  set: (input, value) => {
+    input.essence[def.id] = value;
+  },
+});
+
+const exchangeField = (def: ExchangeUpgradeDef): Field => ({
+  get: (input) => input.exchange[def.id],
+  set: (input, value) => {
+    input.exchange[def.id] = value;
+  },
+});
+
+/*
+ * What a v4 link carries, listed so the prefix never moves when the game adds
+ * rows. Everything else is appended, in the v5 and v6 tails below.
+ */
+const V4_ESSENCE_UPGRADE_COUNT = 15;
+const V4_EXCHANGE_UPGRADE_COUNT = 2;
+const V4_ESSENCE_CARDS: readonly EssenceType[] = ['soft', 'dense', 'jagged'];
+const V4_ALTAR_IDS: readonly AltarId[] = ['ash', 'brine', 'chasm'];
+const V4_SPELL_IDS: readonly SpellId[] = SPELL_IDS.slice(0, 6);
+
+const V4_ESSENCE_UPGRADES = ESSENCE_UPGRADES.slice(0, V4_ESSENCE_UPGRADE_COUNT);
+const V4_EXCHANGE_UPGRADES = EXCHANGE_UPGRADES.slice(0, V4_EXCHANGE_UPGRADE_COUNT);
+const ESSENCE_CARDS_AFTER_V4 = ESSENCE_TYPES.filter((type) => !V4_ESSENCE_CARDS.includes(type));
+const ALTARS_AFTER_V4 = ALTAR_IDS.filter((id) => !V4_ALTAR_IDS.includes(id));
+const SPELLS_AFTER_V4 = SPELL_IDS.filter((id) => !V4_SPELL_IDS.includes(id));
+
+const altarFields = (id: AltarId): Field[] => [
+  {
+    get: (input) => (input.altars[id].unlocked ? 1 : 0),
+    set: (input, value) => {
+      input.altars[id].unlocked = value === 1;
+    },
+  },
+  {
+    get: (input) => (input.altars[id].active ? 1 : 0),
+    set: (input, value) => {
+      input.altars[id].active = value === 1;
+    },
+  },
+  {
+    get: (input) => input.altars[id].capacity,
+    set: (input, value) => {
+      input.altars[id].capacity = value;
+    },
+  },
+  {
+    get: (input) => input.altars[id].travel,
+    set: (input, value) => {
+      input.altars[id].travel = value;
+    },
+  },
+  {
+    get: (input) => input.altars[id].craft,
+    set: (input, value) => {
+      input.altars[id].craft = value;
+    },
+  },
+];
+
+const spellFields = (id: SpellId): Field[] => [
+  {
+    get: (input) => (input.spells[id].unlocked ? 1 : 0),
+    set: (input, value) => {
+      input.spells[id].unlocked = value === 1;
+    },
+  },
+  {
+    get: (input) => input.spells[id].level,
+    set: (input, value) => {
+      input.spells[id].level = value;
+    },
+  },
+  {
+    get: (input) => input.spells[id].rank,
+    set: (input, value) => {
+      input.spells[id].rank = value;
+    },
+  },
+];
 
 const unlockField = (key: keyof ExternalBonuses['unlocks']): Field => ({
   get: (input) => {
@@ -309,77 +427,13 @@ const unlockField = (key: keyof ExternalBonuses['unlocks']): Field => ({
  * requires bumping PACK_FORMAT.
  */
 const FIELD_ORDER: Field[] = [
-  ...ESSENCE_UPGRADES.map(
-    (def): Field => ({
-      get: (input) => input.essence[def.id],
-      set: (input, value) => {
-        input.essence[def.id] = value;
-      },
-    }),
-  ),
-  ...ALTAR_IDS.flatMap((id): Field[] => [
-    {
-      get: (input) => (input.altars[id].unlocked ? 1 : 0),
-      set: (input, value) => {
-        input.altars[id].unlocked = value === 1;
-      },
-    },
-    {
-      get: (input) => (input.altars[id].active ? 1 : 0),
-      set: (input, value) => {
-        input.altars[id].active = value === 1;
-      },
-    },
-    {
-      get: (input) => input.altars[id].capacity,
-      set: (input, value) => {
-        input.altars[id].capacity = value;
-      },
-    },
-    {
-      get: (input) => input.altars[id].travel,
-      set: (input, value) => {
-        input.altars[id].travel = value;
-      },
-    },
-    {
-      get: (input) => input.altars[id].craft,
-      set: (input, value) => {
-        input.altars[id].craft = value;
-      },
-    },
-  ]),
-  ...SPELL_IDS.flatMap((id): Field[] => [
-    {
-      get: (input) => (input.spells[id].unlocked ? 1 : 0),
-      set: (input, value) => {
-        input.spells[id].unlocked = value === 1;
-      },
-    },
-    {
-      get: (input) => input.spells[id].level,
-      set: (input, value) => {
-        input.spells[id].level = value;
-      },
-    },
-    {
-      get: (input) => input.spells[id].rank,
-      set: (input, value) => {
-        input.spells[id].rank = value;
-      },
-    },
-  ]),
-  ...EXCHANGE_UPGRADES.map(
-    (def): Field => ({
-      get: (input) => input.exchange[def.id],
-      set: (input, value) => {
-        input.exchange[def.id] = value;
-      },
-    }),
-  ),
-  ...ESSENCE_TYPES.map((type) => cardField('essence', type)),
-  ...ALTAR_IDS.map((id) => cardField('rune', id)),
-  ...SPELL_IDS.map((id) => cardField('spell', id)),
+  ...V4_ESSENCE_UPGRADES.map(essenceField),
+  ...V4_ALTAR_IDS.flatMap(altarFields),
+  ...V4_SPELL_IDS.flatMap(spellFields),
+  ...V4_EXCHANGE_UPGRADES.map(exchangeField),
+  ...V4_ESSENCE_CARDS.map((type) => cardField('essence', type)),
+  ...V4_ALTAR_IDS.map((id) => cardField('rune', id)),
+  ...V4_SPELL_IDS.map((id) => cardField('spell', id)),
   ...ORB_CARD_IDS.map((id) => cardField('orb', id)),
   petField('rhinoLevel'),
   petField('rhinoSkin'),
@@ -405,6 +459,21 @@ const FIELD_ORDER: Field[] = [
       input.mining = ESSENCE_TYPES[value] ?? FRESH_INPUT.mining;
     },
   },
+  // ---- v5: Arcanist batch 2, appended so v4 links keep decoding. ----
+  ...ESSENCE_UPGRADES.slice(V4_ESSENCE_UPGRADE_COUNT).map(essenceField),
+  ...EXCHANGE_UPGRADES.slice(V4_EXCHANGE_UPGRADE_COUNT).map(exchangeField),
+  unlockField('spellslingerBundle'),
+  petField('rhinoInfernalUltraShiny'),
+  // ---- v6: altars, spells and cards added since. Appended, as above. ----
+  ...ALTARS_AFTER_V4.flatMap(altarFields),
+  ...ALTARS_AFTER_V4.map((id) => cardField('rune', id)),
+  ...SPELLS_AFTER_V4.flatMap(spellFields),
+  ...ESSENCE_CARDS_AFTER_V4.map((type) => cardField('essence', type)),
+  ...SPELLS_AFTER_V4.map((id) => cardField('spell', id)),
+  // ---- v7: more Arcanist Spell Power sources. Appended, as above. ----
+  unlockField('blackHole30'),
+  unlockField('hydraStarLevel'),
+  unlockField('divineChallenge23'),
 ];
 
 export const PACKED_FIELD_COUNT = FIELD_ORDER.length;

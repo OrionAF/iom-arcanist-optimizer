@@ -58,8 +58,8 @@ describe('icon catalog', () => {
   });
 
   it('covers every upgrade, spell, altar and essence type', () => {
+    for (const type of ESSENCE_TYPES) expect(ESSENCE_ICONS[type], type).toBeTruthy();
     for (const type of ESSENCE_TYPES) {
-      expect(ESSENCE_ICONS[type], type).toBeTruthy();
       expect(ESSENCE_CARD_ICONS[type], `${type} card`).toBeTruthy();
     }
     for (const id of ALTAR_IDS) expect(ALTAR_ICONS[id], id).toBeTruthy();
@@ -74,7 +74,7 @@ describe('icon catalog', () => {
       expect(EXCHANGE_UPGRADE_ICONS[def.id], def.id).toBeTruthy();
     }
     for (const id of ORB_CARD_IDS) expect(ORB_CARD_ICONS[id], `${id} orb card`).toBeTruthy();
-    for (const tier of ['normal', 'gilded', 'polychrome'] as const) {
+    for (const tier of ['normal', 'gilded', 'polychrome', 'infernal'] as const) {
       expect(CARD_BACKINGS[tier], `${tier} backing`).toBeTruthy();
     }
   });

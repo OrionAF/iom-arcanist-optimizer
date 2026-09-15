@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.local
 docs/
+tools/
 
 # Derived code graph, rebuilt from source by `graphify update .`.
 graphify-out/
@@ -9,10 +10,14 @@ graphify-out/
 .vscode/
 .idea/
 
-# Source workbook — a community binary, not ours to redistribute.
-# The derived fixture at src/calc/__fixtures__/ is committed instead.
+# Local binaries that are not ours to redistribute.
 *.xlsx
 
 # Working references: the icon URL list and the card mockups.
 Icon-ref-links.txt
+arcanist-batch2-notes.txt
+arcanist_costs.md
 card-example*.png
+
+# Local build exports from the app's Export button.
+arcanist-build-*.json

@@ -59,15 +59,10 @@
   --res-ashRune: #d8cba6;
   --res-brineRune: #46c8b8;
   --res-chasmRune: #9179e6;
+  --res-driftRune: #6fa8e0;
+  --res-echoRune: #d88fc0;
   --res-softEssence: #8fb8d8;
   --res-denseEssence: #5bc9a8;
-  --res-stoneVein: #a8a29a;
-  --res-scorpioStar: #e6c555;
-  --res-lynxStar: #e6c555;
-  --res-aquariusStar: #e6c555;
-  --res-superstars: #f0d97a;
-  --res-prestigePoints: #d88fc0;
-  --res-blueCow: #6fa8e0;
 
   --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, Menlo, monospace;

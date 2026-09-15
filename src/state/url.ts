@@ -28,7 +28,8 @@ import { packFields, unpackFields } from './schema';
  *   p — v1 field order (flat external bonuses)
  *   q — v2 field order (cards / pets / unlocks groups)
  *   r — v3 field order (Exchange down to two upgrades)
- *   s — v4 field order (adds the mined essence)
+ *   s — v4 field order (adds the mined essence); v5 appends Arcanist batch 2
+ *       fields to the end, so it keeps the letter and v4 links still decode
  */
 const PACK_FORMAT = 's';
 export const HASH_KEY = 'b';

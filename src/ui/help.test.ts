@@ -7,8 +7,8 @@
  * retired.
  *
  * The Arcanist mines essence blocks. It does not fight enemies and nothing
- * dies — that framing came from the source workbook's column names and read as
- * though the calculator were describing a different game.
+ * dies — that framing reads as though the calculator were describing a
+ * different game.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -60,7 +60,7 @@ describe('glossary', () => {
   });
 
   /**
-   * Words from the workbook's combat framing. The game is mining essence
+   * Combat words. The game is mining essence
    * blocks: blocks are broken and mined, they are not enemies and they do not
    * die. `health`, `damage`, `crit` and `attack` all stay — those are the
    * game's own words for what a pickaxe does to a block.

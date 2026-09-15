@@ -1,13 +1,14 @@
 /**
  * Domain types for the Arcanist calculator.
  *
- * Provenance notes throughout the calc module refer to cells on the "Arcanist"
- * sheet of the Obelisk Total Resources Calculator workbook (see README).
+ * Game data — prices, maxima, effects — follows arcanist_costs.md, read out of
+ * the game's code.
  */
 
-export type EssenceType = 'soft' | 'dense' | 'jagged';
+export type EssenceType = 'soft' | 'dense' | 'jagged' | 'necrotic';
 
-export const ESSENCE_TYPES: readonly EssenceType[] = ['soft', 'dense', 'jagged'];
+/** Order matters: the index is what share links encode for `mining`. */
+export const ESSENCE_TYPES: readonly EssenceType[] = ['soft', 'dense', 'jagged', 'necrotic'];
 
 export type Resource =
   | 'whiteOrb'
@@ -15,28 +16,34 @@ export type Resource =
   | 'purpleOrb'
   | 'orangeOrb'
   | 'redOrb'
+  | 'yellowOrb'
   | 'ashRune'
   | 'brineRune'
   | 'chasmRune'
+  | 'driftRune'
+  | 'echoRune'
   | 'softEssence'
-  | 'denseEssence'
-  | 'stoneVein'
-  | 'scorpioStar'
-  | 'lynxStar'
-  | 'aquariusStar'
-  | 'superstars'
-  | 'prestigePoints'
-  | 'blueCow';
+  | 'denseEssence';
 
-export type AltarId = 'ash' | 'brine' | 'chasm';
+/** Drift and Echo arrived with Arcanist batch 2. */
+export type AltarId = 'ash' | 'brine' | 'chasm' | 'drift' | 'echo';
 
+/** In the game's spell order. */
 export type SpellId =
   | 'runicSurge'
   | 'rainbowRift'
   | 'manaflow'
   | 'radiancy'
   | 'prismism'
-  | 'veinboyant';
+  | 'veinboyant'
+  // Arcanist batch 2.
+  | 'diggyDiggyHole'
+  | 'blueGiant'
+  | 'draconicHoard'
+  | 'rainbowRoad'
+  | 'partyFever'
+  | 'bombsBlessing'
+  | 'bugMagnet';
 
 export type EssenceUpgradeId =
   | 'essenceMine'
@@ -53,21 +60,53 @@ export type EssenceUpgradeId =
   | 'shinyLoot'
   | 'shinyChance2'
   | 'critChance2'
-  | 'jaggedLoot';
+  | 'jaggedLoot'
+  // Arcanist batch 2, in the order the game lists them.
+  | 'regenRespawn'
+  | 'superShinyChance1'
+  | 'flatDamageWeakenNegate'
+  | 'allMaxLoot'
+  | 'damagePctBrittle'
+  | 'superShinyLoot'
+  | 'critChanceUltraCrit'
+  | 'critDamageAttackSpeed'
+  | 'allMinLoot'
+  | 'flatDamageDebuffNegate'
+  | 'critChanceRespawn'
+  | 'superCritDamageDazeNegate'
+  | 'shinyChanceUltraShiny'
+  | 'allShinyLoot'
+  | 'damagePctArmorPen'
+  | 'superCritDamageStunNegate'
+  | 'flatDamageSuperCrit'
+  | 'critDamageUltraCrit'
+  | 'superShinyChanceAttackSpeed';
 
 /**
- * Only the two Exchange upgrades the Arcanist's own maths reads.
+ * Only the Exchange upgrades the Arcanist's own maths reads.
  *
- * The Exchange sells thirteen; the other eleven buy portal chances, wizard
- * loot, star caps and the like — real upgrades, but ones that move nothing on
+ * The Exchange sells thirty-six; the rest buy portal chances, wizard loot,
+ * star caps and the like — real upgrades, but ones that move nothing on
  * this page. Carrying them here meant a section of levels a player could tune
  * all day without a single number changing, which is worse than not offering
  * them: it implies they matter. They are tracked in the game, not here.
  */
-export type ExchangeUpgradeId = 'arcaneCardDamage' | 'runeCraftMulti';
+export type ExchangeUpgradeId =
+  | 'arcaneCardDamage'
+  | 'runeCraftMulti'
+  // Arcanist batch 2.
+  | 'spellPower'
+  | 'runePolychromeCard';
 
-/** Effects granted by essence upgrades. Several upgrades grant two. */
+/**
+ * Effects granted by essence upgrades. Several upgrades grant two, and several
+ * upgrades grant the same effect — `collectEffects` sums them by key.
+ *
+ * The numbered keys are the first fifteen rows; the unnumbered ones are the
+ * same stats granted by batch 2 rows.
+ */
 export type EffectKey =
+  | 'flatDamage'
   | 'flatDamage1'
   | 'flatDamage2'
   | 'flatDamage3'
@@ -88,40 +127,63 @@ export type EffectKey =
   | 'brittleChance1'
   | 'brittleChance2'
   | 'armorPen'
-  | 'stunNegate';
+  | 'stunNegate'
+  // Batch 2.
+  | 'critChance'
+  | 'superCritChance'
+  | 'shinyChance'
+  | 'superShinyChance'
+  | 'brittleChance'
+  | 'allMaxLoot'
+  | 'allMinLoot'
+  | 'superShinyLoot'
+  | 'ultraCritChance'
+  | 'ultraShinyChance'
+  /** Adds to the shiny, super shiny and ultra shiny loot bonuses alike. */
+  | 'allShinyLoot'
+  | 'attackSpeed'
+  | 'weakenNegate'
+  | 'dazeNegate'
+  | 'debuffNegate'
+  | 'regenReduction'
+  | 'respawnReduction';
 
 /**
  * Card tiers, named as the game names them.
  *
- * The workbook encodes these as independent owned-flags per card (columns
- * A/C/E on the Cards sheet, labelled Card / Gild / Polychrome) and takes the
- * highest owned. A single tier picker assumes you own every tier up to the one
- * selected, which is how the source workbook's own data is filled in.
- *
- * The sheet also carries a fourth branch (column G, Infernal, worth the
- * Polychrome value scaled by Cards!X13). No Arcanist card can be transformed
- * to Infernal, so that branch can never fire here and is not modelled — the
- * Infernal cards a player owns come from other parts of the game.
+ * Tiers are cumulative: a single tier picker assumes you own every tier up to
+ * the one selected. No Arcanist card can be transformed to Infernal, so that
+ * tier is not offered here — only the Rhino's pet card reaches it.
  */
 export type CardTier = 'none' | 'normal' | 'gilded' | 'polychrome';
 
 /** Order matters: the index is what share links encode. */
 export const CARD_TIERS: readonly CardTier[] = ['none', 'normal', 'gilded', 'polychrome'];
 
+/**
+ * The Rhino's pet card is not an Arcanist card, and since Arcanist batch 2 it
+ * can be Infernal. Infernal keeps the Polychrome bonus and adds Essence Ultra
+ * Shiny Chance on top, by an amount the player reads off the card.
+ */
+export type RhinoCardTier = CardTier | 'infernal';
+
+/** Order matters, as for CARD_TIERS; Infernal is appended so indices hold. */
+export const RHINO_CARD_TIERS: readonly RhinoCardTier[] = [...CARD_TIERS, 'infernal'];
+
 // ---------------------------------------------------------------------------
 // Cost curves
 // ---------------------------------------------------------------------------
 
 /**
- * Every non-tiered cost in the sheet reduces to one of these two shapes.
- * Both are evaluated in closed form so a goal-seek can call them in a hot loop.
+ * Every non-tiered cost in the game reduces to one of these two shapes. The
+ * game rounds each level's price half up to a whole unit before charging it,
+ * and so does `curveCost`.
  *
- * - geometric:  cost of level i is `base * ratio^(i-1)`
- * - arithmetic: cost of level i is `first + (i-1) * step`
+ * - geometric:  cost of level i is `round(base * ratio^(i-1))`
+ * - arithmetic: cost of level i is `round(first + (i-1) * step)`
  *
  * Flat one-off unlocks are `arithmetic` with step 0 and max 1; the altars'
- * fixed per-level costs are `arithmetic` with step 0; the Exchange Timer's
- * `sum(i * 500)` is `arithmetic` with first === step === 500.
+ * fixed per-level costs are `arithmetic` with step 0.
  */
 export type CostCurve =
   | { kind: 'geometric'; base: number; ratio: number }
@@ -135,6 +197,11 @@ export interface TieredCost {
   kind: 'tiered';
   /** tiers[i] is the cost to go from level i to level i+1. */
   tiers: ResourceBundle[];
+  /**
+   * Tiers from this index on are the game's placeholder prices for content not
+   * yet released. The row still shows them; the totals leave them out.
+   */
+  placeholderFrom?: number;
 }
 
 export type CostSpec = ({ kind: 'curve'; resource: Resource } & { curve: CostCurve }) | TieredCost;
@@ -143,21 +210,29 @@ export type CostSpec = ({ kind: 'curve'; resource: Resource } & { curve: CostCur
 // Definitions (static game data)
 // ---------------------------------------------------------------------------
 
+/** How an effect prints. `minus` rows store a positive amount they subtract. */
+export type EffectDisplay = 'flat' | 'percent' | 'minus' | 'minusSeconds';
+
 export interface EffectDef {
   key: EffectKey;
   label: string;
   perLevel: number;
-  display: 'flat' | 'percent';
+  display: EffectDisplay;
 }
 
 export interface EssenceUpgradeDef {
   id: EssenceUpgradeId;
-  /** Row on the Arcanist sheet, for provenance. */
-  row: number;
+  /** As the game names the upgrade. */
   label: string;
   max: number;
-  cost: CostSpec;
+  /**
+   * Undefined when the cost is not known. Distinct from free: the row is shown
+   * unpriced and left out of every total.
+   */
+  cost?: CostSpec;
   effects: EffectDef[];
+  /** The upgrade cannot be bought until another reaches this level. */
+  requires?: { id: EssenceUpgradeId; level: number };
   note?: string;
 }
 
@@ -204,17 +279,16 @@ export interface SpellDef {
 }
 
 /**
- * Exchange upgrades carry no cost.
- *
- * The workbook priced them, but those numbers were invented rather than
- * observed — they are not documented anywhere in game and are not close. A
- * blank is honest; a wrong number gets planned around.
+ * An Exchange upgrade. No cost: Exchange upgrades are bought with resources
+ * from elsewhere in the game that this app does not track.
  */
 export interface ExchangeUpgradeDef {
   id: ExchangeUpgradeId;
-  row: number;
+  /** As the game names the upgrade. */
   label: string;
   max: number;
+  /** The stat the effect text names; omitted for pure unlocks. */
+  effectLabel?: string;
   /** Effect per level; omitted for pure unlocks. */
   perLevel?: number;
   display?: 'flat' | 'percent';
@@ -233,6 +307,10 @@ export interface BlockDef {
   weakenChance: number;
   weakenMulti: number;
   weakenDuration: number;
+  /** Daze slows attack speed, as weaken slows damage. Necrotic is the first to have it. */
+  dazeChance: number;
+  dazeMulti: number;
+  dazeDuration: number;
   baseMinLoot: number;
   baseMaxLoot: number;
 }
@@ -255,7 +333,7 @@ export interface SpellInput {
   rank: number;
 }
 
-/** The six Orb Trade cards (Cards rows 446-451). */
+/** The six Orb Trade cards. */
 export type OrbCardId = 'white' | 'green' | 'purple' | 'orange' | 'red' | 'yellow';
 
 export const ORB_CARD_IDS: readonly OrbCardId[] = [
@@ -268,68 +346,79 @@ export const ORB_CARD_IDS: readonly OrbCardId[] = [
 ];
 
 /**
- * The Arcanist's own card collection (Cards rows 422-451).
- *
- * Only released slots are modelled. The workbook carries two more essence and
- * four more rune slots marked "???"; they cannot be owned, so including them
- * would only offer a tier picker for a card that does not exist.
+ * The Arcanist's own card collection: one card per essence, rune, spell and
+ * orb, released slots only.
  *
  * Orb Trade cards change no Arcanist maths, but they are Arcanist cards and so
- * count toward Essence Damage Per Arcane Card — which is why they are here.
+ * count toward Essence Damage +1 Per Arcanist Card Tier Owned — which is why they are here.
  */
 export interface CardCollection {
-  /** Cards!K422/K423/K424 — max essence loot per type. */
+  /** Max essence loot per type. */
   essence: Record<EssenceType, CardTier>;
-  /** Cards!K429/K430/K431 — altar craft multiplier. */
+  /** Altar craft multiplier. */
   rune: Record<AltarId, CardTier>;
-  /** Cards!K438..K443 — per-spell effect multiplier. */
+  /** Per-spell effect multiplier. */
   spell: Record<SpellId, CardTier>;
-  /** Cards!K446..K451 — orb trade multiplier; no effect on the Arcanist. */
+  /** Orb trade multiplier; no effect on the Arcanist. */
   orb: Record<OrbCardId, CardTier>;
 }
 
-/** The Rhino, the Arcanist's pet (Pets rows 37-108, Cards!K282). */
+/** The Rhino, the Arcanist's pet. */
 export interface PetBonuses {
-  /** Pets!A37, max 20. Each level is +1% Essence Brittle Chance. */
+  /** Max 20. Each level is +1% Essence Brittle Chance. */
   rhinoLevel: number;
-  /** Pets!A57 — the Rhino Skin, worth +1 Essence Max Loot. */
+  /** The Rhino Skin, worth +1 Essence Max Loot. */
   rhinoSkin: boolean;
-  /** Pets!A75 — whether the Rhino Quest Skin is unlocked at all. */
+  /** Whether the Rhino Quest Skin is unlocked at all. */
   rhinoQuestSkin: boolean;
-  /** Pets!A108, max 11. Level 0 already grants the first step. */
+  /** Max 11. Level 0 already grants the first step. */
   rhinoQuestLevel: number;
-  /** Cards!K282 — the Rhino's card. Grants Essence Super Shiny Chance. */
-  rhinoCard: CardTier;
+  /** The Rhino's card. Grants Essence Super Shiny Chance. */
+  rhinoCard: RhinoCardTier;
+  /**
+   * The Infernal Rhino card's Essence Ultra Shiny Chance, in percent as the
+   * card prints it (1.25 means +1.25%). Its value varies, so it is typed in
+   * rather than looked up. Ignored unless the card is Infernal.
+   */
+  rhinoInfernalUltraShiny: number;
 }
 
 /** One-off account unlocks that feed the Arcanist. */
 export interface UnlockBonuses {
-  /** Obelisks!H28 — +1% Essence Shiny Chance. */
+  /** +1% Essence Shiny Chance. */
   worldQuest25: boolean;
-  /** Obelisks!H32 — +2% Essence Super Shiny Chance. */
+  /** +2% Essence Super Shiny Chance. */
   worldQuest29: boolean;
-  /** Skills!A157 — +1% shiny, +1% brittle (and mana regen, which is unmodelled). */
+  /** +1% shiny, +1% brittle (and mana regen, which is unmodelled). */
   straightOuttaYanille: boolean;
-  /** Store!G111 — +1% shiny, +10% rune craft, +10% spell duration, +10% wizard loot. */
+  /** +2% shiny, +2% brittle, +10% rune craft, +10% wizard loot (unmodelled). */
   arcanistBundle: boolean;
-  /** Construct!I350 — enables the per-statue super shiny bonus below. */
+  /** +10% spell duration, +5% spell power, +10% spell level-up chance. */
+  spellslingerBundle: boolean;
+  /** Enables the per-statue super shiny bonus below. */
   statueOfNatureGilded: boolean;
-  /** Construct!E554 — W4 gilded statues owned; +1% super shiny each. */
+  /** W4 gilded statues owned; +1% super shiny each. */
   w4GildedStatues: number;
+  /** Black Hole Level 30 — +10% Arcanist Spell Power. */
+  blackHole30: boolean;
+  /** Divine Challenge 23 — +4% Arcanist Spell Power. */
+  divineChallenge23: boolean;
+  /** Hydra Star level, max 50 — +0.25% Arcanist Spell Power per level. */
+  hydraStarLevel: number;
 }
 
 /**
  * Everything the Arcanist reads from elsewhere in the game.
  *
  * Modelled as the player-facing thing that grants the bonus — a pet level, an
- * unlock, a card tier — rather than the derived number the workbook stored, so
- * it can be filled in by looking at the game instead of at cell references.
+ * unlock, a card tier — rather than a derived number, so it can be filled in by
+ * looking at the game.
  */
 export interface ExternalBonuses {
   cards: CardCollection;
   pets: PetBonuses;
   unlocks: UnlockBonuses;
-  /** Contracts!A45, max 19. Each level is +0.5% Rune Craft Multi. */
+  /** Max 19. Each level is +0.5% Rune Craft Multi. */
   contractRuneCraftLevel: number;
 }
 
@@ -354,10 +443,13 @@ export interface ArcanistInput {
 // Result
 // ---------------------------------------------------------------------------
 
-/** Arcanist mining stats — the sheet's M2:N17 panel. */
+/** Arcanist mining stats. */
 export interface Stats {
   damage: number;
+  /** Seconds between attacks, after Attack Speed. */
   attackInterval: number;
+  /** Total Attack Speed bonus, 0.09 for +9%. */
+  attackSpeed: number;
   critChance: number;
   critDamage: number;
   superCritChance: number;
@@ -365,51 +457,95 @@ export interface Stats {
   ultraCritChance: number;
   ultraCritDamage: number;
   armorPen: number;
+  /** Each negate includes All Debuff Negate Chance. */
   stunNegate: number;
+  weakenNegate: number;
+  dazeNegate: number;
   shinyChance: number;
   shinyBonus: number;
   superShinyChance: number;
   superShinyBonus: number;
+  /** Chance for a block that already went super shiny to go ultra shiny. */
+  ultraShinyChance: number;
+  /** Loot an ultra shiny adds on top of the shiny and super shiny bonuses. */
+  ultraShinyBonus: number;
   brittleChance: number;
+  /** Flat reduction to every block's regeneration per interval. */
+  regenReduction: number;
+  /** Seconds taken off every block's respawn timer. */
+  respawnReduction: number;
 }
 
-/** One weighted outcome in a probability table (the sheet's Y/Z/AA columns). */
+/** One weighted outcome in a probability table. */
 export interface WeightedOutcome {
   label: string;
   chance: number;
   value: number;
 }
 
+/**
+ * Probability tables. Chances are what the game's integer rolls can hit, not
+ * the displayed stat: crit rolls out of 100, shiny out of 1,000, brittle out
+ * of 10,000.
+ */
 export interface Averages {
   shinyTable: WeightedOutcome[];
-  /** Z10 — expected bonus loot per block from shiny procs. */
+  /** Expected bonus loot per block from shiny procs. */
   shinyBonus: number;
   critTable: WeightedOutcome[];
-  /** Z23 — expected damage multiplier. */
+  /** Expected damage multiplier. */
   critMult: number;
   brittleTable: WeightedOutcome[];
-  /** Z33 — expected fraction of nominal health that must be dealt. */
+  /** Chance a block spawns brittle. */
+  brittleChance: number;
+  /** Expected share of max HP a block spawns with. */
   brittleMult: number;
 }
 
+/**
+ * One essence's income. The combat figures are averages over replayed blocks
+ * (see combat.ts), so hits and time are not whole numbers.
+ */
 export interface EssenceOutcome {
   type: EssenceType;
-  /** Block stats after upgrades and player mitigations. */
+  /** Block armour left after your pen. */
   armor: number;
   minLoot: number;
   maxLoot: number;
-  avgStun: number;
-  avgWeaken: number;
-  avgRegen: number;
-  effectiveDamagePerHit: number;
+  /** A normal hit after armour, before crits. */
+  hitDamage: number;
+  /** A weakened hit: damage × weaken rounded half up, then armour. */
+  weakenedHitDamage: number;
+  /** `hitDamage` times the expected crit multiplier. */
+  expectedHitDamage: number;
+  /** HP the block heals every regen interval. */
+  regenAmount: number;
+  /** Chance per 1-second roll that each debuff lands on you, negate included. */
+  stunChancePerRoll: number;
+  weakenChancePerRoll: number;
+  dazeChancePerRoll: number;
+  /** Average hits per block, the opening hit included. */
   hitsToMine: number;
+  /** Average seconds from spawn to the killing hit. Infinity when unmineable. */
   timeToMine: number;
+  /** Standard error of `timeToMine` from the replay. */
+  timeToMineStdErr: number;
+  /** Share of hits that land weakened. */
+  weakenedShare: number;
+  /** Average regen bursts per block. */
+  healsPerBlock: number;
+  /** Average seconds per block spent stunned. */
+  stunnedTime: number;
+  /** Average seconds per block spent dazed. */
+  dazedTime: number;
+  /** Respawn after reductions. */
+  respawn: number;
   cycleTime: number;
   blocksPerHour: number;
   minLootAvg: number;
   maxLootAvg: number;
   /**
-   * The most a single block can drop: a top roll that also procs super shiny.
+   * The most a single block can drop: a top roll that also procs ultra shiny.
    *
    * Above `maxLoot`, because shiny is added on top of the roll rather than
    * being part of it. Each bonus is only counted where its chance is non-zero,
@@ -425,10 +561,8 @@ export interface EssenceOutcome {
   /**
    * Income less the full altar drain.
    *
-   * Kept as the workbook computes it, and still asserted against the sheet, so
-   * the golden test stays a transcription check. It can go negative, which the
-   * game cannot: altars stall rather than overdraw a pool. Use `sustainedNet`
-   * for anything user-facing.
+   * It can go negative, which the game cannot: altars stall rather than
+   * overdraw a pool. Use `sustainedNet` for anything user-facing.
    */
   netEssencePerHour: number;
   /**
@@ -441,7 +575,10 @@ export interface EssenceOutcome {
    * potency path's business, not the steady state's.
    */
   sustainedNet: number;
-  /** True when damage output cannot outpace the block's regeneration. */
+  /**
+   * True when your damage cannot outpace the block's regen, or a block would
+   * take longer than `KILL_TIME_CAP` to die.
+   */
   unmineable: boolean;
 }
 
@@ -459,8 +596,7 @@ export interface AltarOutcome {
    *
    * An altar stalls on an empty pool, so its long-run output is capped by what
    * you mine, not by how well it is tuned. 1 means the pool it drains is being
-   * mined faster than the altars on it consume — the case the model assumed
-   * everywhere before this existed.
+   * mined faster than the altars on it consume.
    */
   supplyFactor: number;
   /** `runesPerHour * supplyFactor`. The rate a plan can count on. */
@@ -475,6 +611,11 @@ export interface SpellOutcome {
   primary: number;
   secondary: number;
   duration: number;
+  /**
+   * Multiplier on the spell's level-up chance: `(1 + 0.05 × potency)` times
+   * the Spellslinger Bundle's bonus.
+   */
+  levelUpChanceMulti: number;
   /** Cost of the next potency rank alone. Zero at max rank. */
   potencyCostNext: number;
   potencyCostRemaining: number;
@@ -497,39 +638,52 @@ export interface UpgradeCost {
    * is the whole run to max. Empty at max level, where there is no next level.
    */
   next: ResourceBundle;
-  /** Empty for rows with no known cost (every Exchange upgrade). */
+  /** Empty for rows with no known cost. */
   remaining: ResourceBundle;
   total: ResourceBundle;
+  /**
+   * What the Total Resources panel sums for this row, when that differs from
+   * `remaining` and `total` because part of the price is a placeholder.
+   */
+  counted?: { remaining: ResourceBundle; total: ResourceBundle };
   /** False when this row has no cost data at all, rather than a cost of zero. */
   priced: boolean;
   /** Human-readable effect at the current level. */
   effectText: string;
   note?: string;
+  /** False at max level, or while `blockedBy` is set. */
   available: boolean;
+  /** The prerequisite this row is still waiting on, if any. */
+  blockedBy?: { label: string; level: number };
 }
 
 /**
  * External bonuses, resolved from what the player owns into the numbers the
- * rest of the calculation consumes.
- *
- * The workbook stored these as opaque values (`petBrittle: 0.05`); here the
- * input is the pet level and this is where it becomes a percentage, so a
- * balance change is a constants edit rather than a hunt through the model.
+ * rest of the calculation consumes. The input is the pet level; this is where
+ * it becomes a percentage, so a balance change is a constants edit rather than
+ * a hunt through the model.
  */
 export interface DerivedBonuses {
-  /** Sum of owned card tiers across the Arcanist's blocks (Cards!K456). */
+  /** Sum of owned card tiers across the Arcanist's card blocks. */
   arcaneCardCount: number;
-  /** Pets!E38. */
+  /** Rhino level's Essence Brittle Chance. */
   petBrittle: number;
-  /** Pets!E108. */
+  /** Rhino Quest Skin's Essence Shiny Chance. */
   petQuestShiny: number;
-  /** Pets!E109 — the Arcanist Spell Power multiplier. */
+  /** The Rhino Quest Skin's share of Arcanist Spell Power. */
   petSpellPower: number;
-  /** Pets!E57. */
+  /**
+   * Arcanist Spell Power from every source — the quest skin, the Spellslinger
+   * Bundle, Black Hole Level 30, Divine Challenge 23, the Hydra Star and the
+   * Exchange. They multiply: this is `∏(1 + source) − 1`.
+   */
+  spellPower: number;
+  /** The Infernal Rhino card's Essence Ultra Shiny Chance, as a fraction. */
+  rhinoUltraShiny: number;
+  /** The Rhino Skin's Essence Max Loot. */
   petMaxEssenceLoot: number;
-  /** Construct!M352. */
+  /** Statue of Nature's Essence Super Shiny Chance. */
   statueSuperShiny: number;
-  /** Statmath!C368. */
   spellDurationMulti: number;
   /** The additive rune craft terms from outside the Arcanist. */
   storeRuneCraft: number;
@@ -541,13 +695,13 @@ export interface ArcanistResult {
   averages: Averages;
   /** External bonuses resolved from owned levels/unlocks into usable numbers. */
   derived: DerivedBonuses;
-  /** Rune craft multiplier (Statmath!C372), resolved before altar output. */
+  /** Rune craft multiplier, resolved before altar output. */
   runeCraftMulti: number;
   essence: Record<EssenceType, EssenceOutcome>;
   altars: Record<AltarId, AltarOutcome>;
   spells: Record<SpellId, SpellOutcome>;
   drain: Record<EssenceType, number>;
-  /** Per-row costs, grouped by section, in sheet order. */
+  /** Per-row costs, grouped by section, in game order. */
   rows: {
     essence: UpgradeCost[];
     altars: Record<AltarId, UpgradeCost[]>;

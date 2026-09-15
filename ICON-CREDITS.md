@@ -29,8 +29,8 @@ show art named for another system:
 | Essence Armor Pen | `Obelisk_Armor_Reduction.png` |
 
 Spells have two icons each: the spell art (`*_Spell.png`) and the buff icon shown
-while the spell is running (`*.png`). Both are used — the buff icon marks a
-spell you have unlocked, and the spell art is what a Spell card depicts.
+while the spell is running (`*.png`). Both are used: the spell art marks a
+spell you have unlocked, and the buff icon marks one you haven't.
 
 ## Cards
 
@@ -40,7 +40,7 @@ A card is drawn as its tier's frame with the card's own art layered inside:
 |---|---|---|
 | Essence | `Card_Backing_*.png` | `Soft_/Dense_/Jagged_Essence_Multi.png` |
 | Runes | `Card_Backing_*.png` | `Ash_/Brine_/Chasm_Rune.png` |
-| Spells | `Card_Backing_*.png` | `*_Spell.png` |
+| Spells | `Card_Backing_*.png` | `*.png` (the buff icon) |
 | Orbs | `Card_Backing_*.png` | `White_/Green_/…_Orb.png` |
 | Rhino Pet | `Card_Backing_*.png` | `Rhino_Default.png` |
 
@@ -53,6 +53,25 @@ Downloaded and available, but nothing in the Arcanist model uses them:
 `Blind_Wizard_Chance.png`, `Disco_Wizard_Chance.png`,
 `Flashbang_Wizard_Chance.png`, `Party_Wizard_Chance.png`,
 `Party_Wizard_Multi.png`.
+
+Arcanist batch 2 art, downloaded for content that isn't modelled yet (see
+BATCH2-PENDING.md): the six new spells (`Diggy_Diggy_Hole`, `Blue_Giant`,
+`Rainbow_Road`, `Party_Fever`, `Bombs_Blessing`, `Bug_Magnet`, each as `*.png`
+and `*_Spell.png`) and `Drift_Rune.png` / `Echo_Rune.png`.
+
+`Bombs_Blessing*.png` drop the apostrophe from the wiki's `Bomb's_Blessing*.png`,
+which is awkward in a URL. That is the only renamed file.
+
+## Batch 2 art
+
+The batch 2 essence upgrades, Exchange upgrades, Draconic Hoard
+(`Draconic_Hoard*.png`), Black Hole Level 30 (`BlackHole.png`), Divine Challenge 23
+(`Divine_Challenge_Coin.png`, the wiki's 16px thumbnail) and the Hydra Star
+(`Hydra_Full.png`) use the art listed in `Icon-ref-links.txt`. The wiki gives
+many batch 2 essence upgrades `Hourglass.png`. Only the Spellslinger Bundle
+still borrows an icon (`Spell_Duration_Multi.png`).
+`Necrotic_Essence.png` and `Card_Backing_Infernal.png` (the Rhino card's Infernal
+frame) are the real thing.
 
 `src/ui/icons.test.ts` checks every path the catalog exports against a real file
 in `public/icons/`, gathering the paths from the module rather than a list, so a

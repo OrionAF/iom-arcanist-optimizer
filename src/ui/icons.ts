@@ -11,12 +11,12 @@
 
 import type {
   AltarId,
-  CardTier,
   EssenceType,
   EssenceUpgradeId,
   ExchangeUpgradeId,
   OrbCardId,
   Resource,
+  RhinoCardTier,
   SpellId,
 } from '../calc/types';
 
@@ -28,6 +28,7 @@ export const ESSENCE_ICONS: Record<EssenceType, string> = {
   soft: icon('Soft_Essence.png'),
   dense: icon('Dense_Essence.png'),
   jagged: icon('Jagged_Essence.png'),
+  necrotic: icon('Necrotic_Essence.png'),
 };
 
 export const SECTION_ICONS = {
@@ -38,7 +39,6 @@ export const SECTION_ICONS = {
   cards: icon('Card_Backing_Polychrome.png'),
   pets: icon('Rhino_Default.png'),
   unlocks: icon('Spell_Unlock.png'),
-  contracts: icon('Rune_Craft_Multi.png'),
 } as const;
 
 /** Only resources the Arcanist can actually spend have icons. */
@@ -48,9 +48,12 @@ export const RESOURCE_ICONS: Partial<Record<Resource, string>> = {
   purpleOrb: icon('Purple_Orb.png'),
   orangeOrb: icon('Orange_Orb.png'),
   redOrb: icon('Red_Orb.png'),
+  yellowOrb: icon('Yellow_Orb.png'),
   ashRune: icon('Ash_Rune.png'),
   brineRune: icon('Brine_Rune.png'),
   chasmRune: icon('Chasm_Rune.png'),
+  driftRune: icon('Drift_Rune.png'),
+  echoRune: icon('Echo_Rune.png'),
   softEssence: icon('Soft_Essence.png'),
   denseEssence: icon('Dense_Essence.png'),
 };
@@ -59,9 +62,11 @@ export const ALTAR_ICONS: Record<AltarId, string> = {
   ash: icon('Ash_Rune.png'),
   brine: icon('Brine_Rune.png'),
   chasm: icon('Chasm_Rune.png'),
+  drift: icon('Drift_Rune.png'),
+  echo: icon('Echo_Rune.png'),
 };
 
-/** The spell item itself, shown on spell rows you have not unlocked yet. */
+/** The spell item itself, shown on the spell rows you have unlocked. */
 export const SPELL_ICONS: Record<SpellId, string> = {
   runicSurge: icon('Runic_Surge_Spell.png'),
   rainbowRift: icon('Rainbow_Rift_Spell.png'),
@@ -69,12 +74,19 @@ export const SPELL_ICONS: Record<SpellId, string> = {
   radiancy: icon('Radiancy_Spell.png'),
   prismism: icon('Prismism_Spell.png'),
   veinboyant: icon('Veinboyant_Spell.png'),
+  diggyDiggyHole: icon('Diggy_Diggy_Hole_Spell.png'),
+  blueGiant: icon('Blue_Giant_Spell.png'),
+  draconicHoard: icon('Draconic_Hoard_Spell.png'),
+  rainbowRoad: icon('Rainbow_Road_Spell.png'),
+  partyFever: icon('Party_Fever_Spell.png'),
+  bombsBlessing: icon('Bombs_Blessing_Spell.png'),
+  bugMagnet: icon('Bug_Magnet_Spell.png'),
 };
 
 /**
- * The buff icon shown in game while a spell is running. Used on the unlocked
- * spell rows, where the spell is one you actually have, and as the art on the
- * spell cards, which is what the game draws on them.
+ * The buff icon shown in game while a spell is running. Used on the spell rows
+ * you have not unlocked yet, and as the art on the spell cards, which is what
+ * the game draws on them.
  */
 export const SPELL_ACTIVE_ICONS: Record<SpellId, string> = {
   runicSurge: icon('Runic_Surge.png'),
@@ -83,6 +95,13 @@ export const SPELL_ACTIVE_ICONS: Record<SpellId, string> = {
   radiancy: icon('Radiancy.png'),
   prismism: icon('Prismism.png'),
   veinboyant: icon('Veinboyant.png'),
+  diggyDiggyHole: icon('Diggy_Diggy_Hole.png'),
+  blueGiant: icon('Blue_Giant.png'),
+  draconicHoard: icon('Draconic_Hoard.png'),
+  rainbowRoad: icon('Rainbow_Road.png'),
+  partyFever: icon('Party_Fever.png'),
+  bombsBlessing: icon('Bombs_Blessing.png'),
+  bugMagnet: icon('Bug_Magnet.png'),
 };
 
 export const ESSENCE_UPGRADE_ICONS: Record<EssenceUpgradeId, string> = {
@@ -101,11 +120,34 @@ export const ESSENCE_UPGRADE_ICONS: Record<EssenceUpgradeId, string> = {
   shinyChance2: icon('Shiny_Essence_Chance.png'),
   critChance2: icon('Archaeology_Crit_Chance.png'),
   jaggedLoot: icon('Jagged_Essence_Multi.png'),
+  // Arcanist batch 2, as listed in Icon-ref-links.txt. The Hourglass rows are
+  // the wiki's own art for them.
+  regenRespawn: icon('Hourglass.png'),
+  superShinyChance1: icon('Hourglass.png'),
+  flatDamageWeakenNegate: icon('Hourglass.png'),
+  allMaxLoot: icon('Hourglass.png'),
+  damagePctBrittle: icon('Brittle_Essence_Chance.png'),
+  superShinyLoot: icon('Hourglass.png'),
+  critChanceUltraCrit: icon('Pickaxe_Ultra_Crit_Chance.png'),
+  critDamageAttackSpeed: icon('Pickaxe_Crit_Damage.png'),
+  allMinLoot: icon('Hourglass.png'),
+  flatDamageDebuffNegate: icon('Hourglass.png'),
+  critChanceRespawn: icon('Pickaxe_Crit_Chance.png'),
+  superCritDamageDazeNegate: icon('Hourglass.png'),
+  shinyChanceUltraShiny: icon('Hourglass.png'),
+  allShinyLoot: icon('Hourglass.png'),
+  damagePctArmorPen: icon('Obelisk_Armor_Reduction.png'),
+  superCritDamageStunNegate: icon('Hourglass.png'),
+  flatDamageSuperCrit: icon('Pickaxe_Super_Crit_Chance.png'),
+  critDamageUltraCrit: icon('Pickaxe_Ultra_Crit_Chance.png'),
+  superShinyChanceAttackSpeed: icon('Hourglass.png'),
 };
 
 export const EXCHANGE_UPGRADE_ICONS: Record<ExchangeUpgradeId, string> = {
   arcaneCardDamage: icon('Archaeology_Flat_Damage.png'),
   runeCraftMulti: icon('Rune_Craft_Multi.png'),
+  spellPower: icon('Spell_Unlock.png'),
+  runePolychromeCard: icon('Rune_Craft_Multi.png'),
 };
 
 export const MISC_ICONS = {
@@ -124,10 +166,12 @@ export const MISC_ICONS = {
 // ---------------------------------------------------------------------------
 
 /** The frame a card is drawn in. Locked cards have none. */
-export const CARD_BACKINGS: Record<Exclude<CardTier, 'none'>, string> = {
+export const CARD_BACKINGS: Record<Exclude<RhinoCardTier, 'none'>, string> = {
   normal: icon('Card_Backing_Standard.png'),
   gilded: icon('Card_Backing_Gilded.png'),
   polychrome: icon('Card_Backing_Polychrome.png'),
+  /** Only the Rhino's pet card can reach this; no Arcanist card can. */
+  infernal: icon('Card_Backing_Infernal.png'),
 };
 
 /** What each Orb Trade card depicts. */
@@ -145,6 +189,8 @@ export const ESSENCE_CARD_ICONS: Record<EssenceType, string> = {
   soft: icon('Soft_Essence_Multi.png'),
   dense: icon('Dense_Essence_Multi.png'),
   jagged: icon('Jagged_Essence_Multi.png'),
+  // No max-loot art recorded for Necrotic yet; the essence itself stands in.
+  necrotic: icon('Necrotic_Essence.png'),
 };
 
 // ---------------------------------------------------------------------------
@@ -162,5 +208,10 @@ export const UNLOCK_ICONS = {
   worldQuest29: icon('Shiny_Multiplier.png'),
   straightOuttaYanille: icon('Straight_Outta_Yanille.png'),
   arcanistBundle: icon('Arcanist_VP.png'),
+  // No wiki art recorded for the Spellslinger Bundle yet; placeholder.
+  spellslingerBundle: icon('Spell_Duration_Multi.png'),
   statueOfNature: icon('22_Statue_Nature_Gilded.png'),
+  blackHole30: icon('BlackHole.png'),
+  divineChallenge23: icon('Divine_Challenge_Coin.png'),
+  hydraStar: icon('Hydra_Full.png'),
 } as const;

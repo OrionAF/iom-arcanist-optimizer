@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+import { useDeferredValue, useMemo } from 'react';
 
 import { RESOURCE_LABELS } from '../../calc/constants';
 import { formatCost, formatHours, formatNumber } from '../../calc/format';
 import { groupRankings, rankAll, type Goal, type Marginal } from '../../calc/optimize';
-import type { ArcanistInput, ArcanistResult } from '../../calc/types';
+import type { ArcanistInput } from '../../calc/types';
 import { Icon, Section } from '../components';
 import { RESOURCE_ICONS } from '../icons';
 
@@ -33,9 +33,10 @@ function gainOf(entry: Marginal, goal: Goal): number {
  * One recommendation.
  *
  * The cost is the price of the step being ranked, not the row's cost to max.
- * That step is usually one level but not always: damage arrives in whole hits,
- * so the cheapest damage buy that does anything can be several levels, and the
- * `3→7` on the row is the purchase the gain and the price both refer to.
+ * That step is usually one level but not always: the game only rolls whole
+ * percents of crit chance, so the cheapest crit buy that does anything can be
+ * several levels, and the `3→7` on the row is the purchase the gain and the
+ * price both refer to.
  *
  * The side-effect line appears only when the other objective moves the wrong
  * way — that is the tradeoff the two lists exist to expose, and it is worth
@@ -151,10 +152,13 @@ function GoalList({
   );
 }
 
-export function Optimizer({ input, result }: { input: ArcanistInput; result: ArcanistResult }) {
+export function Optimizer({ input }: { input: ArcanistInput }) {
   // Scored once for both lists: the recomputes are the expensive part and they
-  // do not depend on the goal — only the ordering does.
-  const scored = useMemo(() => rankAll(input, result), [input, result]);
+  // do not depend on the goal — only the ordering does. Deferred, because each
+  // recompute replays combat: the ledger updates at once, and the rankings
+  // catch up a moment later.
+  const deferredInput = useDeferredValue(input);
+  const scored = useMemo(() => rankAll(deferredInput), [deferredInput]);
 
   return (
     <Section title="Optimizer" help="optimizer" eyebrow="best next buys · per hour gained">

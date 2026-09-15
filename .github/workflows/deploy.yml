@@ -28,7 +28,7 @@ jobs:
 
       - run: npm ci
 
-      # The golden test is the guard on the calc port; never publish without it.
+      # The tests hold the calculator to the game data; never publish without them.
       - run: npm test
 
       - run: npm run build
