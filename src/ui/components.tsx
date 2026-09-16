@@ -143,9 +143,14 @@ export function Popover({
   }, []);
   const [spot, setSpot] = useState<Spot | null>(null);
   const mark = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   const panelId = useId();
 
-  const close = useCallback(() => setOpen(false), []);
+  // However it is dismissed, focus goes back to the mark that opened it.
+  const close = useCallback(() => {
+    setOpen(false);
+    mark.current?.focus();
+  }, []);
 
   /*
    * Scrolling repositions the popover rather than dismissing it.
@@ -156,6 +161,8 @@ export function Popover({
    * no such race, and is better behaviour besides. It closes only when the
    * anchor leaves the viewport, where there is nothing left to point at.
    */
+  const spotPlaced = spot !== null;
+
   useEffect(() => {
     if (!open) return;
 
@@ -166,13 +173,43 @@ export function Popover({
       if (r.bottom < 0 || r.top > window.innerHeight) setOpen(false);
       else setSpot(spotFor(el));
     };
+    /*
+     * Tab stays inside the open panel.
+     *
+     * It is rendered into `document.body`, at the far end of the page from the
+     * mark that opened it, so without this Tab walked off into whatever
+     * happened to follow it in the DOM and the "see also" links inside were
+     * unreachable by keyboard. Escape and the scrim both still close it, and
+     * closing puts focus back on the mark.
+     */
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      setOpen(false);
-      mark.current?.focus();
+      if (e.key === 'Escape') {
+        setOpen(false);
+        mark.current?.focus();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+
+      const el = panel.current;
+      if (!el) return;
+      const stops = [
+        el,
+        ...el.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea'),
+      ];
+      const at = stops.indexOf(document.activeElement as HTMLElement);
+      const next = e.shiftKey ? at - 1 : at + 1;
+      // Only the ends wrap; everything between them is the browser's business.
+      if (at === -1 || next >= stops.length || next < 1) {
+        e.preventDefault();
+        stops[e.shiftKey ? stops.length - 1 : Math.min(1, stops.length - 1)]?.focus();
+      }
     };
 
     place();
+    // Into the panel once it has somewhere to be: a keyboard reader who opened
+    // an explanation should be reading it, not hunting for it at the end of
+    // the page.
+    if (spotPlaced) panel.current?.focus({ preventScroll: true });
     // Capture, so scrolling any ancestor moves it and not just the page.
     window.addEventListener('scroll', place, true);
     window.addEventListener('resize', place);
@@ -182,7 +219,7 @@ export function Popover({
       window.removeEventListener('resize', place);
       window.removeEventListener('keydown', onKey);
     };
-  }, [open]);
+  }, [open, spotPlaced]);
 
   return (
     <>
@@ -208,12 +245,18 @@ export function Popover({
             <>
               <div className="help-scrim" onPointerDown={close} />
               <div
+                ref={panel}
                 id={panelId}
                 className="help-pop"
-                role="note"
+                // A dialog rather than a note now that Tab is held inside it,
+                // which is what it has always behaved like.
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={`${panelId}-title`}
+                tabIndex={-1}
                 style={{ left: spot.left, top: spot.top, bottom: spot.bottom }}
               >
-                <h4>{title}</h4>
+                <h4 id={`${panelId}-title`}>{title}</h4>
                 {children}
               </div>
             </>,

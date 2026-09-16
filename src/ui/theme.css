@@ -50,6 +50,11 @@
   --soft: #8fb8d8;
   --dense: #5bc9a8;
   --jagged: #c86fa8;
+  /* Necrotic arrived with batch 2 and had no tone of its own, so it borrowed
+     Soft's and the two read as the same essence. The hue is its icon's own
+     (#659374 averaged over the lit pixels), lifted to sit with the three above,
+     and far enough from Dense's teal to tell them apart at a glance. */
+  --necrotic: #86c06a;
 
   --res-whiteOrb: #e8ecf2;
   --res-greenOrb: #62c97a;

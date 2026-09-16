@@ -525,6 +525,7 @@ function OfferCard({
   onRemove,
   cellRef,
   origin,
+  inert,
 }: {
   offer: WizardOffer;
   slot: number;
@@ -537,6 +538,8 @@ function OfferCard({
   cellRef: (el: HTMLElement | null) => void;
   /** Whether the floating editor grew out of this card. */
   origin: boolean;
+  /** Set while the editor is open: the cards behind it are out of reach. */
+  inert?: boolean;
 }) {
   const name = COLOUR_LABELS[offer.colour];
   const band = scoreBand(scored.score);
@@ -547,6 +550,10 @@ function OfferCard({
       ref={cellRef}
       className={['wx-card', offer.traded ? 'traded' : '', origin ? 'origin' : ''].filter(Boolean).join(' ')}
       aria-label={`Wizard ${slot}: ${name} Orbs`}
+      // Not a tab stop; somewhere for focus to land when the editor it opened
+      // closes again.
+      tabIndex={-1}
+      inert={inert}
     >
       <div className="wx-card-top">
         <span className="named">
@@ -738,10 +745,16 @@ function FloatingEditor({
   const close = (then: () => void) => {
     if (closing.current) return;
     closing.current = true;
+    // Back to the card the editor grew out of. Without this the focused element
+    // is unmounted mid-animation and focus falls to the body, which puts a
+    // keyboard reader back at the top of the page.
+    const origin_ = origin();
+    const restoreFocus = () => origin_?.focus?.({ preventScroll: true });
     const el = panel.current;
     const to = cellTransform();
     if (!el || !to || prefersReducedMotion()) {
       then();
+      restoreFocus();
       return;
     }
     el.firstElementChild?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: 'forwards' });
@@ -750,7 +763,10 @@ function FloatingEditor({
       duration: 240,
       easing: 'cubic-bezier(0.4, 0, 0.6, 1)',
       fill: 'forwards',
-    }).onfinish = then;
+    }).onfinish = () => {
+      then();
+      restoreFocus();
+    };
   };
 
   return (
@@ -960,6 +976,8 @@ function PreferenceList({
 export function WizardExchange({ input, result, update }: Props) {
   const { wizard } = input;
   const [offers, setOffers] = useState<WizardOffer[]>(() => coerceOffers(loadOffers()));
+  /** What "Clear offers" threw away, until something is entered in their place. */
+  const [cleared, setCleared] = useState<WizardOffer[]>([]);
   /** The slot the floating editor grew out of, and whether it adds a wizard or edits one. */
   const [editing, setEditing] = useState<{ index: number; offer: WizardOffer; isNew: boolean } | null>(null);
   const grid = useRef<HTMLDivElement>(null);
@@ -1047,12 +1065,27 @@ export function WizardExchange({ input, result, update }: Props) {
               className="action"
               disabled={offers.length === 0}
               onClick={() => {
+                // Typing seven wizards back in because of one stray click is a
+                // punishment out of all proportion to the mistake.
+                setCleared(offers);
                 setOffers([]);
                 setEditing(null);
               }}
             >
               Clear offers
             </button>
+            {cleared.length > 0 && offers.length === 0 ? (
+              <button
+                type="button"
+                className="wx-link"
+                onClick={() => {
+                  setOffers(cleared);
+                  setCleared([]);
+                }}
+              >
+                Undo
+              </button>
+            ) : null}
           </div>
           <div className="wx-cards" ref={grid}>
             {Array.from({ length: slots }, (_, i) => {
@@ -1080,6 +1113,7 @@ export function WizardExchange({ input, result, update }: Props) {
                   key={offer.id}
                   cellRef={cellRef(i)}
                   origin={isOrigin}
+                  inert={editing !== null}
                   offer={offer}
                   slot={slot}
                   scored={scores.get(offer.id)!}

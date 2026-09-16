@@ -1,3 +1,5 @@
+import { Children, type ReactNode } from 'react';
+
 import {
   ALTARS,
   ALTAR_IDS,
@@ -480,7 +482,7 @@ export function Stats({ result }: { result: ArcanistResult }) {
    */
   return (
     <Section title="Arcanist Stats" eyebrow="derived" flush>
-      <dl className="stats three">
+      <StatGrid>
         <Stat label="Damage" help="statDamage" value={formatNumber(damage)} />
         <Stat
           label="Attack Speed"
@@ -573,8 +575,30 @@ export function Stats({ result }: { result: ArcanistResult }) {
           help="statBrittleChance"
           value={formatPercent(s.brittleChance)}
         />
-      </dl>
+      </StatGrid>
     </Section>
+  );
+}
+
+/**
+ * The stats grid, with its last row filled out.
+ *
+ * The 1px gaps are the panel's own background showing through, so a row that
+ * ends early left a lighter grey block where the missing tiles would be. The
+ * fillers are counted rather than written out, so adding a stat cannot leave
+ * the block behind again.
+ */
+function StatGrid({ children }: { children: ReactNode }) {
+  const shown = Children.count(children);
+  const missing = (3 - (shown % 3)) % 3;
+
+  return (
+    <dl className="stats three">
+      {children}
+      {Array.from({ length: missing }, (_, i) => (
+        <div key={i} className="stat" aria-hidden="true" />
+      ))}
+    </dl>
   );
 }
 

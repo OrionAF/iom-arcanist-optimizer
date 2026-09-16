@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { RESOURCE_LABELS } from '../../calc/constants';
 import { formatCost, formatHours, formatNumber } from '../../calc/format';
@@ -156,12 +156,31 @@ function GoalList({
   );
 }
 
+/**
+ * The input once it has stopped changing.
+ *
+ * `useDeferredValue` lets the ledger paint first, but it cannot make a 31ms
+ * scoring pass interruptible — once it starts it holds the main thread, and a
+ * run of taps on a level stepper pays that toll on every one of them, which on
+ * a phone is several times worse. Waiting for a pause instead means a burst of
+ * taps scores once, at the end, where the answer is the one being asked for.
+ */
+function useSettled<T>(value: T, delay = 250): T {
+  const [settled, setSettled] = useState(value);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSettled(value), delay);
+    return () => window.clearTimeout(timer);
+  }, [value, delay]);
+
+  return settled;
+}
+
 export function Optimizer({ input }: { input: ArcanistInput }) {
   // Scored once for both lists: the recomputes are the expensive part and they
-  // do not depend on the goal — only the ordering does. Deferred, because each
-  // recompute replays combat: the ledger updates at once, and the rankings
-  // catch up a moment later.
-  const deferredInput = useDeferredValue(input);
+  // do not depend on the goal — only the ordering does.
+  const settled = useSettled(input);
+  const deferredInput = useDeferredValue(settled);
   const scored = useMemo(() => rankAll(deferredInput), [deferredInput]);
 
   return (
