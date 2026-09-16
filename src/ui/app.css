@@ -385,8 +385,11 @@
 /* ----------------------------------------------------------- ledger rail -- */
 
 /*
- * Only ever seen on a narrow screen: above 720px the ledger itself is sticky,
- * so this is display:none there and the observer driving it costs nothing.
+ * Only seen where the ledger itself cannot be pinned: on a narrow screen, and
+ * on a short one. A phone held sideways is 390px tall and the ledger is 432px,
+ * so pinned it covers the whole page and scrolling reveals nothing at all.
+ * Everywhere else this is display:none and the observer driving it costs
+ * nothing.
  */
 .ledger-rail {
   display: none;
@@ -397,7 +400,7 @@
   margin-top: -1px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 720px), (max-height: 620px) {
   .ledger-rail {
     --tone: var(--soft);
     display: flex;
@@ -1499,8 +1502,25 @@ button.action.primary:hover {
   container-type: inline-size;
 }
 
+/*
+ * Scaled to the tile, but with a floor.
+ *
+ * Unfloored, this reached 6.8px in the right-hand column at 1100px and 5.1px on
+ * a 360px phone — a label nobody can read is not a label. Below the width where
+ * the longest name fits on one line at 9.5px, the names wrap instead of
+ * shrinking further, and a minimum height keeps the figures across a row lined
+ * up with each other.
+ */
 .stats.three .stat dt {
-  font-size: min(var(--fs-micro), calc((100cqi - 22px) / 13.5));
+  font-size: clamp(9.5px, calc((100cqi - 22px) / 13.5), var(--fs-micro));
+}
+
+@container (max-width: 150px) {
+  .stats.three .stat dt {
+    white-space: normal;
+    align-items: flex-start;
+    min-height: 3.1em;
+  }
 }
 
 .stat dd {
@@ -2037,6 +2057,18 @@ button.action.primary:hover {
   /* Four cells at a quarter of a tablet width squeeze the loot figures. */
   .ledger {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/*
+ * A short screen — a phone held sideways, or a laptop window pulled down —
+ * cannot give a pinned panel a third of itself, let alone the whole of it.
+ * Width is handled below; this is the same decision made on the other axis,
+ * and the rail above takes over in both cases.
+ */
+@media (max-height: 620px) and (min-width: 721px) {
+  .ledger {
+    position: static;
   }
 }
 
@@ -3017,7 +3049,9 @@ button.action.primary:hover {
 
 .wx-settings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  /* `min()` so the 290px column cannot be wider than the panel holding it: on a
+     phone it was, and the page grew to 549px and scrolled sideways. */
+  grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr));
   gap: 0 20px;
   padding: 0 12px 10px;
   border-top: 1px solid var(--seam);
@@ -3025,6 +3059,9 @@ button.action.primary:hover {
 
 .wx-setting {
   display: flex;
+  /* Wraps rather than overruns: the longest name is half a sentence, and on a
+     phone it used to print straight through the stepper beside it. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   min-height: 34px;
@@ -3037,7 +3074,6 @@ button.action.primary:hover {
 .wx-setting-name {
   flex: 1;
   min-width: 0;
-  white-space: nowrap;
 }
 
 /* The one long name gets the whole row, and its read-back beside the box. */
@@ -3056,7 +3092,7 @@ button.action.primary:hover {
 }
 
 .wx-setting-span .wx-setting-name {
-  flex: none;
+  flex: 1 1 auto;
 }
 
 .wx-setting-read {
@@ -3187,5 +3223,61 @@ select.wx-unit-input {
   /* One column of seven tall placeholders is most of a phone screen. */
   .wx-card.empty {
     min-height: 44px;
+  }
+}
+
+/* ------------------------------------------------------- touch: fields --- */
+
+/*
+ * Every field is at least 16px on a touch screen.
+ *
+ * Safari on iOS zooms the page in whenever a field smaller than that takes
+ * focus, and does not zoom back out — so tapping a level stepper left the
+ * reader scrolled sideways inside a page they then had to pinch their way out
+ * of. The viewport tag allows zoom deliberately and must keep allowing it, so
+ * the only fix is the size of the text.
+ *
+ * Last in the file on purpose: several of these fields set their own size by
+ * class, further down than the main touch block, and would otherwise outrank
+ * it. Widths grow with the text, or three digits no longer fit.
+ */
+@media (pointer: coarse) {
+  /* Each field that sets its own size is named here at the specificity it uses
+     there; a bare `input` loses to `.level input` wherever it sits in the file. */
+  input,
+  select,
+  textarea,
+  .level input,
+  .rows.spells .level input,
+  .wx-settings .level input,
+  input.plain,
+  .wx-colour-field input.plain,
+  .wx-unit-input,
+  select.wx-unit-input,
+  .wx-amount,
+  .wx-select,
+  .card-tile select {
+    font-size: 16px;
+  }
+
+  .level input {
+    width: 64px;
+  }
+
+  .rows.spells .level input,
+  .wx-settings .level input {
+    width: 52px;
+  }
+
+  .wx-unit-input {
+    width: 88px;
+  }
+
+  .wx-unit.wide .wx-unit-input {
+    width: 140px;
+  }
+
+  select.wx-unit-input {
+    width: 64px;
   }
 }

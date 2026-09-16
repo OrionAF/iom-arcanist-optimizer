@@ -561,7 +561,10 @@ export function Subhead({ children }: { children: ReactNode }) {
  * keystroke that would make the text stop matching it is dropped.
  */
 const WHOLE_NUMBER = /^\d*$/;
-const DECIMAL_NUMBER = /^\d*\.?\d*$/;
+// Either separator: a phone keyboard in most of Europe offers a comma where a
+// US one offers a dot, and rejecting the keystroke left the field stubbornly
+// empty with nothing to explain why.
+const DECIMAL_NUMBER = /^\d*[.,]?\d*$/;
 
 function useNumericDraft(
   value: number,
@@ -716,7 +719,7 @@ export function NumberField({
     value,
     onChange,
     (raw) => {
-      const next = Number(raw);
+      const next = Number(raw.replace(',', '.'));
       return Number.isFinite(next) ? next : 0;
     },
     whole ? WHOLE_NUMBER : DECIMAL_NUMBER,

@@ -101,12 +101,40 @@ export function formatCompact(value: number): string {
 const SUFFIX_ALIASES: Record<string, number> = { q: 5, ocdc: 19, nvdc: 20 };
 
 /**
+ * What a comma means, decided rather than assumed.
+ *
+ * This used to strip every comma as a thousands separator, which is right for
+ * "37,500" and silently wrong for "1,5" — a Wizard Loot Multi typed on any
+ * keyboard that uses a decimal comma became 11 instead of 1.1, with nothing on
+ * screen to show for it.
+ *
+ * The rules, in order, and each one is a case where the reading is certain:
+ * a dot as well means the commas group; digits in clean threes mean grouping;
+ * one or two digits after a single comma cannot be grouping, since grouping
+ * never leaves fewer than three. What is left — several ungrouped commas, or
+ * four or more digits after one — is not a number under either reading, so it
+ * keeps the old behaviour and will fail the match below.
+ *
+ * Whichever way it is read, the field shows the value it settled on as soon as
+ * focus leaves, so a wrong guess is visible rather than silent.
+ */
+function normaliseSeparators(text: string): string {
+  const trimmed = text.trim().replace(/[_\s]/g, '');
+  if (!trimmed.includes(',')) return trimmed;
+  if (trimmed.includes('.')) return trimmed.replace(/,/g, '');
+  if (/^[+-]?\d{1,3}(,\d{3})+[a-z]*$/i.test(trimmed)) return trimmed.replace(/,/g, '');
+  if (/^[+-]?\d+,\d{1,2}[a-z]*$/i.test(trimmed)) return trimmed.replace(',', '.');
+  return trimmed.replace(/,/g, '');
+}
+
+/**
  * Read an amount the way the game and `formatCompact` write it: "82.717Sp",
- * "1.2k", "8.27e25", "37,500" or plain digits. Suffixes are case-insensitive.
- * Returns NaN for anything else, so a typo is caught rather than read as zero.
+ * "1.2k", "8.27e25", "37,500" or plain digits, and "1,5" the way a decimal
+ * comma means it. Suffixes are case-insensitive. Returns NaN for anything
+ * else, so a typo is caught rather than read as zero.
  */
 export function parseAmount(text: string): number {
-  const cleaned = text.trim().replace(/[,_\s]/g, '');
+  const cleaned = normaliseSeparators(text);
   if (cleaned === '') return NaN;
   const match = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)([a-z]*)$/i.exec(cleaned);
   if (!match) return NaN;
