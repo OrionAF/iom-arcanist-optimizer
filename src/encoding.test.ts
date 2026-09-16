@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -22,7 +22,14 @@ const MOJIBAKE = new RegExp(
 
 const EXTENSIONS = new Set(['.ts', '.tsx', '.css', '.html', '.json', '.md']);
 
+/**
+ * Every source file under `dir`, or none if it is not there: `tools/` is a
+ * local working directory that a fresh clone does not have, and a check for
+ * mangled characters has nothing to say about a directory that does not exist.
+ */
 function sourceFiles(dir: string, found: string[] = []): string[] {
+  if (!existsSync(dir)) return found;
+
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules' || entry === 'dist' || entry.startsWith('.')) continue;
     const path = join(dir, entry);
