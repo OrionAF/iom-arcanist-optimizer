@@ -190,7 +190,9 @@ export function exportToFile(input: ArcanistInput): void {
   link.href = url;
   link.download = `arcanist-build-v${SCHEMA_VERSION}.json`;
   link.click();
-  URL.revokeObjectURL(url);
+  // Not in the same tick as the click: some browsers have not started reading
+  // the blob by then and cancel the download outright.
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export async function importFromFile(file: File): Promise<ArcanistInput> {

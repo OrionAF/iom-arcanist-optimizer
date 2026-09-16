@@ -621,8 +621,15 @@ function useNumericDraft(
     display: draft ?? (value === 0 ? '' : String(value)),
     onInput: (raw: string) => {
       if (!accept.test(raw)) return;
-      setDraft(raw);
-      onChange(parse(raw));
+      const next = parse(raw);
+      const typed = Number(raw);
+      // Typing past a cap showed the digits that were typed while the value was
+      // already clamped, so the field disagreed with itself until it lost
+      // focus. An empty field and anything the parser could not read keep what
+      // was typed, since that is the draft's whole purpose.
+      const clamped = raw !== '' && Number.isFinite(typed) && typed !== next;
+      setDraft(clamped ? String(next) : raw);
+      onChange(next);
     },
     onBlur: () => setDraft(null),
     reset: () => setDraft(null),
@@ -635,6 +642,8 @@ export function LevelInput({
   onChange,
   label,
   inputLabel = `${label} level`,
+  id,
+  describedBy,
 }: {
   value: number;
   max: number;
@@ -643,6 +652,10 @@ export function LevelInput({
   label: string;
   /** The field's own name, for a count that is not a level. */
   inputLabel?: string;
+  /** Set when a `Field` label points at this input, so clicking it focuses here. */
+  id?: string;
+  /** The id of the hint under that label, which is otherwise never announced. */
+  describedBy?: string;
 }) {
   const clamp = (n: number) => Math.min(Math.max(Math.trunc(n) || 0, 0), max);
   const field = useNumericDraft(value, onChange, (raw) => clamp(Number(raw)), WHOLE_NUMBER);
@@ -664,6 +677,8 @@ export function LevelInput({
       </button>
       <input
         type="text"
+        id={id}
+        aria-describedby={describedBy}
         // Levels are whole numbers, so the phone keyboard should open without a
         // decimal point on it.
         inputMode="numeric"
@@ -717,30 +732,49 @@ export function Switch({
   );
 }
 
+/**
+ * A label, an optional hint, and the control they belong to.
+ *
+ * `controlId` is what makes it a real label: without it this rendered a
+ * `<label>` pointing at nothing, so clicking the words did nothing and the
+ * hint — which sits inside it — was never announced, the control's own
+ * `aria-label` having taken over the naming. Pass the control's id and give
+ * that control `describedBy={`${controlId}-hint`}`.
+ */
 export function Field({
   label,
   hint,
   icon,
+  controlId,
   children,
 }: {
   label: string;
   hint?: string;
   icon?: string;
+  controlId?: string;
   children: ReactNode;
 }) {
+  const words = (
+    <>
+      {icon ? (
+        <span className="named">
+          <Icon src={icon} size={18} />
+          {label}
+        </span>
+      ) : (
+        label
+      )}
+      {hint ? (
+        <span className="hint" id={controlId ? `${controlId}-hint` : undefined}>
+          {hint}
+        </span>
+      ) : null}
+    </>
+  );
+
   return (
     <div className="field">
-      <label>
-        {icon ? (
-          <span className="named">
-            <Icon src={icon} size={18} />
-            {label}
-          </span>
-        ) : (
-          label
-        )}
-        {hint ? <span className="hint">{hint}</span> : null}
-      </label>
+      {controlId ? <label htmlFor={controlId}>{words}</label> : <span>{words}</span>}
       {children}
     </div>
   );
@@ -751,11 +785,15 @@ export function NumberField({
   onChange,
   step = 0.01,
   label,
+  id,
+  describedBy,
 }: {
   value: number;
   onChange: (next: number) => void;
   step?: number;
   label: string;
+  id?: string;
+  describedBy?: string;
 }) {
   const whole = Number.isInteger(step);
   const field = useNumericDraft(
@@ -772,6 +810,8 @@ export function NumberField({
     <input
       className="plain"
       type="text"
+      id={id}
+      aria-describedby={describedBy}
       inputMode={whole ? 'numeric' : 'decimal'}
       value={field.display}
       placeholder="0"

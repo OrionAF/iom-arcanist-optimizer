@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Arcanist">
+  <!--
+    Drawn rather than borrowed from the game's art: every icon in this app is a
+    32px sprite, and at 16px in a browser tab they all turn to mush. The palette
+    is the app's own — void behind, brine in front — so the tab matches the page.
+  -->
+  <rect width="32" height="32" rx="7" fill="#0a0d13" />
+  <path d="M16 6 L25 24 H7 Z" fill="none" stroke="#46c8b8" stroke-width="2.4" stroke-linejoin="round" />
+  <path d="M11 18 H21" stroke="#46c8b8" stroke-width="2.4" stroke-linecap="round" />
+  <circle cx="16" cy="13" r="1.8" fill="#46c8b8" />
+</svg>

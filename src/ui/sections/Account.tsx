@@ -46,7 +46,9 @@ function UnlockRow({
         <Switch checked={checked} onChange={onChange}>
           {label}
         </Switch>
-        <div className="unlock-effects">{effects}</div>
+        {/* Some Exchange upgrades carry no note, and an empty line left a gap
+            under their name that read as something failing to load. */}
+        {effects ? <div className="unlock-effects">{effects}</div> : null}
         {children}
       </div>
     </div>
@@ -97,9 +99,12 @@ export function Pets({ input, result, update }: Props) {
         <div className="pet-main">
           <Field
             label="Rhino Pet Level"
+            controlId="rhino-pet-level"
             hint={`+1% Essence Brittle Chance per level · now +${formatPercent(derived.petBrittle)}`}
           >
             <LevelInput
+              id="rhino-pet-level"
+              describedBy="rhino-pet-level-hint"
               value={pets.rhinoLevel}
               max={PET.maxLevel}
               label="Rhino Pet"
@@ -164,9 +169,12 @@ export function Pets({ input, result, update }: Props) {
           {pets.rhinoCard === 'infernal' ? (
             <Field
               label="Infernal Rhino card · Ultra Shiny %"
+              controlId="rhino-infernal-ultra-shiny"
               hint="type the Essence Ultra Shiny Chance printed on the card"
             >
               <NumberField
+                id="rhino-infernal-ultra-shiny"
+                describedBy="rhino-infernal-ultra-shiny-hint"
                 value={pets.rhinoInfernalUltraShiny}
                 step={0.01}
                 label="Infernal Rhino card Essence Ultra Shiny Chance, percent"

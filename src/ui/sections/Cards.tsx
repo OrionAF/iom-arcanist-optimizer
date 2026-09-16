@@ -18,7 +18,9 @@ import {
 } from '../icons';
 
 export const TIER_LABELS: Record<RhinoCardTier, string> = {
-  none: 'None',
+  // The same words the tile itself uses for this state, rather than two names
+  // for one thing a foot apart.
+  none: 'Not owned',
   normal: 'Normal',
   gilded: 'Gilded',
   polychrome: 'Polychrome',

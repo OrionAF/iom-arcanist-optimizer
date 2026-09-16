@@ -55,7 +55,11 @@ function Entry({ entry, goal, rank }: { entry: Marginal; goal: Goal; rank: numbe
     <li className="opt-entry">
       <span className="opt-name">
         <span className="opt-rank num">{rank}</span>
-        <span className="opt-label">{entry.candidate.label}</span>
+        {/* The column is narrow enough to cut a long name; the title is how the
+            rest of it can still be read. */}
+        <span className="opt-label" title={entry.candidate.label}>
+          {entry.candidate.label}
+        </span>
       </span>
       <span className="opt-figures num">
         <span className="opt-level">

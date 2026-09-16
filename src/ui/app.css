@@ -1120,7 +1120,9 @@ input::placeholder {
   border-bottom: 0;
 }
 
-.field > label {
+/* A `<span>` where the field has no control to point a label at — see Field. */
+.field > label,
+.field > span {
   font-size: var(--fs-body);
   color: var(--text-dim);
 }
@@ -1688,8 +1690,6 @@ button.action.primary:hover {
   box-shadow: 0 14px 34px -16px #000;
   z-index: 60;
 }
-
-/* -------------------------------------------------------------- optimizer -- */
 
 /* ------------------------------------------------------------------ fold -- */
 
@@ -2329,8 +2329,15 @@ button.action.primary:hover {
   border-color: color-mix(in srgb, var(--ember) 60%, var(--seam));
 }
 
+/* Finished, not faded: 0.7 took the figures with it, and this panel had already
+   learned that lesson on the ledger cells. A quiet green edge says "nothing
+   more needed here" and costs no contrast. */
 .wx-colour.done {
-  opacity: 0.7;
+  border-color: color-mix(in srgb, var(--dense) 35%, var(--seam));
+}
+
+.wx-colour.done .wx-colour-needed strong {
+  color: var(--dense);
 }
 
 .wx-colour-head {
@@ -2505,9 +2512,7 @@ button.action.primary:hover {
   border-color: color-mix(in srgb, var(--brine) 40%, var(--seam));
   background: color-mix(in srgb, var(--brine) 8%, transparent);
   color: color-mix(in srgb, var(--brine) 75%, var(--text-dim));
-}
 
-.wx-pref-rail {
   position: absolute;
   top: 12px;
   right: 0;
@@ -2562,6 +2567,10 @@ button.action.primary:hover {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+  /* The floating editor is a layer over this grid, which itself never reflows;
+     it may lend the grid a min-height, so the rows must not stretch into it. */
+  position: relative;
+  align-content: start;
 }
 
 .wx-card {
@@ -2601,13 +2610,6 @@ button.action.primary:hover {
   box-shadow: 0 18px 44px -16px #000;
 }
 
-/* The floating editor: a layer over the grid, which itself never reflows. */
-.wx-cards {
-  position: relative;
-  /* The editor may lend the grid a min-height; the rows must not stretch into it. */
-  align-content: start;
-}
-
 .wx-float {
   position: absolute;
   inset: 0;
@@ -2640,8 +2642,17 @@ button.action.primary:hover {
   border-color: var(--brine);
 }
 
+/* A traded card recedes by going unlit, the way a ledger cell that is not being
+   mined does. At 0.55 its own costs sat around 2.5:1, which is a card you can
+   no longer read rather than one you have finished with. */
 .wx-card.traded {
-  opacity: 0.55;
+  background: color-mix(in srgb, var(--void) 55%, var(--stratum-2));
+  border-color: color-mix(in srgb, var(--dense) 25%, var(--seam));
+}
+
+.wx-card.traded .wx-chip,
+.wx-card.traded .wx-reason {
+  color: var(--text-faint);
 }
 
 .wx-card-top {
