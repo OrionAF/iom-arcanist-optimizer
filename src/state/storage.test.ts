@@ -1,6 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { loadPanels, loadTabs, pickTab, savePanel, saveTab } from './storage';
+import { EXAMPLE_INPUT } from '../presets/example';
+import {
+  backupBuild,
+  loadBackup,
+  loadOffers,
+  loadPanels,
+  loadTabs,
+  pickTab,
+  savePanel,
+  saveTab,
+  untradeOffers,
+} from './storage';
 
 /** A Map-backed stand-in: the suite runs under Node, which has no localStorage. */
 function memoryStorage(): Storage {
@@ -56,6 +67,76 @@ describe('tab state', () => {
     vi.stubGlobal('localStorage', broken);
     expect(loadTabs()).toEqual({});
     expect(() => saveTab('upgrades', 'spells')).not.toThrow();
+  });
+});
+
+describe('the build that was replaced', () => {
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', memoryStorage());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('comes back exactly as it went in', () => {
+    backupBuild(EXAMPLE_INPUT);
+    expect(loadBackup()).toEqual(EXAMPLE_INPUT);
+  });
+
+  it('is nothing until something has been replaced', () => {
+    expect(loadBackup()).toBeNull();
+  });
+
+  it('is cleared rather than kept when there was no build to save', () => {
+    backupBuild(EXAMPLE_INPUT);
+    backupBuild(null);
+    expect(loadBackup()).toBeNull();
+  });
+
+  it('survives a corrupt entry without taking the page with it', () => {
+    localStorage.setItem('iom-arcanist-optimizer:build.previous', '{not json');
+    expect(loadBackup()).toBeNull();
+  });
+});
+
+describe('offers after a build is replaced', () => {
+  const OFFERS = 'iom-arcanist-optimizer:wizard-offers';
+
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', memoryStorage());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('keep what the wizards are asking, and lose only the traded flag', () => {
+    localStorage.setItem(
+      OFFERS,
+      JSON.stringify([
+        { id: 'a', colour: 'white', orbs: 120, traded: true },
+        { id: 'b', colour: 'green', orbs: 90, traded: false },
+      ]),
+    );
+    untradeOffers();
+    expect(loadOffers()).toEqual([
+      { id: 'a', colour: 'white', orbs: 120, traded: false },
+      { id: 'b', colour: 'green', orbs: 90, traded: false },
+    ]);
+  });
+
+  it('leaves junk alone instead of throwing', () => {
+    localStorage.setItem(OFFERS, '{not json');
+    expect(() => untradeOffers()).not.toThrow();
+    localStorage.setItem(OFFERS, '{"not":"an array"}');
+    expect(() => untradeOffers()).not.toThrow();
+    expect(localStorage.getItem(OFFERS)).toBe('{"not":"an array"}');
+  });
+
+  it('does nothing when no offers were ever stored', () => {
+    untradeOffers();
+    expect(localStorage.getItem(OFFERS)).toBeNull();
   });
 });
 

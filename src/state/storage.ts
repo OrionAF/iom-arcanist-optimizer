@@ -9,6 +9,7 @@ import type { ArcanistInput, WizardOffer } from '../calc/types';
 import { SCHEMA_VERSION, fromSavedBuild, toSavedBuild } from './schema';
 
 const STORAGE_KEY = 'iom-arcanist-optimizer:build';
+const BACKUP_KEY = 'iom-arcanist-optimizer:build.previous';
 const PANELS_KEY = 'iom-arcanist-optimizer:panels';
 const TABS_KEY = 'iom-arcanist-optimizer:tabs';
 const OFFERS_KEY = 'iom-arcanist-optimizer:wizard-offers';
@@ -36,6 +37,33 @@ export function clearBuild(): void {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* ignore */
+  }
+}
+
+/**
+ * The build that was on file before something replaced it wholesale — a link
+ * that was kept, Reset, Load example, Import.
+ *
+ * One step back, not a history: the value of this is that replacing a build is
+ * never final, and a single slot buys that. Passing null clears it, so a
+ * restore cannot hand back a build that was never there.
+ */
+export function backupBuild(input: ArcanistInput | null): void {
+  try {
+    if (input === null) localStorage.removeItem(BACKUP_KEY);
+    else localStorage.setItem(BACKUP_KEY, JSON.stringify(toSavedBuild(input)));
+  } catch {
+    // Same bargain as the autosave: convenience, not a requirement.
+  }
+}
+
+export function loadBackup(): ArcanistInput | null {
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (!raw) return null;
+    return fromSavedBuild(JSON.parse(raw));
+  } catch {
+    return null;
   }
 }
 
@@ -124,6 +152,30 @@ export function loadOffers(): unknown {
 export function saveOffers(offers: readonly WizardOffer[]): void {
   try {
     localStorage.setItem(OFFERS_KEY, JSON.stringify(offers));
+  } catch {
+    // A convenience, not a requirement.
+  }
+}
+
+/**
+ * Clear the traded flags on whatever offers are stored.
+ *
+ * Orbs Traded belongs to the build; the offers do not. When the build is
+ * replaced wholesale the flags refer to a tally that no longer exists, and
+ * pressing Undo on one would take orbs off a count that never gained them.
+ * The offers themselves are left alone: what the wizards are asking for this
+ * refresh is still true.
+ */
+export function untradeOffers(): void {
+  try {
+    const raw = localStorage.getItem(OFFERS_KEY);
+    if (!raw) return;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return;
+    const cleared = parsed.map((offer) =>
+      offer !== null && typeof offer === 'object' ? { ...offer, traded: false } : offer,
+    );
+    localStorage.setItem(OFFERS_KEY, JSON.stringify(cleared));
   } catch {
     // A convenience, not a requirement.
   }

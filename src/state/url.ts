@@ -2,9 +2,16 @@
  * Share links.
  *
  * A build is packed to a fixed-order number array (see schema.ts), JSON
- * encoded, then base64url'd into the location hash. That lands at roughly 285
- * characters — short enough to paste anywhere, and the packing is what buys
- * that; the raw keyed object would be about 1 kB.
+ * encoded, then base64url'd into the location hash. That lands at 477–500
+ * characters as of schema v8 — short enough to paste anywhere, and the packing
+ * is what buys that; the raw keyed object would be about 1 kB.
+ *
+ * Trimming the packed array's trailing defaults was measured and rejected:
+ * `unpackFields` starts from FRESH_INPUT so an omitted tail would be safe, but
+ * it only shortens builds that are nearly fresh. A fresh build's link goes to
+ * about 4 characters; the example build, the kind anyone actually shares, goes
+ * from 500 to 487. Thirteen characters do not pay for a promise that no packed
+ * field's fresh default may ever change again.
  *
  * A previous version deflated the payload with CompressionStream to halve it
  * again. That was removed: it made decoding async, it needed a no-compression
@@ -89,8 +96,39 @@ export function readBuildFromHash(hash: string): HashRead {
   return input ? { status: 'ok', input } : { status: 'invalid' };
 }
 
-export function buildShareUrl(input: ArcanistInput, base = window.location.href): string {
+/**
+ * The address of this page with no token on it, which is what a share link is
+ * built from. Taken apart rather than using `location.href` so a token can
+ * never be built on top of a token.
+ */
+export function shareBase(): string {
+  return window.location.origin + window.location.pathname + window.location.search;
+}
+
+export function buildShareUrl(input: ArcanistInput, base = shareBase()): string {
   const url = new URL(base);
   url.hash = `${HASH_KEY}=${encodeBuild(input)}`;
   return url.toString();
+}
+
+/**
+ * Take the token out of the address bar, keeping anything else in the hash.
+ *
+ * This is what makes a link an invitation rather than an address. Left in
+ * place, a token outlives the moment it was read: reload the page — or let a
+ * phone reload a backgrounded tab — and the build it carries is applied again,
+ * over whatever has been done since. `replaceState` adds no history entry and
+ * fires no hashchange, so nothing loops.
+ */
+export function dropToken(): void {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  if (!params.has(HASH_KEY)) return;
+
+  params.delete(HASH_KEY);
+  const rest = params.toString();
+  window.history.replaceState(
+    null,
+    '',
+    window.location.pathname + window.location.search + (rest ? `#${rest}` : ''),
+  );
 }

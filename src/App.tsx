@@ -4,8 +4,17 @@ import { compute } from './calc/engine';
 import type { ArcanistInput } from './calc/types';
 import { EXAMPLE_INPUT } from './presets/example';
 import { FRESH_INPUT } from './presets/fresh';
-import { exportToFile, importFromFile, loadBuild, saveBuild } from './state/storage';
-import { buildShareUrl, readBuildFromHash } from './state/url';
+import { arrivalOf, type LinkState } from './state/link';
+import {
+  backupBuild,
+  exportToFile,
+  importFromFile,
+  loadBackup,
+  loadBuild,
+  saveBuild,
+  untradeOffers,
+} from './state/storage';
+import { buildShareUrl, dropToken, readBuildFromHash, type HashRead } from './state/url';
 import { TabbedPanel } from './ui/components';
 import { SECTION_ICONS } from './ui/icons';
 import { OtherUnlocks, Pets } from './ui/sections/Account';
@@ -18,22 +27,36 @@ import { Altars, EssenceUpgrades, Spells, Stats } from './ui/sections/Upgrades';
 import { WizardExchange } from './ui/sections/WizardExchange';
 
 export default function App() {
-  // A shared link wins over whatever was autosaved locally. Resolved during
-  // initialisation so the page never renders the wrong build first.
-  const [shared] = useState(() => readBuildFromHash(window.location.hash));
-  const [input, setInput] = useState<ArcanistInput>(() =>
-    shared.status === 'ok' ? shared.input : (loadBuild() ?? FRESH_INPUT),
-  );
-  const [toast, setToast] = useState<string | null>(() => {
-    if (shared.status === 'ok') return 'Loaded build from link';
-    if (shared.status === 'invalid') return "That link couldn't be read — showing your own build";
-    return null;
-  });
+  // The local build is read once, here, and then held. Everything a link does
+  // happens in front of it rather than on top of it.
+  const [mine] = useState(() => loadBuild());
+  const [opening] = useState(() => arrivalOf(readBuildFromHash(window.location.hash), mine));
+
+  const [input, setInput] = useState<ArcanistInput>(() => opening.input ?? mine ?? FRESH_INPUT);
+  const [link, setLink] = useState<LinkState>(opening.link);
+  const [toast, setToast] = useState<string | null>(opening.toast);
+  /** The share link, when the clipboard refused it and it has to be copied by hand. */
+  const [copyLink, setCopyLink] = useState<string | null>(null);
+  /**
+   * Bumped whenever the build is replaced wholesale, to remount the panels that
+   * hold browser-only state of their own — the Wizard Exchange offers, which
+   * are read out of storage once when it mounts.
+   */
+  const [epoch, setEpoch] = useState(0);
+
   const fileInput = useRef<HTMLInputElement>(null);
 
+  // The token has done its job the moment it is read.
   useEffect(() => {
+    dropToken();
+  }, []);
+
+  useEffect(() => {
+    // Someone else's build is on screen and has not been accepted: storage is
+    // not ours to write. Every other state autosaves as before.
+    if (link.kind === 'viewing') return;
     saveBuild(input);
-  }, [input]);
+  }, [input, link.kind]);
 
   useEffect(() => {
     if (!toast) return;
@@ -41,31 +64,95 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  const update = useCallback((mutate: (draft: ArcanistInput) => void) => {
-    setInput((current) => {
-      const draft = structuredClone(current);
-      mutate(draft);
-      return draft;
-    });
+  /** A link that lands in a tab which already has the app open. */
+  const arrive = useCallback((read: HashRead) => {
+    const current = loadBuild();
+    const next = arrivalOf(read, current);
+    if (next.input) setInput(next.input);
+    setLink(next.link);
+    setToast(next.toast);
+    if (next.link.kind === 'kept') {
+      backupBuild(current);
+      untradeOffers();
+      setEpoch((n) => n + 1);
+    }
   }, []);
+
+  useEffect(() => {
+    const onHash = () => {
+      const read = readBuildFromHash(window.location.hash);
+      // Our own dropToken, or an anchor that is nothing to do with us.
+      if (read.status === 'none') return;
+      dropToken();
+      arrive(read);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, [arrive]);
+
+  /**
+   * Accept the build that arrived from a link.
+   *
+   * Editing it counts as accepting it: the alternative is discarding the edit
+   * the moment it is made, which is worse than the bug this replaced.
+   */
+  const keep = useCallback(() => {
+    if (link.kind !== 'viewing') return;
+    backupBuild(link.mine);
+    untradeOffers();
+    setEpoch((n) => n + 1);
+    setLink({ kind: 'kept', previous: link.mine });
+  }, [link]);
+
+  const update = useCallback(
+    (mutate: (draft: ArcanistInput) => void) => {
+      keep();
+      setInput((current) => {
+        const draft = structuredClone(current);
+        mutate(draft);
+        return draft;
+      });
+    },
+    [keep],
+  );
 
   const result = useMemo(() => compute(input), [input]);
 
   const share = async () => {
     const url = buildShareUrl(input);
-    window.history.replaceState(null, '', url);
     try {
       await navigator.clipboard.writeText(url);
       setToast('Link copied to clipboard');
     } catch {
-      setToast("Couldn't copy — the link is in the address bar");
+      // The old fallback put the link in the address bar, where it outlived the
+      // copy and overwrote later edits on the next reload. A field to copy from
+      // costs one more click and leaves the address bar alone.
+      setCopyLink(url);
     }
   };
 
+  /** Reset, Load example and Import: a wholesale replacement, with a way back. */
   const load = (next: ArcanistInput, message: string) => {
+    const previous = loadBuild();
+    backupBuild(previous);
+    untradeOffers();
+    setEpoch((n) => n + 1);
     setInput(next);
-    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    setLink({ kind: 'kept', previous });
+    dropToken();
     setToast(message);
+  };
+
+  const restore = () => {
+    const previous =
+      (link.kind === 'kept' ? link.previous : link.kind === 'viewing' ? link.mine : null) ??
+      loadBackup();
+    if (!previous) return;
+    setInput(previous);
+    setLink({ kind: 'none' });
+    untradeOffers();
+    setEpoch((n) => n + 1);
+    setToast('Your own build is back');
   };
 
   const sectionProps = { input, result, update };
@@ -113,6 +200,8 @@ export default function App() {
           />
         </div>
       </header>
+
+      <LinkBar link={link} onKeep={keep} onRestore={restore} onDismiss={() => setLink({ kind: 'none' })} />
 
       <Ledger input={input} result={result} update={update} />
 
@@ -169,7 +258,10 @@ export default function App() {
                 id: 'wizard',
                 title: 'Wizard Exchange',
                 icon: SECTION_ICONS.exchange,
-                content: <WizardExchange {...sectionProps} />,
+                // Keyed on the epoch so a replaced build takes the offers panel
+                // with it, rather than leaving offers credited to a tally that
+                // no longer exists.
+                content: <WizardExchange key={epoch} {...sectionProps} />,
               },
             ]}
           />
@@ -207,11 +299,101 @@ export default function App() {
         </p>
       </footer>
 
+      {copyLink ? <CopyLink url={copyLink} onClose={() => setCopyLink(null)} /> : null}
+
       {/* The live region is always mounted and only its contents change. Creating
           a role="status" element at the same moment it gains text is a race some
           screen readers lose, and the announcement is dropped. */}
       <div role="status" aria-live="polite">
         {toast ? <div className="toast">{toast}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What a link did, and how to undo it.
+ *
+ * In the page's flow rather than floating: it reports something that has just
+ * happened to the build, so it belongs above the numbers it happened to, and a
+ * floating bar would sit over the sticky ledger.
+ */
+function LinkBar({
+  link,
+  onKeep,
+  onRestore,
+  onDismiss,
+}: {
+  link: LinkState;
+  onKeep: () => void;
+  onRestore: () => void;
+  onDismiss: () => void;
+}) {
+  if (link.kind === 'viewing') {
+    return (
+      <div className="linkbar" role="status">
+        <span>
+          You&rsquo;re looking at a build someone shared. Nothing has been saved over your own.
+        </span>
+        <span className="linkbar-actions">
+          <button className="action primary" type="button" onClick={onKeep}>
+            Keep This Build
+          </button>
+          <button className="action" type="button" onClick={onRestore}>
+            Back to Mine
+          </button>
+        </span>
+      </div>
+    );
+  }
+
+  if (link.kind === 'kept' && link.previous) {
+    return (
+      <div className="linkbar" role="status">
+        <span>Your own build was saved before this one replaced it.</span>
+        <span className="linkbar-actions">
+          <button className="action" type="button" onClick={onRestore}>
+            Put Mine Back
+          </button>
+          <button
+            className="linkbar-close"
+            type="button"
+            aria-label="Dismiss this message"
+            onClick={onDismiss}
+          >
+            ×
+          </button>
+        </span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+/** The share link, for when the clipboard would not take it. */
+function CopyLink({ url, onClose }: { url: string; onClose: () => void }) {
+  const field = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    field.current?.select();
+  }, []);
+
+  return (
+    <div className="copylink" role="dialog" aria-label="Copy the share link">
+      <p>Your browser would not take the link. Copy it from here:</p>
+      <div className="copylink-row">
+        <input
+          ref={field}
+          type="text"
+          readOnly
+          value={url}
+          aria-label="Share link"
+          onFocus={(e) => e.target.select()}
+        />
+        <button className="action" type="button" onClick={onClose}>
+          Done
+        </button>
       </div>
     </div>
   );

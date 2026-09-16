@@ -38,6 +38,92 @@
   gap: 8px;
 }
 
+/* -------------------------------------------------------------- linkbar -- */
+
+/*
+ * What a link did to the build, and how to undo it.
+ *
+ * In the flow above the ledger rather than floating over it: it reports
+ * something that has just happened, the ledger below is what it happened to,
+ * and a floating bar would cover the very numbers being explained.
+ */
+.linkbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--brine) 40%, var(--seam));
+  border-left-width: 3px;
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--brine) 7%, var(--stratum));
+  font-size: var(--fs-small);
+  color: var(--text-dim);
+}
+
+.linkbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.linkbar-close {
+  border: 0;
+  background: none;
+  padding: 0 4px;
+  color: var(--text-faint);
+  font-size: var(--fs-lead);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.linkbar-close:hover {
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------- copylink -- */
+
+/* Only ever seen when the clipboard refuses the link, which is a permission
+   prompt away on any browser, so it has to be usable rather than tidy. */
+.copylink {
+  position: fixed;
+  left: 50%;
+  bottom: calc(26px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 24px));
+  z-index: 70;
+
+  padding: 12px 14px;
+  background: var(--stratum-2);
+  border: 1px solid var(--seam-bright);
+  border-radius: var(--r);
+  box-shadow: 0 18px 42px -16px #000;
+}
+
+.copylink p {
+  margin: 0 0 8px;
+  font-size: var(--fs-small);
+  color: var(--text-dim);
+}
+
+.copylink-row {
+  display: flex;
+  gap: 8px;
+}
+
+.copylink-row input {
+  flex: 1;
+  min-width: 0;
+  background: var(--void);
+  border: 1px solid var(--seam-bright);
+  border-radius: 3px;
+  padding: 6px 8px;
+  font-family: var(--mono);
+  font-size: var(--fs-small);
+}
+
 /* --------------------------------------------------------------- ledger -- */
 /*
  * The signature element: net essence per hour for all three tiers, pinned
