@@ -1,10 +1,9 @@
 /**
  * The calculator's formulas, checked against the example build.
  *
- * Expected values are worked out here from the example's levels and the game
- * data in constants.ts, so each assertion states the formula it pins rather
- * than a number nobody can check. Prices themselves are held to the game's
- * own data in gamedata.test.ts.
+ * Expected values are worked out here from the example's levels and the
+ * figures in constants.ts, so each assertion states the formula it pins rather
+ * than a number nobody can check.
  */
 
 import { describe, expect, it } from 'vitest';

@@ -1,7 +1,7 @@
 /**
  * What Wizard Exchange offers look like at the player's state.
  *
- * A port of the offer rules in the game's `resetWizards`
+ * A model of how the Exchange builds an offer
  * (docs/wizard_predict/wizard_exchange_spec.md §4), used as a distribution:
  * it samples offers of each colour so an entered offer can be placed among
  * the ones the player will see. It is not the game's RNG and predicts nothing.
@@ -60,7 +60,7 @@ const roundHalfUp = (x: number) => Math.floor(x + 0.5);
 /** `chance(num, 1000)`: an integer roll of 1..1000 at or under `num`. */
 const permille = (percent: number) => Math.min(Math.max(Math.floor(percent * 10), 0), 1000) / 1000;
 
-/** `weightedChoose`: r in 0..total inclusive, first index whose running sum reaches it. */
+/** Weighted pick: r in 0..total inclusive, first index whose running sum reaches it. */
 function weightedPick(weights: readonly number[], random: () => number): number {
   let total = 0;
   for (const w of weights) if (w > 0) total += w;
@@ -130,7 +130,7 @@ function costState(c: number, traded: WizardInput['traded']) {
   };
 }
 
-/** Sample one offer of colour index `c`, following resetWizards' order of decisions. */
+/** Sample one offer of colour index `c`, in the game's order of decisions. */
 function sampleOffer(c: number, inputs: SampleInputs, random: () => number): SampledOffer {
   const { tally, over, q, flat, base, slot1Scale, extraScale } = costState(c, inputs.traded);
   const flag = c >= 2 ? 1 : 0;

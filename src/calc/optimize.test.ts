@@ -1,8 +1,8 @@
 /**
  * Optimizer tests.
  *
- * The engine's own correctness is covered by engine.test.ts and
- * gamedata.test.ts. What matters here is that the ranking is a faithful reading of the
+ * The engine's own correctness is covered by engine.test.ts. What matters
+ * here is that the ranking is a faithful reading of the
  * engine: that every candidate maps to a real input field, that scores come out
  * of an actual recompute, and that the structural claims the module's design
  * rests on still hold if `constants.ts` changes under it.

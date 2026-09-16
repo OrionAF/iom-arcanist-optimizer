@@ -14,7 +14,7 @@ import {
   averageKill,
   chanceOf,
   critRollChance,
-  killBlock,
+  mineBlock,
   roundHalfUp,
   shinyRollChance,
   tenThousandthChance,
@@ -58,7 +58,7 @@ const never = (): BlockDraws => ({
 });
 
 const kill = (p: Partial<CombatParams>, brittle = false, draws = never()) =>
-  killBlock({ ...base, ...p }, brittle, draws);
+  mineBlock({ ...base, ...p }, brittle, draws);
 
 describe('rounding and rolls', () => {
   it('rounds half up, as non_bankers_rounding does', () => {
@@ -67,7 +67,7 @@ describe('rounding and rolls', () => {
     expect(roundHalfUp(230.75)).toBe(231);
   });
 
-  it('keeps only the whole part of a chance, within GameMaker tolerance', () => {
+  it('keeps only the whole part of a chance, within the float tolerance', () => {
     expect(critRollChance(0.0025)).toBe(0); // 0.25% can never crit
     expect(critRollChance(0.2825)).toBe(0.28);
     expect(critRollChance(0.0035 * 20 + 0.04 * 2 + 0.0025 * 25 + 0.0035 * 20)).toBe(0.28);
@@ -193,7 +193,7 @@ describe('averages', () => {
 
 describe('blocks are independent', () => {
   // The replay starts every block fresh. That is only exact if nothing from one
-  // block reaches the next, which these facts about the game data guarantee.
+  // block reaches the next, which these facts about the numbers guarantee.
   const maxRespawnCut = ESSENCE_UPGRADES.flatMap((d) =>
     d.effects.filter((e) => e.key === 'respawnReduction').map((e) => e.perLevel * d.max),
   ).reduce((a, b) => a + b, 0);

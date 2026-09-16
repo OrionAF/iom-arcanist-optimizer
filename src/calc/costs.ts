@@ -3,7 +3,7 @@ import type { CostCurve, ResourceBundle, Resource } from './types';
 /**
  * The price of buying level `level` (1-based), as the game charges it.
  *
- * The game's `upg_add` rounds every level's price half up to a whole unit, and
+ * The game rounds every level's price half up to a whole unit, and
  * buying several levels sums those rounded prices. Every price here is
  * positive, so `Math.round` is exactly round-half-up.
  */

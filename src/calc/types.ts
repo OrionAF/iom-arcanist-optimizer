@@ -1,8 +1,8 @@
 /**
  * Domain types for the Arcanist calculator.
  *
- * Game data — prices, maxima, effects — follows arcanist_costs.md, read out of
- * the game's code.
+ * Prices, maxima and effects are kept in constants.ts and match the game's
+ * own figures.
  */
 
 export type EssenceType = 'soft' | 'dense' | 'jagged' | 'necrotic';
@@ -207,7 +207,7 @@ export interface TieredCost {
 export type CostSpec = ({ kind: 'curve'; resource: Resource } & { curve: CostCurve }) | TieredCost;
 
 // ---------------------------------------------------------------------------
-// Definitions (static game data)
+// Definitions (the game's own figures)
 // ---------------------------------------------------------------------------
 
 /** How an effect prints. `minus` rows store a positive amount they subtract. */

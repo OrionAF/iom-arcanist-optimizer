@@ -23,3 +23,8 @@ card-example*.png
 arcanist-build-*.json
 # Brainstorming mockups from the visual companion.
 .superpowers/
+
+# Local-only working references: a conformance test and the data fixture it
+# reads. Neither is part of the published app.
+src/calc/gamedata.test.ts
+src/calc/__fixtures__/

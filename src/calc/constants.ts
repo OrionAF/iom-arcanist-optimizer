@@ -1,12 +1,9 @@
 /**
- * Static game data for the Arcanist.
+ * The Arcanist's numbers: names, maxima, effects, prerequisites and prices.
  *
- * Upgrade names, maxima, effects, prerequisites, prices, unlock costs, altar
- * and spell figures all follow arcanist_costs.md, which was read out of the
- * game's own code (Idle Obelisk Miner 2.2.20). It is the only source of truth
- * for them; `gamedata.test.ts` holds this file to it.
- *
- * A game balance patch should be fixable by editing this file alone.
+ * Every figure the calculator uses lives here and matches what the game
+ * itself charges and grants, so a balance patch should be fixable by editing
+ * this file alone.
  */
 
 import type {
@@ -230,7 +227,7 @@ export const BLOCKS: Record<EssenceType, BlockDef> = {
 };
 
 // ---------------------------------------------------------------------------
-// Essence upgrades (`upgs_arcana`), in the game's order
+// Essence upgrades, in the game's order
 // ---------------------------------------------------------------------------
 
 const geo = (base: number, ratio: number) => ({ kind: 'geometric' as const, base, ratio });
@@ -240,7 +237,7 @@ const curveOn = (resource: Resource, curve: ReturnType<typeof geo> | ReturnType<
 
 /*
  * Every row after the first two unlocks at a level of the row before it
- * (`upg_lock_x_in_prev`). The game's `L + L·step` prices are `arith` curves:
+ * The game's `L + L·step` prices are arithmetic curves:
  * level 1 costs `first`.
  */
 export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
@@ -613,11 +610,11 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Altars (`upgs_altar`)
+// Altars
 // ---------------------------------------------------------------------------
 
 /**
- * The game's `update_stats_altar` prices capacity and travel at a flat amount
+ * The game prices altar capacity and travel at a flat amount
  * per level, and craft multi at `craftFirst + craftStep × level`.
  */
 const altarUpgrades = (
@@ -653,8 +650,8 @@ const altarUpgrades = (
 ];
 
 /**
- * `baseCycle` is `altar_time_base`; `consumes` is `altar_input`. The Flora and
- * Ghost altars exist in the game's code but are not released, so they are not
+ * `baseCycle` and `consumes` are the altar's own cycle time and essence. The Flora and
+ * Ghost altars are not released yet, so they are not
  * modelled.
  */
 export const ALTARS: Record<AltarId, AltarDef> = {
@@ -712,13 +709,13 @@ export const ALTAR_TRAVEL_PER_LEVEL = 0.05;
 export const ALTAR_CRAFT_PER_LEVEL = 0.2;
 
 // ---------------------------------------------------------------------------
-// Spells (`upgs_spell`)
+// Spells
 // ---------------------------------------------------------------------------
 
 /*
  * Potency, cast costs, mana, duration and effect bases are the game's. The
  * primary effect is the spell's active base and the secondary its passive
- * base. The game's code does not state a spell level cap; 50 is used for all.
+ * base. The game states no spell level cap; 50 is used for all.
  */
 export const SPELLS: Record<SpellId, SpellDef> = {
   runicSurge: {
@@ -929,7 +926,7 @@ export const SPELL_EFFECT_PER_LEVEL = 0.05;
 export const POTENCY_PER_RANK = 0.05;
 
 // ---------------------------------------------------------------------------
-// Exchange (`upgs_exchange`)
+// Exchange
 // ---------------------------------------------------------------------------
 
 /**
@@ -1028,7 +1025,7 @@ export const CONTRACT_RUNE_CRAFT = {
 // ---------------------------------------------------------------------------
 
 /**
- * Wizard Exchange offer rules, from `resetWizards` in the game's code.
+ * Wizard Exchange offer rules, as the game builds them.
  *
  * Arrays indexed by orb colour run White, Green, Purple, Orange, Red, Yellow.
  * Arrays indexed by cost category follow the game's own twelve:
@@ -1086,8 +1083,7 @@ export interface WizardItem {
 }
 
 /**
- * The items each item tier can ask, with their caps, from `adjust` in
- * resetWizards (docs/wizard_predict/wizard_exchange_spec.md §4.4).
+ * The items each item tier can ask, with their caps.
  *
  * Tier 1 asks are capped at 40,000 and Tier 2 at 30,000, each ×0.95–1.05, and
  * then some items divide that down. Below the cap the ask grows with your

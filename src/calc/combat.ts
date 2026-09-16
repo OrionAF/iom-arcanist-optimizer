@@ -1,11 +1,10 @@
 /**
- * Essence block combat, replayed exactly as the game runs it.
+ * Essence block combat, modelled to match what the game does.
  *
- * Source: docs/essence_block_combat.html, decompiled from the game's
- * `tickArcanistTime` and `attackEssence`. The game advances time from event to
- * event, not in ticks, and so does this. `killBlock` is that step loop, cut
- * down to the parts that decide when a block dies: your attack bar, the
- * block's regen and debuff clocks, and your Stun, Weaken and Daze timers.
+ * The game advances time from one event to the next rather than in fixed
+ * ticks, and so does this. `mineBlock` is that loop, kept to the parts that
+ * decide when a block dies: your attack bar, the block's regen and debuff
+ * clocks, and your Stun, Weaken and Daze timers.
  *
  * Averages come from replaying many blocks, not from a closed form. There is
  * no exact closed form: debuffs shift when swings land, swing timing decides
@@ -26,7 +25,7 @@
  *     spells) change none of them, so they cost nothing to score.
  *
  * Blocks are independent, which is what lets one block's replay stand for an
- * hour of mining. That relies on two facts about the game data, both pinned in
+ * hour of mining. That relies on two facts about the numbers, both pinned in
  * `combat.test.ts`: every debuff runs out before the shortest possible
  * respawn, so nothing carries over, and the attack bar always refills during
  * respawn, so every block opens with a hit at the moment it spawns.
@@ -34,10 +33,10 @@
 
 import type { WeightedOutcome } from './types';
 
-/** GameMaker's comparison tolerance, `g_GMLMathEpsilon`. */
-export const GML_EPSILON = 0.00001;
+/** The tolerance the game compares floating-point values with. */
+export const EPSILON = 0.00001;
 
-/** The block rolls for debuffs this often (`debuff_proc_delay`). */
+/** The block rolls for debuffs this often. */
 export const DEBUFF_ROLL_INTERVAL = 1;
 
 /** A brittle block spawns at this share of its max HP. */
@@ -57,7 +56,7 @@ export const COMBAT_SAMPLES = 10000;
  */
 export const KILL_TIME_CAP = 6 * 3600;
 
-const gt0 = (x: number) => x > GML_EPSILON;
+const gt0 = (x: number) => x > EPSILON;
 
 /** `non_bankers_rounding`: .5 rounds up. */
 export const roundHalfUp = (x: number) => Math.floor(x + 0.5);
@@ -67,7 +66,7 @@ export const roundHalfUp = (x: number) => Math.floor(x + 0.5);
  * when it is at most `a`, so only the whole part of `a` counts.
  */
 export const chanceOf = (a: number, b: number) =>
-  a <= 0 ? 0 : Math.min(Math.floor(a + GML_EPSILON), b) / b;
+  a <= 0 ? 0 : Math.min(Math.floor(a + EPSILON), b) / b;
 
 /** Chance a crit, super crit or ultra crit rolls, from a stat stored as a fraction. */
 export const critRollChance = (fraction: number) => chanceOf(fraction * 100, 100);
@@ -165,8 +164,7 @@ export interface BlockDraws {
 /**
  * Replay one block from spawn to its killing hit.
  *
- * Follows the pass order of `tickArcanistTime` (doc section 03): charge the
- * bar unless stunned, regen, attack, then roll debuffs if the block survived,
+ * Follows the game's pass order: charge the bar unless stunned, regen, attack, then roll debuffs if the block survived,
  * then tick your debuff timers down and refresh attack speed if one changed.
  * Rolls happen at 1 s, 2 s, 3 s… after spawn; only the ones that land are
  * visited, in the game's order (weaken, daze, stun).
@@ -175,7 +173,7 @@ export interface BlockDraws {
  * "time until the bar fills" as a step length, though the bar cannot move. It
  * would take the same total time in many small steps; this takes one.
  */
-export function killBlock(
+export function mineBlock(
   p: CombatParams,
   brittle: boolean,
   draws: BlockDraws,
@@ -226,7 +224,7 @@ export function killBlock(
 
     let needStats = false;
 
-    if (progress >= 1 - GML_EPSILON) {
+    if (progress >= 1 - EPSILON) {
       const weakened = gt0(weaken);
       const u1 = draws.hit();
       const u2 = draws.hit();
@@ -338,7 +336,7 @@ function replay(p: CombatParams, brittle: boolean, samples: number): Tally {
     capped: false,
   };
   for (let i = 0; i < samples; i++) {
-    const r = killBlock(p, brittle, {
+    const r = mineBlock(p, brittle, {
       hit: stream(seedFor(i, 1)),
       stun: stream(seedFor(i, 2)),
       weaken: stream(seedFor(i, 3)),

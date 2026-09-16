@@ -28,7 +28,7 @@ jobs:
 
       - run: npm ci
 
-      # The tests hold the calculator to the game data; never publish without them.
+      # The tests are what keep the published numbers honest; never skip them.
       - run: npm test
 
       - run: npm run build
