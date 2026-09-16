@@ -29,7 +29,7 @@ export const TIER_LABELS: Record<RhinoCardTier, string> = {
  * One card: the tier's frame with the card's own art layered inside it, the
  * name above, and the tier picker below.
  *
- * A card you do not own has no frame to draw, so the slot reads "Locked"
+ * A card you do not own has no frame to draw, so the slot reads "Not owned"
  * instead of showing a frameless icon that would look like a bug.
  */
 export function CardTile<T extends RhinoCardTier = CardTier>({
@@ -51,7 +51,7 @@ export function CardTile<T extends RhinoCardTier = CardTier>({
       <div className="card-name">{name}</div>
       <div className="card-art">
         {tier === 'none' ? (
-          <span className="card-locked">Locked</span>
+          <span className="card-locked">Not owned</span>
         ) : (
           <span className="card-frame">
             <img
@@ -177,8 +177,8 @@ export function Cards({ input, result, update }: Props) {
         ))}
       </div>
       <p className="note" style={{ padding: '4px 16px 16px' }}>
-        Orb cards change no Arcanist numbers, but they are Arcanist cards, so they count toward the
-        tier total.
+        Orb cards don't change any Arcanist upgrade numbers, but they raise Wizard Exchange orb
+        rewards, and as Arcanist cards they count toward the tier total.
       </p>
     </TabBody>
   );

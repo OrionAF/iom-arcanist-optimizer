@@ -1,6 +1,7 @@
 import {
   ALTARS,
   ALTAR_IDS,
+  ESSENCE_LABELS,
   ESSENCE_UPGRADES,
   RESOURCE_LABELS,
   SPELLS,
@@ -71,11 +72,14 @@ function CostRow({
   row,
   max,
   icon,
+  group,
   onChange,
 }: {
   row: UpgradeCost;
   max: number;
   icon?: string;
+  /** Names the row's owner to a screen reader where the label alone repeats, as on every altar. */
+  group?: string;
   onChange: (next: number) => void;
 }) {
   const blocked = row.blockedBy && row.level === 0;
@@ -93,8 +97,8 @@ function CostRow({
             {row.blockedBy ? (
               // Every prerequisite is the row directly above, so the long
               // label rides in the tooltip rather than doubling the row.
-              <span className="requires" title={`Needs ${row.blockedBy.label} at level ${row.blockedBy.level}`}>
-                Needs Lv {row.blockedBy.level} of the upgrade above
+              <span className="requires" title={`Needs level ${row.blockedBy.level} of ${row.blockedBy.label}`}>
+                Needs level {row.blockedBy.level} of the upgrade above
               </span>
             ) : null}
           </span>
@@ -103,7 +107,12 @@ function CostRow({
       {/* `data-label` is what the narrow layout prints in front of the stepper,
           standing in for the column header it no longer sits under. */}
       <td role="cell" className="ctl" data-label="Level">
-        <LevelInput value={row.level} max={max} onChange={onChange} label={row.label} />
+        <LevelInput
+          value={row.level}
+          max={max}
+          onChange={onChange}
+          label={group ? `${group} ${row.label}` : row.label}
+        />
       </td>
       <td role="cell" className="effect">
         {row.effectText}
@@ -166,6 +175,9 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
   const rows = result.rows.altars[id];
   const unlockRow = result.rows.altarUnlocks.find((r) => r.id === `${id}.unlock`);
   const needsUnlock = Object.keys(def.unlockCost).length > 0;
+  const running = state.active && state.unlocked;
+  const pool = result.essence[def.consumes];
+  const overdrawn = running && pool.altarDrain > pool.essencePerHour;
 
   return (
     <>
@@ -238,6 +250,7 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
                   key={row.id}
                   row={row}
                   max={up.max}
+                  group={def.label}
                   onChange={(next) =>
                     update((draft) => {
                       draft.altars[id][up.key] = next;
@@ -257,21 +270,22 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
           help="altarRunesPerCycle"
           value={formatNumber(outcome.runesPerCycle, 2)}
         />
-        {/* The sustained rate is the one to plan on, so it takes the headline
-            and the nominal rate drops to a footnote — but only when they
-            differ, which is only when the pool cannot keep this altar fed. */}
+        {/* What the altar crafts while it runs, whatever is being mined; an
+            altar that is not running crafts nothing. When every altar on this
+            essence together wants more than the essence earns, say so here
+            rather than quietly shrinking the number. */}
         <Stat
           label={`${RESOURCE_LABELS[def.rune]}s / hr`}
           help="altarRunesPerHour"
           value={
             <>
-              <span style={{ color: `var(--res-${def.rune})` }}>
-                {formatNumber(outcome.sustainedRunesPerHour, 2)}
+              <span style={{ color: running ? `var(--res-${def.rune})` : undefined }}>
+                {formatNumber(running ? outcome.runesPerHour : 0, 2)}
               </span>
-              {outcome.supplyFactor < 1 ? (
+              {overdrawn ? (
                 <span className="stat-note">
-                  starved · {formatNumber(outcome.supplyFactor * 100, 0)}% of{' '}
-                  {formatNumber(outcome.runesPerHour, 2)}
+                  ⚠ Altar drain {formatNumber(pool.altarDrain, 2)}/hr is more than{' '}
+                  {ESSENCE_LABELS[def.consumes]} income {formatNumber(pool.essencePerHour, 2)}/hr
                 </span>
               ) : null}
             </>
@@ -469,7 +483,7 @@ export function Stats({ result }: { result: ArcanistResult }) {
       <dl className="stats three">
         <Stat label="Damage" help="statDamage" value={formatNumber(damage)} />
         <Stat
-          label="Attack speed"
+          label="Attack Speed"
           help="statAttackInterval"
           value={
             <>
@@ -481,18 +495,18 @@ export function Stats({ result }: { result: ArcanistResult }) {
             </>
           }
         />
-        <Stat label="Armour pen" help="statArmorPen" value={formatNumber(s.armorPen)} />
+        <Stat label="Armor Pen" help="statArmorPen" value={formatNumber(s.armorPen)} />
 
-        <Stat label="Crit chance" help="statCritChance" value={formatPercent(s.critChance)} />
-        <Stat label="Super crit chance" help="statSuperCrit" value={formatPercent(s.superCritChance)} />
-        <Stat label="Ultra crit chance" help="statUltraCrit" value={formatPercent(s.ultraCritChance)} />
+        <Stat label="Crit Chance" help="statCritChance" value={formatPercent(s.critChance)} />
+        <Stat label="Super Crit Chance" help="statSuperCrit" value={formatPercent(s.superCritChance)} />
+        <Stat label="Ultra Crit Chance" help="statUltraCrit" value={formatPercent(s.ultraCritChance)} />
 
         {/* The multiplier stays the headline; the hit it produces rides beside
             it, so the Damage stat above has something to be read against. Both
             are pre-armour, as that one is. Each tier compounds the ones below
             it, because a hit only reaches it by passing through them. */}
         <Stat
-          label="Crit damage"
+          label="Crit Damage"
           help="statCritDamage"
           value={
             <>
@@ -502,7 +516,7 @@ export function Stats({ result }: { result: ArcanistResult }) {
           }
         />
         <Stat
-          label="Super crit damage"
+          label="Super Crit Damage"
           help="statSuperCritDamage"
           value={
             <>
@@ -514,7 +528,7 @@ export function Stats({ result }: { result: ArcanistResult }) {
           }
         />
         <Stat
-          label="Ultra crit damage"
+          label="Ultra Crit Damage"
           help="statUltraCritDamage"
           value={
             <>
@@ -526,36 +540,36 @@ export function Stats({ result }: { result: ArcanistResult }) {
           }
         />
 
-        <Stat label="Stun negate" help="statStunNegate" value={formatPercent(s.stunNegate)} />
-        <Stat label="Weaken negate" help="statWeakenNegate" value={formatPercent(s.weakenNegate)} />
-        <Stat label="Daze negate" help="statDazeNegate" value={formatPercent(s.dazeNegate)} />
+        <Stat label="Stun Negate" help="statStunNegate" value={formatPercent(s.stunNegate)} />
+        <Stat label="Weaken Negate" help="statWeakenNegate" value={formatPercent(s.weakenNegate)} />
+        <Stat label="Daze Negate" help="statDazeNegate" value={formatPercent(s.dazeNegate)} />
 
-        <Stat label="Shiny chance" help="statShinyChance" value={formatPercent(s.shinyChance)} />
+        <Stat label="Shiny Chance" help="statShinyChance" value={formatPercent(s.shinyChance)} />
         <Stat
-          label="Super shiny chance"
+          label="Super Shiny Chance"
           help="statSuperShiny"
           value={formatPercent(s.superShinyChance)}
         />
         <Stat
-          label="Ultra shiny chance"
+          label="Ultra Shiny Chance"
           help="statUltraShiny"
           value={formatPercent(s.ultraShinyChance)}
         />
 
-        <Stat label="Shiny loot buff" help="statShinyBonus" value={`+${formatNumber(s.shinyBonus)}`} />
+        <Stat label="Shiny Loot Buff" help="statShinyBonus" value={`+${formatNumber(s.shinyBonus)}`} />
         <Stat
-          label="Super shiny loot buff"
+          label="Super Shiny Loot Buff"
           help="statSuperShinyBonus"
           value={`+${formatNumber(s.superShinyBonus)}`}
         />
         <Stat
-          label="Ultra shiny loot buff"
+          label="Ultra Shiny Loot Buff"
           help="statUltraShinyBonus"
           value={`+${formatNumber(s.ultraShinyBonus)}`}
         />
 
         <Stat
-          label="Brittle chance"
+          label="Brittle Chance"
           help="statBrittleChance"
           value={formatPercent(s.brittleChance)}
         />

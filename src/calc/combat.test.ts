@@ -104,7 +104,7 @@ describe('one block, deterministic', () => {
   });
 
   it('applies weaken before armour, rounding half up', () => {
-    // The doc's example: 248 damage, weaken ×0.4, 15 armour less 9 pen.
+    // The doc's example: 248 damage, weaken ×0.4, 15 armour minus 9 pen.
     // round(99.2) − 6 = 93 per weakened hit. Weaken lands on the 1 s roll and
     // is refreshed every second after, so every hit from 2 s on is weakened.
     const p = { atk: 248, armorLeft: 6, atkSpd: 0.5, weakenP: 1, weakenEffect: 0.4, maxHp: 242 + 93 * 2, regenAmount: 0 };

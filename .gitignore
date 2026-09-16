@@ -21,3 +21,5 @@ card-example*.png
 
 # Local build exports from the app's Export button.
 arcanist-build-*.json
+# Brainstorming mockups from the visual companion.
+.superpowers/

@@ -211,7 +211,7 @@ export type CostSpec = ({ kind: 'curve'; resource: Resource } & { curve: CostCur
 // ---------------------------------------------------------------------------
 
 /** How an effect prints. `minus` rows store a positive amount they subtract. */
-export type EffectDisplay = 'flat' | 'percent' | 'minus' | 'minusSeconds';
+export type EffectDisplay = 'flat' | 'percent' | 'minus' | 'minusPercent' | 'minusSeconds';
 
 export interface EffectDef {
   key: EffectKey;
@@ -437,6 +437,105 @@ export interface ArcanistInput {
    * can keep an altar fed.
    */
   mining: EssenceType;
+  wizard: WizardInput;
+}
+
+// ---------------------------------------------------------------------------
+// Wizard Exchange
+// ---------------------------------------------------------------------------
+
+/**
+ * The currencies a wizard can ask for in its extra cost slots, as the player
+ * ranks them. PP is not listed: it is bought with gems, so it is scored as a
+ * gem cost. Order matters: the index is what share links encode.
+ */
+export type CurrencyCategory =
+  | 'stars'
+  | 'bars'
+  | 'veins'
+  | 'fragments'
+  | 'fish'
+  | 'gems'
+  | 'commonItems'
+  | 'food'
+  | 'rareItems';
+
+export const CURRENCY_CATEGORIES: readonly CurrencyCategory[] = [
+  'stars',
+  'bars',
+  'veins',
+  'fragments',
+  'fish',
+  'gems',
+  'commonItems',
+  'food',
+  'rareItems',
+];
+
+/** What an offer's extra cost can be: a ranked currency, or PP. */
+export type OfferCategory = CurrencyCategory | 'pp';
+
+/** Wizard Exchange settings and per-colour state. Part of the build. */
+export interface WizardInput {
+  /** Final values from the in-game stats menu. Multipliers as ×, chances in percent. */
+  lootMulti: number;
+  partyChance: number;
+  partyMulti: number;
+  blindChance: number;
+  discoChance: number;
+  flashbangChance: number;
+  /** Wizards shown per refresh, 6–9. */
+  wizardCount: number;
+  /** Exchange Timer −2 Minutes. */
+  exchangeTimerLevel: number;
+  /** Poly Orb Card Multi +2.5%: lifts Polychrome Orb cards only. */
+  polyOrbLevel: number;
+  /** Essence/rune hours on one trade that hurt as much as the least-liked currency. */
+  comfortHours: number;
+  /** PP received from 100 Large Resource Packs (37,500 gems). 0 when not set. */
+  ppPer100Packs: number;
+  /** Top = very easy to obtain. Always a permutation of CURRENCY_CATEGORIES. */
+  preference: CurrencyCategory[];
+  /**
+   * The green bar, as how many categories sit above it: those rows score
+   * nearly alike, still in order. 0 puts it at the top, where it does nothing.
+   */
+  negligibleBar: number;
+  /**
+   * The red bar, as how many categories sit above it: a wide gap between the
+   * row above and the row below. At the top or bottom it does nothing.
+   */
+  gapBar: number;
+  /**
+   * "Orbs Traded" per colour: orbs received from wizards. The satchel is not
+   * stored — it is this minus what the bought upgrades cost (see need.ts).
+   */
+  traded: Record<OrbCardId, number>;
+}
+
+/** Slot 1 of an offer: essence or runes, tier 0–2 (Soft/Dense/Jagged, Ash/Brine/Chasm). */
+export interface OfferSlot1 {
+  kind: 'essence' | 'rune';
+  tier: 0 | 1 | 2;
+  amount: number;
+}
+
+export interface OfferExtra {
+  category: OfferCategory;
+  /** Only read for gems and PP; every other category is ranked by position alone. */
+  amount: number;
+}
+
+/** A wizard offer the player has entered. Kept in the browser, not the build. */
+export interface WizardOffer {
+  id: string;
+  colour: OrbCardId;
+  orbs: number;
+  party: boolean;
+  blind: boolean;
+  slot1: OfferSlot1;
+  extras: OfferExtra[];
+  traded: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -559,7 +658,7 @@ export interface EssenceOutcome {
   brittleBlocksPerHour: number;
   altarDrain: number;
   /**
-   * Income less the full altar drain.
+   * Income minus the full altar drain.
    *
    * It can go negative, which the game cannot: altars stall rather than
    * overdraw a pool. Use `sustainedNet` for anything user-facing.

@@ -14,6 +14,7 @@ import type {
   EssenceType,
   EssenceUpgradeId,
   ExchangeUpgradeId,
+  OfferCategory,
   OrbCardId,
   Resource,
   RhinoCardTier,
@@ -160,6 +161,60 @@ export const MISC_ICONS = {
   superShiny: icon('Shiny_Multiplier.png'),
   brittleChance: icon('Brittle_Essence_Chance.png'),
 } as const;
+
+/** Wizard settings, from the "Exchange Wizard scoring system" block of Icon-ref-links.txt. */
+export const WIZARD_ICONS = {
+  lootMulti: icon('Exchange_Wizard_Loot_Multi.png'),
+  partyChance: icon('Party_Wizard_Chance.png'),
+  partyMulti: icon('Party_Wizard_Multi.png'),
+  blindChance: icon('Blind_Wizard_Chance.png'),
+  discoChance: icon('Disco_Wizard_Chance.png'),
+  flashbangChance: icon('Flashbang_Wizard_Chance.png'),
+  wizardCount: icon('Exchange.png'),
+  exchangeTimer: icon('Hourglass.png'),
+  // The wiki gives Poly Orb Card Multi the Wizard Loot Multi art.
+  polyOrb: icon('Exchange_Wizard_Loot_Multi.png'),
+} as const;
+
+/** What each wizard cost category is drawn as. Item tiers show one of their items. */
+export const CATEGORY_ICONS: Record<OfferCategory, string> = {
+  stars: icon('Telescope.png'),
+  bars: icon('Tin_Bar.png'),
+  veins: icon('Stone_Vein.png'),
+  fragments: icon('Archaeology_Fragment_Gain.png'),
+  fish: icon('Bass.png'),
+  gems: icon('Gem.png'),
+  commonItems: icon('Apple.png'),
+  food: icon('Rainbow_Lollipop.png'),
+  rareItems: icon('Cosmic_Candy.png'),
+  pp: icon('Prestige_Point.png'),
+};
+
+/** The items a wizard can ask, keyed by WIZARD_ITEMS ids. */
+export const ITEM_ICONS: Record<string, string> = {
+  apple: icon('Apple.png'),
+  bananaCoffee: icon('Banana_Coffee.png'),
+  rockCake: icon('Rock_Cake.png'),
+  primalMeat: icon('Primal_Meat.png'),
+  bread: icon('Bread.png'),
+  pike: icon('Pike.png'),
+  juicyPlums: icon('Juicy_Plums.png'),
+  strawberries: icon('Strawberries.png'),
+  chargeMagnet: icon('Charge_Magnet.png'),
+  chaosTotem: icon('Chaos_Totem.png'),
+  droneJuice: icon('Drone_Juice.png'),
+  eyeOfNewt: icon('Eye_of_Newt.png'),
+  hamburger: icon('Hamburger.png'),
+  starfruit: icon('Starfruit.png'),
+  rainbowLollipop: icon('Rainbow_Lollipop.png'),
+  lasagna: icon('Lasagna.png'),
+  iceCream: icon('Ice_Cream.png'),
+  blueCow: icon('Blue_Cow.png'),
+  lootbugLantern: icon('Lootbug_Lantern.png'),
+  frogspawn: icon('Frogspawn.png'),
+  goldFlakeSteak: icon('Gold_Flake_Steak.png'),
+  cosmicCandy: icon('Cosmic_Candy.png'),
+};
 
 // ---------------------------------------------------------------------------
 // Cards

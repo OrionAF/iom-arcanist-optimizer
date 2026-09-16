@@ -94,6 +94,29 @@ export function formatCompact(value: number): string {
   return `${text}${SHORT_SUFFIXES[index] ?? ''}`;
 }
 
+/**
+ * Suffixes players type that `formatCompact` does not print: the game's own
+ * spellings for 1e15, 1e57 and 1e60. Each maps to its power-of-1000 index.
+ */
+const SUFFIX_ALIASES: Record<string, number> = { q: 5, ocdc: 19, nvdc: 20 };
+
+/**
+ * Read an amount the way the game and `formatCompact` write it: "82.717Sp",
+ * "1.2k", "8.27e25", "37,500" or plain digits. Suffixes are case-insensitive.
+ * Returns NaN for anything else, so a typo is caught rather than read as zero.
+ */
+export function parseAmount(text: string): number {
+  const cleaned = text.trim().replace(/[,_\s]/g, '');
+  if (cleaned === '') return NaN;
+  const match = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)([a-z]*)$/i.exec(cleaned);
+  if (!match) return NaN;
+  const value = Number(match[1]);
+  const suffix = match[2]!.toLowerCase();
+  if (suffix === '') return value;
+  const index = SUFFIX_ALIASES[suffix] ?? SHORT_SUFFIXES.findIndex((s) => s.toLowerCase() === suffix);
+  return index > 0 ? value * 10 ** (index * 3) : NaN;
+}
+
 /*
  * Prices. The engine already charges whole units, as the game does, so these
  * only pick the style. The resource is kept in the signature so a per-resource
@@ -133,9 +156,20 @@ export function formatEffect(value: number, display: EffectDisplay): string {
     // Reductions are stored as positive amounts and printed as what they take off.
     case 'minus':
       return value === 0 ? '−0' : `−${formatNumber(value)}`;
+    case 'minusPercent':
+      return value === 0 ? '−0%' : `−${formatPercent(value)}`;
     case 'minusSeconds':
       return value === 0 ? '−0s' : `−${formatNumber(value)}s`;
   }
+}
+
+/**
+ * A game upgrade name as displayed. The data keeps the game's own spelling,
+ * hyphens included ("Respawn Time -1s"), so it can be checked against the
+ * game; on screen a reduction takes a true minus sign, matching the effects.
+ */
+export function displayLabel(label: string): string {
+  return label.replace(/(^|\s)-(?=\d)/g, '$1−');
 }
 
 /**

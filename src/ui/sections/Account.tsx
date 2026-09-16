@@ -97,12 +97,12 @@ export function Pets({ input, result, update }: Props) {
         <div className="pet-main">
           <Field
             label="Rhino Pet Level"
-            hint={`+1% Essence Brittle Chance per level · now ${formatPercent(derived.petBrittle)}`}
+            hint={`+1% Essence Brittle Chance per level · now +${formatPercent(derived.petBrittle)}`}
           >
             <LevelInput
               value={pets.rhinoLevel}
               max={PET.maxLevel}
-              label="Rhino Pet Level"
+              label="Rhino Pet"
               onChange={(next) =>
                 update((draft) => {
                   draft.external.pets.rhinoLevel = next;
@@ -129,9 +129,9 @@ export function Pets({ input, result, update }: Props) {
               label="Rhino Quest Skin"
               effects={
                 pets.rhinoQuestSkin
-                  ? `Essence Shiny Chance ${formatPercent(
+                  ? `+${formatPercent(
                       derived.petQuestShiny,
-                    )} · Arcanist Spell Power ${formatPercent(derived.petSpellPower)}`
+                    )} Essence Shiny Chance · +${formatPercent(derived.petSpellPower)} Arcanist Spell Power`
                   : 'Grants Essence Shiny Chance and Arcanist Spell Power once unlocked'
               }
               checked={pets.rhinoQuestSkin}
@@ -147,7 +147,7 @@ export function Pets({ input, result, update }: Props) {
                   <LevelInput
                     value={pets.rhinoQuestLevel}
                     max={PET.maxQuestLevel}
-                    label="Rhino Quest Skin level"
+                    label="Rhino Quest Skin"
                     onChange={(next) =>
                       update((draft) => {
                         draft.external.pets.rhinoQuestLevel = next;
@@ -196,8 +196,8 @@ export function Pets({ input, result, update }: Props) {
             }
           />
           <p className="note">
-            Essence Super Shiny Chance; Infernal keeps that and adds Essence Ultra Shiny Chance.
-            Not one of the Arcanist card blocks, so it does not count toward Essence Damage +1 Per Arcanist Card Tier Owned.
+            Grants Essence Super Shiny Chance; the Infernal tier also adds Essence Ultra Shiny Chance.
+            It is not an Arcanist card, so it does not count toward Essence Damage +1 Per Arcanist Card Tier Owned.
           </p>
         </div>
       </div>
@@ -233,7 +233,7 @@ export function OtherUnlocks({ input, result, update }: Props) {
           onChange={(v) => set('worldQuest29', v)}
         />
 
-        <Subhead>Skill-tree</Subhead>
+        <Subhead>Skill Tree</Subhead>
         <UnlockRow
           icon={UNLOCK_ICONS.straightOuttaYanille}
           label="Straight Outta Yanille"
@@ -289,6 +289,7 @@ export function OtherUnlocks({ input, result, update }: Props) {
                 value={unlocks.w4GildedStatues}
                 max={UNLOCKS.maxW4GildedStatues}
                 label="W4 gilded statues owned"
+                inputLabel="W4 gilded statues owned"
                 onChange={(v) => set('w4GildedStatues', v)}
               />
             </div>
@@ -382,8 +383,9 @@ export function OtherUnlocks({ input, result, update }: Props) {
         })}
       </div>
       <p className="note" style={{ marginTop: 10 }}>
-        Mana regen and Wizard Loot Multi are listed for completeness; neither feeds any number the
-        Arcanist calculator produces.
+        Two listed effects are not applied here: Straight Outta Yanille&apos;s Arcanist Mana Regen,
+        which nothing in this calculator uses, and the Arcanist Bundle&apos;s Wizard Loot Multi,
+        which is already part of the Wizard Loot Multi you enter under Wizard Exchange.
       </p>
     </TabBody>
   );

@@ -44,15 +44,25 @@ A card is drawn as its tier's frame with the card's own art layered inside:
 | Orbs | `Card_Backing_*.png` | `White_/Green_/…_Orb.png` |
 | Rhino Pet | `Card_Backing_*.png` | `Rhino_Default.png` |
 
-There is no frame for an unowned card, so those slots read "Locked" rather than
+There is no frame for an unowned card, so those slots read "Not owned" rather than
 showing a frameless icon.
 
-## Unused
+## Wizard Exchange
 
-Downloaded and available, but nothing in the Arcanist model uses them:
-`Blind_Wizard_Chance.png`, `Disco_Wizard_Chance.png`,
-`Flashbang_Wizard_Chance.png`, `Party_Wizard_Chance.png`,
-`Party_Wizard_Multi.png`.
+The Wizard settings use the art listed under "Exchange Wizard scoring system" in
+`Icon-ref-links.txt`: `Exchange_Wizard_Loot_Multi.png` (also Poly Orb Card Multi),
+`Party_Wizard_Chance.png`, `Party_Wizard_Multi.png`, `Blind_Wizard_Chance.png`,
+`Disco_Wizard_Chance.png`, `Flashbang_Wizard_Chance.png`, `Exchange.png` (Number of
+Wizards) and `Hourglass.png` (Exchange Timer). `Prestige_Point.png` is the wiki's
+16px thumbnail and marks PP costs.
+
+Cost categories: `Telescope.png` (Stars), `Tin_Bar.png` (Bars), `Stone_Vein.png`
+(Veins), `Archaeology_Fragment_Gain.png` (Archaeology Fragments), `Bass.png` (Fish),
+`Gem.png` (Gems), and one item standing for each item tier: `Apple.png` (Tier 1),
+`Rainbow_Lollipop.png` (Tier 2), `Cosmic_Candy.png` (Tier 3). Every item a wizard
+can ask has its own icon under its wiki name, listed in the item tier popovers.
+
+## Unused
 
 Arcanist batch 2 art, downloaded for content that isn't modelled yet (see
 BATCH2-PENDING.md): the six new spells (`Diggy_Diggy_Hole`, `Blue_Giant`,
@@ -76,3 +86,7 @@ frame) are the real thing.
 `src/ui/icons.test.ts` checks every path the catalog exports against a real file
 in `public/icons/`, gathering the paths from the module rather than a list, so a
 new catalog cannot be silently left out of the check.
+
+## Interface icons
+
+The trash-can button on a wizard card is `trash-2` from [Lucide](https://lucide.dev/) (ISC licence), inlined as SVG.

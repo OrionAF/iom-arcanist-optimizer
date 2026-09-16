@@ -5,12 +5,13 @@
  * build" rather than a blank screen.
  */
 
-import type { ArcanistInput } from '../calc/types';
+import type { ArcanistInput, WizardOffer } from '../calc/types';
 import { SCHEMA_VERSION, fromSavedBuild, toSavedBuild } from './schema';
 
 const STORAGE_KEY = 'iom-arcanist-optimizer:build';
 const PANELS_KEY = 'iom-arcanist-optimizer:panels';
 const TABS_KEY = 'iom-arcanist-optimizer:tabs';
+const OFFERS_KEY = 'iom-arcanist-optimizer:wizard-offers';
 
 export function loadBuild(): ArcanistInput | null {
   try {
@@ -105,6 +106,27 @@ export function saveTab(panelId: string, tabId: string): void {
  */
 export function pickTab(saved: string | undefined, tabIds: readonly string[]): string {
   return saved !== undefined && tabIds.includes(saved) ? saved : (tabIds[0] ?? '');
+}
+
+/**
+ * The Wizard Exchange offers on screen. Browser-only: they are replaced every
+ * refresh, so they have no place in a build or a share link.
+ */
+export function loadOffers(): unknown {
+  try {
+    const raw = localStorage.getItem(OFFERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveOffers(offers: readonly WizardOffer[]): void {
+  try {
+    localStorage.setItem(OFFERS_KEY, JSON.stringify(offers));
+  } catch {
+    // A convenience, not a requirement.
+  }
 }
 
 export function exportToFile(input: ArcanistInput): void {

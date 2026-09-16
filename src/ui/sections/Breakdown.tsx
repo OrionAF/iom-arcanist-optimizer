@@ -67,7 +67,7 @@ export function Breakdown({ result }: { result: ArcanistResult }) {
   const { averages } = result;
 
   return (
-    <Section title="Show the math" eyebrow="derivation" defaultOpen={false}>
+    <Section title="Show the Math" eyebrow="derivation" defaultOpen={false}>
       <WeightTable
         caption="Shiny proc"
         help="mathShinyTable"

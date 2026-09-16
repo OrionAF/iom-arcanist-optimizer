@@ -45,7 +45,7 @@ import {
   type KillAverages,
 } from './combat';
 import { addBundle, curveCost, tieredCost } from './costs';
-import { formatEffect } from './format';
+import { displayLabel, formatEffect } from './format';
 import type {
   AltarId,
   AltarOutcome,
@@ -652,7 +652,7 @@ export function unmetRequirement(
   const parent = ESSENCE_UPGRADES.find((d) => d.id === req.id);
   if (!parent) return undefined;
   if (clampLevel(input.essence[req.id], parent.max) >= req.level) return undefined;
-  return { label: parent.label, level: req.level };
+  return { label: displayLabel(parent.label), level: req.level };
 }
 
 function buildRows(
@@ -665,7 +665,7 @@ function buildRows(
       .map((e) => `${e.label} ${formatEffect(level * e.perLevel, e.display)}`)
       .join(' · ');
     const blockedBy = unmetRequirement(input, def);
-    return costRow(def.id, def.label, level, def.max, def.cost, effectText, def.note, blockedBy);
+    return costRow(def.id, displayLabel(def.label), level, def.max, def.cost, effectText, def.note, blockedBy);
   });
 
   const altars = {} as Record<AltarId, UpgradeCost[]>;
@@ -678,11 +678,12 @@ function buildRows(
     altars[id] = def.upgrades.map((up) => {
       const level = clampLevel(raw[up.key], up.max);
       const perLevel = up.key === 'travel' ? ALTAR_TRAVEL_PER_LEVEL : ALTAR_CRAFT_PER_LEVEL;
-      // Capacity is a count that starts at 1, not a percentage bonus.
+      // Capacity is a count that starts at 1, not a percentage bonus. Travel
+      // Time shortens the cycle, so it prints as what it takes off.
       const effectText =
         up.key === 'capacity'
           ? `Holds ${1 + level} essence per cycle`
-          : `${up.label} ${formatEffect(level * perLevel, 'percent')}`;
+          : `${up.label} ${formatEffect(level * perLevel, up.key === 'travel' ? 'minusPercent' : 'percent')}`;
       return costRow(
         `${id}.${up.key}`,
         up.label,
@@ -796,10 +797,14 @@ export function compute(input: ArcanistInput, options: ComputeOptions = {}): Arc
   const effects = collectEffects(input);
   const spells = computeSpells(input, ext, derived);
 
-  // Resolve the rune craft multiplier before altars (see module comment).
+  // Resolve the rune craft multiplier before altars (see module comment). Every
+  // source is its own multiplier: adding Prismism and the Exchange upgrade
+  // together gave 2.28x for a build the game shows at 2.42x, and only the fully
+  // multiplied form reaches it.
   const exchangeRuneCraft = exchangeEffect(input, 'runeCraftMulti');
   const runeCraftMulti =
-    (1 + spells.prismism.secondary + exchangeRuneCraft) *
+    (1 + spells.prismism.secondary) *
+    (1 + exchangeRuneCraft) *
     (1 + derived.contractRuneCraft) *
     (1 + derived.storeRuneCraft);
 

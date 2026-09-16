@@ -259,7 +259,7 @@ export const ESSENCE_UPGRADES: EssenceUpgradeDef[] = [
       placeholderFrom: 3,
     },
     effects: [],
-    note: 'Mine 3 is Necrotic Essence. Mine 4 is not released; the game prices it at 999,999,999 Drift Runes, which Total Resources leaves out.',
+    note: 'Mine 3 is Necrotic Essence. Mine 4 has not been released yet; the game lists it at 999,999,999 Drift Runes, which Total Resources leaves out.',
   },
   {
     id: 'flatDamage1',
@@ -683,7 +683,7 @@ export const ALTARS: Record<AltarId, AltarDef> = {
     rune: 'chasmRune',
     consumes: 'dense',
     unlockCost: { ashRune: 5000, brineRune: 2500 },
-    upgrades: altarUpgrades('whiteOrb', 5, 'greenOrb', 6, 'purpleOrb', 10, 3),
+    upgrades: altarUpgrades('whiteOrb', 5, 'greenOrb', 5, 'purpleOrb', 10, 3),
   },
   drift: {
     id: 'drift',
@@ -943,7 +943,7 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     id: 'arcaneCardDamage',
     label: 'Essence Damage +1 Per Arcanist Card Tier Owned',
     max: 1,
-    note: 'Grants flat damage equal to your total Arcanist card tiers owned (Cards).',
+    note: 'Grants flat damage equal to the number of Arcanist card tiers you own (see Cards).',
   },
   {
     id: 'runeCraftMulti',
@@ -968,7 +968,7 @@ export const EXCHANGE_UPGRADES: ExchangeUpgradeDef[] = [
     effectLabel: 'Poly Rune Multi',
     perLevel: 0.02,
     display: 'percent',
-    note: 'Adds to a Polychrome Rune card’s craft multiplier: +50% becomes +90% at max. No effect on lower tiers.',
+    note: "Adds to a Polychrome Rune card's craft multiplier: +50% becomes +90% at max level. It has no effect on lower tiers.",
   },
 ];
 
@@ -1022,3 +1022,105 @@ export const CONTRACT_RUNE_CRAFT = {
   maxLevel: 19,
   perLevel: 0.005,
 } as const;
+
+// ---------------------------------------------------------------------------
+// Wizard Exchange
+// ---------------------------------------------------------------------------
+
+/**
+ * Wizard Exchange offer rules, from `resetWizards` in the game's code.
+ *
+ * Arrays indexed by orb colour run White, Green, Purple, Orange, Red, Yellow.
+ * Arrays indexed by cost category follow the game's own twelve:
+ * 0 Stars, 1 Bars, 2 Veins, 3 Fragments, 4 Fish, 5 Gems, 6 PP, 7 Essence,
+ * 8 Runes, 9 common items, 10 food, 11 rare (tier 3) items.
+ */
+export const WIZARD = {
+  /** Seconds to bank a refresh: 2 hours minus 2 minutes per Exchange Timer level. */
+  refreshBaseSeconds: 7200,
+  refreshSecondsPerLevel: 120,
+  maxTimerLevel: 30,
+  polyOrbPerLevel: 0.025,
+  maxPolyOrbLevel: 10,
+  minWizards: 6,
+  maxWizards: 9,
+
+  colourWeights: [40, 30, 25, 20, 15, 10],
+  /** Orbs of the previous colour that must be traded before this colour appears. */
+  unlockGates: [0, 100, 150, 150, 150, 150],
+
+  costBase: [1, 1.05, 1.125, 1.2, 1.3, 1.425],
+  costAmp: [1.001, 1.0012, 1.0015, 1.0018, 1.002, 1.0025],
+  costScale: [0.0015, 0.001875, 0.0024, 0.003375, 0.0045, 0.006],
+  orbCountMaxed: [857, 643, 535, 429, 321, 214],
+  scalingThreshold: 3000,
+
+  /** Slot 1 tier pick: weights over picks, gated by trades. */
+  tradesPerEssenceTier: 100,
+  essenceTierWeights: [50, 30, 20, 0],
+  runeChance: 0.3,
+  /** The unseeded essence divisor, 1 / U(1.5, 2). Runes use ×2 instead. */
+  essenceDivisorMin: 1.5,
+  essenceDivisorMax: 2,
+  runeMulti: 2,
+  /** A Jagged/Chasm ask pays this much more. */
+  tier2RewardMulti: 1.2,
+
+  categoryWeights: [10, 8, 10, 10, 10, 10, 4, 0, 0, 10, 5, 1],
+  categoryResourceMulti: [5e13, 5e43, 2e19, 25000, 2e12, 75000, 1e25, 1, 1, 25000, 2500, 1],
+
+  /** A Large Resource Pack bundle: 100 packs for this many gems. */
+  gemsPer100LargePacks: 37500,
+
+  /** Offers sampled per colour when building the distribution. */
+  samplesPerColour: 4000,
+} as const;
+
+export type WizardItemTier = 'commonItems' | 'food' | 'rareItems';
+
+export interface WizardItem {
+  id: string;
+  name: string;
+  /** The most one trade can ask, before the ±5% roll. Null when it always asks exactly one. */
+  cap: number | null;
+}
+
+/**
+ * The items each item tier can ask, with their caps, from `adjust` in
+ * resetWizards (docs/wizard_predict/wizard_exchange_spec.md §4.4).
+ *
+ * Tier 1 asks are capped at 40,000 and Tier 2 at 30,000, each ×0.95–1.05, and
+ * then some items divide that down. Below the cap the ask grows with your
+ * trades, so early offers ask less. Tier 3 items always ask exactly one.
+ * Sushi appears in the game's Tier 2 list but can never be picked.
+ */
+export const WIZARD_ITEMS: Record<WizardItemTier, readonly WizardItem[]> = {
+  commonItems: [
+    { id: 'apple', name: 'Apple', cap: 40000 },
+    { id: 'bananaCoffee', name: 'Banana Coffee', cap: 40000 },
+    { id: 'rockCake', name: 'Rock Cake', cap: 20000 },
+    { id: 'primalMeat', name: 'Primal Meat', cap: 10000 },
+    { id: 'bread', name: 'Bread', cap: 40000 },
+    { id: 'pike', name: 'Pike', cap: 40000 },
+    { id: 'juicyPlums', name: 'Juicy Plums', cap: 20000 },
+    { id: 'strawberries', name: 'Strawberries', cap: 10000 },
+    { id: 'chargeMagnet', name: 'Charge Magnet', cap: 10000 },
+    { id: 'chaosTotem', name: 'Chaos Totem', cap: 20000 },
+    { id: 'droneJuice', name: 'Drone Juice', cap: 40000 },
+    { id: 'eyeOfNewt', name: 'Eye of Newt', cap: 40000 },
+  ],
+  food: [
+    { id: 'hamburger', name: 'Hamburger', cap: 30000 },
+    { id: 'starfruit', name: 'Starfruit', cap: 30000 },
+    { id: 'rainbowLollipop', name: 'Rainbow Lollipop', cap: 750 },
+    { id: 'lasagna', name: 'Lasagna', cap: 30000 },
+    { id: 'iceCream', name: 'Ice Cream', cap: 30000 },
+    { id: 'blueCow', name: 'Blue Cow', cap: 3000 },
+  ],
+  rareItems: [
+    { id: 'lootbugLantern', name: 'Lootbug Lantern', cap: null },
+    { id: 'frogspawn', name: 'Frogspawn', cap: null },
+    { id: 'goldFlakeSteak', name: 'Gold Flake Steak', cap: null },
+    { id: 'cosmicCandy', name: 'Cosmic Candy', cap: null },
+  ],
+};

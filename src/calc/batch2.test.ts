@@ -63,12 +63,12 @@ describe('Necrotic Essence', () => {
   const necrotic = result.essence.necrotic;
 
   it('reads its debuffs as the game lists them', () => {
-    // Per 1-second roll: stun 8%, weaken 4%, daze 2%, each less its negate.
+    // Per 1-second roll: stun 8%, weaken 4%, daze 2%, each minus its negate.
     const lands = (chance: number, negate: number) => chance * (1 - tenThousandthChance(negate));
     expect(necrotic.stunChancePerRoll).toBeCloseTo(lands(0.08, result.stats.stunNegate), 12);
     expect(necrotic.weakenChancePerRoll).toBeCloseTo(lands(0.04, result.stats.weakenNegate), 12);
     expect(necrotic.dazeChancePerRoll).toBeCloseTo(lands(0.02, result.stats.dazeNegate), 12);
-    // Weaken ×0.4 before 15 armour less 5 pen: round(30.4) − 10 = 20.
+    // Weaken ×0.4 before 15 armour minus 5 pen: round(30.4) − 10 = 20.
     expect(necrotic.weakenedHitDamage).toBe(20);
     expect(necrotic.regenAmount).toBe(20);
     expect(necrotic.respawn).toBe(20);

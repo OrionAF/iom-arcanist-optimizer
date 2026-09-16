@@ -13,7 +13,7 @@ import { critRollChance, tenThousandthChance } from './combat';
 import { compute } from './engine';
 import { ALTAR_IDS, CARD_SCALES, EXCHANGE_UPGRADES, cardValue } from './constants';
 import { curveCost } from './costs';
-import { formatCompact, formatShortScale } from './format';
+import { displayLabel, formatCompact, formatShortScale } from './format';
 import { EXAMPLE_INPUT } from '../presets/example';
 import { FRESH_EXTERNAL, FRESH_INPUT } from '../presets/fresh';
 import { CARD_TIERS, ESSENCE_TYPES } from './types';
@@ -145,7 +145,7 @@ describe('mining', () => {
     expect(result.essence.necrotic.regenAmount).toBe(20);
   });
 
-  it('net essence is income less altar drain', () => {
+  it('net essence is income minus altar drain', () => {
     // Brine is the only running altar, on Soft.
     expect(result.drain.soft).toBeCloseTo(result.altars.brine.essenceCostPerHour, 10);
     expect(result.drain.dense).toBe(0);
@@ -201,6 +201,18 @@ describe('altars', () => {
     const prismism = 0.15 * (1 + 1 * 0.05) * (1 + 4 * 0.05);
     expect(result.spells.prismism.secondary).toBeCloseTo(prismism, 12);
     expect(result.runeCraftMulti).toBeCloseTo((1 + prismism) * (1 + 16 * 0.005), 12);
+  });
+
+  it('multiplies every rune craft source separately, Exchange included', () => {
+    const input = structuredClone(EXAMPLE_INPUT);
+    input.exchange.runeCraftMulti = 15;
+    input.external.contractRuneCraftLevel = 19;
+    input.external.unlocks.arcanistBundle = true;
+    const r = compute(input);
+    expect(r.runeCraftMulti).toBeCloseTo(
+      (1 + r.spells.prismism.secondary) * (1 + 0.15) * (1 + 19 * 0.005) * (1 + 0.1),
+      12,
+    );
   });
 
   it('brine: cycle, output and drain', () => {
@@ -322,6 +334,24 @@ describe('total resource costs', () => {
   });
 });
 
+describe('row text', () => {
+  /** Travel Time takes time off the cycle, so a "+" would read as a slower altar. */
+  it('prints Travel Time as a reduction', () => {
+    const input = structuredClone(EXAMPLE_INPUT);
+    input.altars.ash.travel = 4;
+    const row = compute(input).rows.altars.ash.find((r) => r.id === 'ash.travel')!;
+    expect(row.effectText).toBe('Travel Time −20%');
+  });
+
+  /** The data keeps the game's hyphen; the screen shows a true minus, as the effects do. */
+  it('shows a true minus sign in upgrade names', () => {
+    const row = result.rows.essence.find((r) => r.id === 'regenRespawn')!;
+    expect(row.label).toBe('Regeneration −1, Essence Respawn Time −1s');
+    expect(displayLabel('Crit Chance +4%, Respawn Time -1s')).toBe('Crit Chance +4%, Respawn Time −1s');
+    expect(displayLabel('Tier-2 Items')).toBe('Tier-2 Items');
+  });
+});
+
 describe('exchange upgrades', () => {
   /** Exchange upgrades are bought with resources from elsewhere in the game, which are not tracked. */
   it('carries no cost on any exchange row', () => {
@@ -359,7 +389,7 @@ describe('exchange upgrades', () => {
 
 /**
  * Exclusive mining and altar stalling. Every one of these must reduce to plain
- * income-less-drain whenever the pool being mined outpaces the altars drawing
+ * income-minus-drain whenever the pool being mined outpaces the altars drawing
  * on it.
  */
 describe('essence supply', () => {

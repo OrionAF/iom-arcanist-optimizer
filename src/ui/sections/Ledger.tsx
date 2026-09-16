@@ -63,9 +63,9 @@ function LedgerCell({
         <div className="ledger-blocked">
           <strong>Can't mine</strong>
           {outcome.hitDamage <= 0
-            ? `Armour ${formatNumber(outcome.armor)} meets or beats your ${formatNumber(
+            ? `Its armour (${formatNumber(outcome.armor)}) is at least as high as your damage (${formatNumber(
                 result.stats.damage,
-              )} damage.`
+              )}).`
             : `Its regen of ${formatNumber(outcome.regenAmount)} every 10s outpaces your damage.`}
         </div>
       ) : (
@@ -123,7 +123,7 @@ function LedgerCell({
               want more than you can mine, so they are running at part rate. */}
           {mining && outcome.altarDrain > outcome.essencePerHour ? (
             <div className="ledger-starved">
-              Altars want {formatNumber(outcome.altarDrain, 0)}/hr — they run at{' '}
+              The altars want {formatNumber(outcome.altarDrain, 0)}/hr, so they run at{' '}
               {formatNumber((outcome.essencePerHour / outcome.altarDrain) * 100, 0)}% and you bank
               nothing.
             </div>

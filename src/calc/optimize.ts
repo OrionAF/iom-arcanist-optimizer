@@ -50,6 +50,7 @@ import {
   SPELL_IDS,
 } from './constants';
 import { compute, unmetRequirement, type ComputeOptions } from './engine';
+import { displayLabel } from './format';
 import type {
   AltarId,
   ArcanistInput,
@@ -141,7 +142,7 @@ export function enumerateLevers(input: ArcanistInput): Lever[] {
 
     out.push({
       id: def.id,
-      label: def.label,
+      label: displayLabel(def.label),
       section: 'essence',
       level,
       max: def.max,

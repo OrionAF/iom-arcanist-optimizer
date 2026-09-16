@@ -88,8 +88,59 @@ export function Help({ id }: { id: HelpId }) {
   // Widened deliberately: HELP is `as const` so its keys type HelpId, which
   // also narrows each entry to its own literal shape and hides `formula` on the
   // ones that lack it.
-  const entry: HelpEntry = HELP[id];
-  const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState<HelpId>(id);
+  const entry: HelpEntry = HELP[shown];
+  const see = (entry.see ?? []).filter((other): other is HelpId => other in HELP);
+  return (
+    <Popover
+      label={`What is ${HELP[id].title}?`}
+      title={entry.title}
+      // Reopening starts from this mark's own entry, not wherever a link led.
+      onClose={() => setShown(id)}
+    >
+      {entry.body.split('\n\n').map((para) => (
+        <p key={para}>{para}</p>
+      ))}
+      {entry.formula ? <code className="help-formula">{entry.formula}</code> : null}
+      {see.length > 0 ? (
+        <p className="help-see">
+          See also:{' '}
+          {see.map((other, i) => (
+            <span key={other}>
+              {i > 0 ? ', ' : null}
+              <button type="button" className="help-link" onClick={() => setShown(other)}>
+                {HELP[other].title}
+              </button>
+            </span>
+          ))}
+        </p>
+      ) : null}
+    </Popover>
+  );
+}
+
+/** A small round mark that opens an explanation. Help's, and any worked one. */
+export function Popover({
+  label,
+  title,
+  glyph = '?',
+  onClose,
+  children,
+}: {
+  /** What a screen reader announces for the mark. */
+  label: string;
+  title: string;
+  glyph?: ReactNode;
+  onClose?: () => void;
+  children: ReactNode;
+}) {
+  const [open, setOpenState] = useState(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const setOpen = useCallback((next: boolean) => {
+    setOpenState(next);
+    if (!next) onCloseRef.current?.();
+  }, []);
   const [spot, setSpot] = useState<Spot | null>(null);
   const mark = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -139,7 +190,7 @@ export function Help({ id }: { id: HelpId }) {
         ref={mark}
         type="button"
         className="help-mark"
-        aria-label={`What is ${entry.title}?`}
+        aria-label={label}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={(e) => {
@@ -150,7 +201,7 @@ export function Help({ id }: { id: HelpId }) {
           setOpen(!open);
         }}
       >
-        ?
+        {glyph}
       </button>
       {open && spot
         ? createPortal(
@@ -162,11 +213,8 @@ export function Help({ id }: { id: HelpId }) {
                 role="note"
                 style={{ left: spot.left, top: spot.top, bottom: spot.bottom }}
               >
-                <h4>{entry.title}</h4>
-                {entry.body.split('\n\n').map((para) => (
-                  <p key={para}>{para}</p>
-                ))}
-                {entry.formula ? <code className="help-formula">{entry.formula}</code> : null}
+                <h4>{title}</h4>
+                {children}
               </div>
             </>,
             document.body,
@@ -394,7 +442,7 @@ export function TabbedPanel({ id, label, tabs }: { id: string; label: string; ta
         <button
           type="button"
           className="tab-fold"
-          aria-label={`Show ${label}`}
+          aria-label={`${open ? 'Hide' : 'Show'} ${label}`}
           aria-expanded={open}
           aria-controls={`${base}-panel-${current}`}
           onClick={() => fold(!open)}
@@ -450,6 +498,43 @@ export function TabBody({
   );
 }
 
+/**
+ * A folding group inside a panel. Like `Section`, a `<details>` whose open state
+ * is remembered per id, but drawn as a light subhead rather than a panel header.
+ * `summary` may differ open and closed, for a title that gains a detail once open.
+ */
+export function Fold({
+  id,
+  summary,
+  className,
+  defaultOpen = true,
+  children,
+}: {
+  id: string;
+  summary: ReactNode | ((open: boolean) => ReactNode);
+  className?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(() => loadPanels()[id] ?? defaultOpen);
+
+  return (
+    <details
+      className={className ? `fold ${className}` : 'fold'}
+      open={open}
+      onToggle={(e) => {
+        const next = e.currentTarget.open;
+        if (next === open) return;
+        setOpen(next);
+        savePanel(id, next);
+      }}
+    >
+      <summary>{typeof summary === 'function' ? summary(open) : summary}</summary>
+      {children}
+    </details>
+  );
+}
+
 export function Subhead({ children }: { children: ReactNode }) {
   return (
     <div className="subhead">
@@ -470,13 +555,26 @@ export function Subhead({ children }: { children: ReactNode }) {
  * vanish. The draft holds exactly what was typed until focus leaves, then the
  * canonical value takes over again. Stepper buttons drop the draft so they
  * never show a stale string.
+ *
+ * The fields are plain text inputs, not `type="number"`, so no spinner arrows
+ * appear on hover. `accept` stands in for the browser's own filtering: a
+ * keystroke that would make the text stop matching it is dropped.
  */
-function useNumericDraft(value: number, onChange: (next: number) => void, parse: (raw: string) => number) {
+const WHOLE_NUMBER = /^\d*$/;
+const DECIMAL_NUMBER = /^\d*\.?\d*$/;
+
+function useNumericDraft(
+  value: number,
+  onChange: (next: number) => void,
+  parse: (raw: string) => number,
+  accept: RegExp,
+) {
   const [draft, setDraft] = useState<string | null>(null);
 
   return {
     display: draft ?? (value === 0 ? '' : String(value)),
     onInput: (raw: string) => {
+      if (!accept.test(raw)) return;
       setDraft(raw);
       onChange(parse(raw));
     },
@@ -490,14 +588,18 @@ export function LevelInput({
   max,
   onChange,
   label,
+  inputLabel = `${label} level`,
 }: {
   value: number;
   max: number;
   onChange: (next: number) => void;
+  /** What is being levelled; the buttons read "Increase {label}". */
   label: string;
+  /** The field's own name, for a count that is not a level. */
+  inputLabel?: string;
 }) {
   const clamp = (n: number) => Math.min(Math.max(Math.trunc(n) || 0, 0), max);
-  const field = useNumericDraft(value, onChange, (raw) => clamp(Number(raw)));
+  const field = useNumericDraft(value, onChange, (raw) => clamp(Number(raw)), WHOLE_NUMBER);
 
   const step = (next: number) => {
     field.reset();
@@ -515,15 +617,13 @@ export function LevelInput({
         −
       </button>
       <input
-        type="number"
+        type="text"
         // Levels are whole numbers, so the phone keyboard should open without a
         // decimal point on it.
         inputMode="numeric"
         value={field.display}
         placeholder="0"
-        min={0}
-        max={max}
-        aria-label={`${label} level`}
+        aria-label={inputLabel}
         onChange={(e) => field.onInput(e.target.value)}
         onBlur={field.onBlur}
       />
@@ -574,16 +674,25 @@ export function Switch({
 export function Field({
   label,
   hint,
+  icon,
   children,
 }: {
   label: string;
   hint?: string;
+  icon?: string;
   children: ReactNode;
 }) {
   return (
     <div className="field">
       <label>
-        {label}
+        {icon ? (
+          <span className="named">
+            <Icon src={icon} size={18} />
+            {label}
+          </span>
+        ) : (
+          label
+        )}
         {hint ? <span className="hint">{hint}</span> : null}
       </label>
       {children}
@@ -602,17 +711,22 @@ export function NumberField({
   step?: number;
   label: string;
 }) {
-  const field = useNumericDraft(value, onChange, (raw) => {
-    const next = Number(raw);
-    return Number.isFinite(next) ? next : 0;
-  });
+  const whole = Number.isInteger(step);
+  const field = useNumericDraft(
+    value,
+    onChange,
+    (raw) => {
+      const next = Number(raw);
+      return Number.isFinite(next) ? next : 0;
+    },
+    whole ? WHOLE_NUMBER : DECIMAL_NUMBER,
+  );
 
   return (
     <input
       className="plain"
-      type="number"
-      inputMode="decimal"
-      step={step}
+      type="text"
+      inputMode={whole ? 'numeric' : 'decimal'}
       value={field.display}
       placeholder="0"
       aria-label={label}

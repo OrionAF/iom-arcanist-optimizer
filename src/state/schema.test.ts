@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { compute } from '../calc/engine';
+import type { ArcanistInput } from '../calc/types';
 import { EXAMPLE_INPUT } from '../presets/example';
-import { FRESH_INPUT } from '../presets/fresh';
+import { FRESH_INPUT, FRESH_WIZARD } from '../presets/fresh';
 import {
   PACKED_FIELD_COUNT,
   coerceInput,
@@ -12,6 +13,9 @@ import {
   unpackFields,
 } from './schema';
 import { decodeBuild, encodeBuild, readBuildFromHash } from './url';
+
+/** A build as a link from before v8 carries it: the Wizard Exchange at fresh values. */
+const withoutWizard = (input: ArcanistInput): ArcanistInput => ({ ...input, wizard: FRESH_WIZARD });
 
 describe('JSON round trip', () => {
   it('preserves a build exactly', () => {
@@ -46,7 +50,7 @@ describe('packed round trip', () => {
     // + 6 unlock + contract + mining.
     const V4_FIELD_COUNT = 81;
     const v4 = packFields(EXAMPLE_INPUT).slice(0, V4_FIELD_COUNT);
-    expect(unpackFields(v4)).toEqual(EXAMPLE_INPUT);
+    expect(unpackFields(v4)).toEqual(withoutWizard(EXAMPLE_INPUT));
     // And the v4 prefix really is where it was: mining is its last field.
     const necrotic = structuredClone(EXAMPLE_INPUT);
     necrotic.mining = 'necrotic';
@@ -75,9 +79,12 @@ describe('packed round trip', () => {
     const V5_FIELD_COUNT = 104;
     // v6: 2 altars ×5, 2 rune cards, 7 spells ×3, Necrotic card, 7 spell cards.
     // v7: Black Hole Level 30, Hydra Star level, Divine Challenge 23.
-    expect(PACKED_FIELD_COUNT).toBe(V5_FIELD_COUNT + 2 * 5 + 2 + 7 * 3 + 1 + 7 + 3);
+    // v8: 11 wizard settings, 9 preference positions, 6 traded, 2 bars.
+    expect(PACKED_FIELD_COUNT).toBe(
+      V5_FIELD_COUNT + 2 * 5 + 2 + 7 * 3 + 1 + 7 + 3 + (11 + 9 + 6 + 2),
+    );
     const v5 = packFields(EXAMPLE_INPUT).slice(0, V5_FIELD_COUNT);
-    expect(unpackFields(v5)).toEqual(EXAMPLE_INPUT);
+    expect(unpackFields(v5)).toEqual(withoutWizard(EXAMPLE_INPUT));
     // And the v5 tail really is where it was: the Infernal Rhino value is last.
     const infernal = structuredClone(EXAMPLE_INPUT);
     infernal.external.pets.rhinoInfernalUltraShiny = 1.5;
@@ -102,6 +109,54 @@ describe('packed round trip', () => {
   });
 
   /** The example build has no Rhino card, which is how this once went unnoticed. */
+  it('decodes a v7 array with the Wizard Exchange at its defaults', () => {
+    const V7_FIELD_COUNT = 104 + 2 * 5 + 2 + 7 * 3 + 1 + 7 + 3;
+    const v7 = packFields(EXAMPLE_INPUT).slice(0, V7_FIELD_COUNT);
+    expect(unpackFields(v7)).toEqual(withoutWizard(EXAMPLE_INPUT));
+  });
+
+  it('carries every Wizard Exchange field through a link', () => {
+    const build = structuredClone(EXAMPLE_INPUT);
+    build.wizard = {
+      lootMulti: 1.43,
+      partyChance: 21,
+      partyMulti: 3.9,
+      blindChance: 2.5,
+      discoChance: 0.85,
+      flashbangChance: 0.4,
+      wizardCount: 9,
+      exchangeTimerLevel: 30,
+      polyOrbLevel: 10,
+      comfortHours: 1.5,
+      ppPer100Packs: 82.717e24,
+      preference: ['gems', 'fish', 'bars', 'stars', 'veins', 'food', 'commonItems', 'rareItems', 'fragments'],
+      negligibleBar: 7,
+      gapBar: 7,
+      traded: { white: 2559, green: 1842, purple: 1482, orange: 935, red: 516, yellow: 296 },
+    };
+    expect(decodeBuild(encodeBuild(build))).toEqual(build);
+  });
+
+  it('repairs a Currency Preference that is not a permutation', () => {
+    const build = structuredClone(EXAMPLE_INPUT);
+    build.wizard.preference = ['gems', 'gems', 'bars', 'stars', 'veins', 'food', 'commonItems', 'rareItems', 'fragments'];
+    expect(unpackFields(packFields(build)).wizard.preference).toEqual(FRESH_WIZARD.preference);
+    expect(coerceInput({ wizard: { preference: ['gems'] } }).wizard.preference).toEqual(
+      FRESH_WIZARD.preference,
+    );
+  });
+
+  it('clamps Wizard Exchange values into range', () => {
+    const wizard = coerceInput({
+      wizard: { wizardCount: 14, partyChance: 250, exchangeTimerLevel: 99, traded: { white: -5 }, gapBar: 40 },
+    }).wizard;
+    expect(wizard.gapBar).toBe(9);
+    expect(wizard.wizardCount).toBe(9);
+    expect(wizard.partyChance).toBe(100);
+    expect(wizard.exchangeTimerLevel).toBe(30);
+    expect(wizard.traded.white).toBe(0);
+  });
+
   it('carries every Rhino card tier', () => {
     for (const tier of ['normal', 'gilded', 'polychrome', 'infernal'] as const) {
       const build = structuredClone(EXAMPLE_INPUT);
@@ -127,7 +182,8 @@ describe('share links', () => {
   });
 
   it('stay short enough to paste', () => {
-    expect(encodeBuild(EXAMPLE_INPUT).length).toBeLessThan(450);
+    // v8's Wizard Exchange added 28 fields, most of them small integers.
+    expect(encodeBuild(EXAMPLE_INPUT).length).toBeLessThan(560);
   });
 
   it('reject garbage instead of throwing', () => {

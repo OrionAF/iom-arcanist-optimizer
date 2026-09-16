@@ -5,7 +5,7 @@
  */
 
 import type { ArcanistInput } from '../calc/types';
-import { FRESH_EXTERNAL, FRESH_INPUT } from './fresh';
+import { FRESH_EXTERNAL, FRESH_INPUT, FRESH_WIZARD } from './fresh';
 
 export const EXAMPLE_INPUT: ArcanistInput = {
   essence: {
@@ -61,4 +61,12 @@ export const EXAMPLE_INPUT: ArcanistInput = {
     contractRuneCraftLevel: 16,
   },
   mining: 'soft',
+  // Green and Purple unlocked; Orange still needs 30 more Purple traded.
+  wizard: {
+    ...FRESH_WIZARD,
+    lootMulti: 1.1,
+    partyChance: 6,
+    wizardCount: 7,
+    exchangeTimerLevel: 8,
+    traded: { white: 420, green: 260, purple: 120, orange: 0, red: 0, yellow: 0 },  },
 };

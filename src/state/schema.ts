@@ -19,12 +19,20 @@ import {
   PET,
   SPELL_IDS,
   UNLOCKS,
+  WIZARD,
 } from '../calc/constants';
-import { CARD_TIERS, ESSENCE_TYPES, ORB_CARD_IDS, RHINO_CARD_TIERS } from '../calc/types';
+import {
+  CARD_TIERS,
+  CURRENCY_CATEGORIES,
+  ESSENCE_TYPES,
+  ORB_CARD_IDS,
+  RHINO_CARD_TIERS,
+} from '../calc/types';
 import type {
   AltarId,
   ArcanistInput,
   CardTier,
+  CurrencyCategory,
   EssenceType,
   EssenceUpgradeDef,
   EssenceUpgradeId,
@@ -34,8 +42,11 @@ import type {
   OrbCardId,
   RhinoCardTier,
   SpellId,
+  OfferCategory,
+  WizardInput,
+  WizardOffer,
 } from '../calc/types';
-import { FRESH_INPUT } from '../presets/fresh';
+import { FRESH_INPUT, FRESH_WIZARD } from '../presets/fresh';
 
 /**
  * 1 — original flat ExternalBonuses (raw numbers like `petBrittle: 0.05`).
@@ -49,6 +60,9 @@ import { FRESH_INPUT } from '../presets/fresh';
  *     and cards for Necrotic Essence and the batch 2 spells.
  * 7 — Black Hole Level 30, the Hydra Star and Divine Challenge 23, all
  *     Arcanist Spell Power.
+ * 8 — the Wizard Exchange: wizard stats and levels, comfort hours, PP per 100
+ *     Large Resource Packs, the Currency Preference order, Orbs Traded per
+ *     colour, and the two Currency Preference bars.
  *
  * JSON needs no migration for any of these: parsing walks the definitions it
  * knows and defaults anything absent, so an older export loads with `mining`
@@ -56,7 +70,7 @@ import { FRESH_INPUT } from '../presets/fresh';
  * packed share format is positional; v3 and v4 had to move PACK_FORMAT, but v5
  * and v6 only append fields, so v4 links still decode.
  */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 export interface SavedBuild {
   version: number;
@@ -218,6 +232,102 @@ function coerceExternal(raw: unknown): ExternalBonuses {
   };
 }
 
+/**
+ * The Currency Preference order, repaired. Anything that is not a full
+ * permutation — a duplicate, an unknown name, a category missing — falls back
+ * to the default order rather than guessing which entry was meant.
+ */
+function coercePreference(raw: unknown): CurrencyCategory[] {
+  if (!Array.isArray(raw) || raw.length !== CURRENCY_CATEGORIES.length) {
+    return [...FRESH_WIZARD.preference];
+  }
+  const seen = new Set(raw);
+  const valid =
+    seen.size === CURRENCY_CATEGORIES.length &&
+    CURRENCY_CATEGORIES.every((category) => seen.has(category));
+  return valid ? (raw as CurrencyCategory[]) : [...FRESH_WIZARD.preference];
+}
+
+/** No typed stat is meaningful past this; a guard against typos, not a game figure. */
+const MAX_WIZARD_MULTI = 1e6;
+
+function coerceWizard(raw: unknown): WizardInput {
+  const data = asRecord(raw);
+  const traded = asRecord(data.traded);
+  const fresh = FRESH_WIZARD;
+  const percent = (value: unknown, fallback: number) => clamp(num(value, fallback), 100);
+  const multi = (value: unknown, fallback: number) => clamp(num(value, fallback), MAX_WIZARD_MULTI);
+
+  const perColour = (src: Record<string, unknown>) => {
+    const out = {} as Record<OrbCardId, number>;
+    for (const id of ORB_CARD_IDS) out[id] = Math.max(num(src[id], 0), 0);
+    return out;
+  };
+
+  return {
+    lootMulti: multi(data.lootMulti, fresh.lootMulti),
+    partyChance: percent(data.partyChance, fresh.partyChance),
+    partyMulti: multi(data.partyMulti, fresh.partyMulti),
+    blindChance: percent(data.blindChance, fresh.blindChance),
+    discoChance: percent(data.discoChance, fresh.discoChance),
+    flashbangChance: percent(data.flashbangChance, fresh.flashbangChance),
+    wizardCount: Math.min(
+      Math.max(int(data.wizardCount, fresh.wizardCount), WIZARD.minWizards),
+      WIZARD.maxWizards,
+    ),
+    exchangeTimerLevel: clamp(int(data.exchangeTimerLevel, 0), WIZARD.maxTimerLevel),
+    polyOrbLevel: clamp(int(data.polyOrbLevel, 0), WIZARD.maxPolyOrbLevel),
+    comfortHours: Math.max(num(data.comfortHours, fresh.comfortHours), 0),
+    ppPer100Packs: Math.max(num(data.ppPer100Packs, 0), 0),
+    preference: coercePreference(data.preference),
+    negligibleBar: clamp(int(data.negligibleBar, fresh.negligibleBar), CURRENCY_CATEGORIES.length),
+    gapBar: clamp(int(data.gapBar, fresh.gapBar), CURRENCY_CATEGORIES.length),
+    traded: perColour(traded),
+  };
+}
+
+const OFFER_CATEGORIES: readonly OfferCategory[] = [...CURRENCY_CATEGORIES, 'pp'];
+
+/**
+ * Wizard offers saved in this browser. Unlike a build they are never shared,
+ * but storage can still hold anything, so each offer is rebuilt and anything
+ * unreadable is dropped.
+ */
+export function coerceOffers(raw: unknown): WizardOffer[] {
+  if (!Array.isArray(raw)) return [];
+  const out: WizardOffer[] = [];
+  for (const item of raw.slice(0, WIZARD.maxWizards)) {
+    const data = asRecord(item);
+    const colour = data.colour as OrbCardId;
+    if (!ORB_CARD_IDS.includes(colour)) continue;
+    const slot1 = asRecord(data.slot1);
+    const tierValue = int(slot1.tier, 0);
+    const extras = Array.isArray(data.extras) ? data.extras : [];
+    out.push({
+      id: typeof data.id === 'string' && data.id ? data.id : `offer-${out.length}-${Date.now()}`,
+      colour,
+      orbs: Math.max(num(data.orbs, 0), 0),
+      party: bool(data.party, false),
+      blind: bool(data.blind, false),
+      slot1: {
+        kind: slot1.kind === 'rune' ? 'rune' : 'essence',
+        tier: (tierValue === 1 || tierValue === 2 ? tierValue : 0) as 0 | 1 | 2,
+        amount: Math.max(num(slot1.amount, 0), 0),
+      },
+      extras: extras
+        .slice(0, 2)
+        .map(asRecord)
+        .filter((e) => OFFER_CATEGORIES.includes(e.category as OfferCategory))
+        .map((e) => ({
+          category: e.category as OfferCategory,
+          amount: Math.max(num(e.amount, 0), 0),
+        })),
+      traded: bool(data.traded, false),
+    });
+  }
+  return out;
+}
+
 /** Rebuild a complete, in-range ArcanistInput from arbitrary input. */
 export function coerceInput(raw: unknown): ArcanistInput {
   const data = asRecord(raw);
@@ -268,6 +378,7 @@ export function coerceInput(raw: unknown): ArcanistInput {
     mining: ESSENCE_TYPES.includes(data.mining as EssenceType)
       ? (data.mining as EssenceType)
       : FRESH_INPUT.mining,
+    wizard: coerceWizard(data.wizard),
   };
 }
 
@@ -409,6 +520,33 @@ const spellFields = (id: SpellId): Field[] => [
   },
 ];
 
+type WizardNumberKey = {
+  [K in keyof WizardInput]: WizardInput[K] extends number ? K : never;
+}[keyof WizardInput];
+
+const wizardField = (key: WizardNumberKey): Field => ({
+  get: (input) => input.wizard[key],
+  set: (input, value) => {
+    input.wizard[key] = value;
+  },
+});
+
+/** One position in the Currency Preference order, as an index into CURRENCY_CATEGORIES. */
+const preferenceField = (position: number): Field => ({
+  get: (input) => Math.max(CURRENCY_CATEGORIES.indexOf(input.wizard.preference[position]!), 0),
+  set: (input, value) => {
+    // Written as-is; coerceInput repairs anything that is not a permutation.
+    input.wizard.preference[position] = CURRENCY_CATEGORIES[value] ?? ('' as CurrencyCategory);
+  },
+});
+
+const tradedField = (id: OrbCardId): Field => ({
+  get: (input) => input.wizard.traded[id],
+  set: (input, value) => {
+    input.wizard.traded[id] = value;
+  },
+});
+
 const unlockField = (key: keyof ExternalBonuses['unlocks']): Field => ({
   get: (input) => {
     const value = input.external.unlocks[key];
@@ -474,6 +612,22 @@ const FIELD_ORDER: Field[] = [
   unlockField('blackHole30'),
   unlockField('hydraStarLevel'),
   unlockField('divineChallenge23'),
+  // ---- v8: the Wizard Exchange. Appended, as above. ----
+  wizardField('lootMulti'),
+  wizardField('partyChance'),
+  wizardField('partyMulti'),
+  wizardField('blindChance'),
+  wizardField('discoChance'),
+  wizardField('flashbangChance'),
+  wizardField('wizardCount'),
+  wizardField('exchangeTimerLevel'),
+  wizardField('polyOrbLevel'),
+  wizardField('comfortHours'),
+  wizardField('ppPer100Packs'),
+  ...CURRENCY_CATEGORIES.map((_, position) => preferenceField(position)),
+  ...ORB_CARD_IDS.map(tradedField),
+  wizardField('negligibleBar'),
+  wizardField('gapBar'),
 ];
 
 export const PACKED_FIELD_COUNT = FIELD_ORDER.length;

@@ -15,6 +15,7 @@ import { Ledger } from './ui/sections/Ledger';
 import { Optimizer } from './ui/sections/Optimizer';
 import { Totals } from './ui/sections/Totals';
 import { Altars, EssenceUpgrades, Spells, Stats } from './ui/sections/Upgrades';
+import { WizardExchange } from './ui/sections/WizardExchange';
 
 export default function App() {
   // A shared link wins over whatever was autosaved locally. Resolved during
@@ -57,7 +58,7 @@ export default function App() {
       await navigator.clipboard.writeText(url);
       setToast('Link copied to clipboard');
     } catch {
-      setToast('Link is in the address bar');
+      setToast("Couldn't copy — the link is in the address bar");
     }
   };
 
@@ -71,12 +72,6 @@ export default function App() {
 
   return (
     <div className="app">
-      <div className="update-banner" role="status">
-        <strong>Outdated after the latest update:</strong> Arcanist Part 2 just launched and this
-        calculator does not reflect it yet. Numbers here may be wrong — please be patient while
-        we update it.
-      </div>
-
       <header className="masthead">
         <h1>Arcanist</h1>
         <span className="sub">Idle Obelisk Miner · Ob70 planner</span>
@@ -170,6 +165,12 @@ export default function App() {
                 icon: SECTION_ICONS.pets,
                 content: <Pets {...sectionProps} />,
               },
+              {
+                id: 'wizard',
+                title: 'Wizard Exchange',
+                icon: SECTION_ICONS.exchange,
+                content: <WizardExchange {...sectionProps} />,
+              },
             ]}
           />
         </div>
@@ -184,7 +185,7 @@ export default function App() {
 
       <footer className="colophon">
         <p>
-          Based on the Arcanist sheet from{' '}
+          Originally built on the Arcanist sheet from{' '}
           <a
             href="https://docs.google.com/spreadsheets/d/1hj4YvYYNlAmXD9LHZNsDQS2n1pFI8H34_1-RS_RlU-E/edit?usp=sharing"
             target="_blank"
@@ -192,8 +193,8 @@ export default function App() {
           >
             Obelisk Total Resources Calculator
           </a>{' '}
-          by <strong>Stonestriker</strong> — heavily modified. The formulas are
-          their work; this page ports and extends them.
+          by <strong>Stonestriker</strong>. It has since been rebuilt against the
+          game&rsquo;s own data.
         </p>
         <p>
           <a

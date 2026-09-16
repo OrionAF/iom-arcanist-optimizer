@@ -8,6 +8,7 @@ import {
   ESSENCE_UPGRADES,
   EXCHANGE_UPGRADES,
   SPELL_IDS,
+  WIZARD_ITEMS,
 } from '../calc/constants';
 import { ESSENCE_TYPES, ORB_CARD_IDS } from '../calc/types';
 import * as ICONS from './icons';
@@ -18,6 +19,7 @@ import {
   ESSENCE_ICONS,
   ESSENCE_UPGRADE_ICONS,
   EXCHANGE_UPGRADE_ICONS,
+  ITEM_ICONS,
   ORB_CARD_ICONS,
   PET_ICONS,
   SPELL_ACTIVE_ICONS,
@@ -74,6 +76,7 @@ describe('icon catalog', () => {
       expect(EXCHANGE_UPGRADE_ICONS[def.id], def.id).toBeTruthy();
     }
     for (const id of ORB_CARD_IDS) expect(ORB_CARD_ICONS[id], `${id} orb card`).toBeTruthy();
+    for (const item of Object.values(WIZARD_ITEMS).flat()) expect(ITEM_ICONS[item.id], item.name).toBeTruthy();
     for (const tier of ['normal', 'gilded', 'polychrome', 'infernal'] as const) {
       expect(CARD_BACKINGS[tier], `${tier} backing`).toBeTruthy();
     }

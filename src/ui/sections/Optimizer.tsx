@@ -4,13 +4,13 @@ import { RESOURCE_LABELS } from '../../calc/constants';
 import { formatCost, formatHours, formatNumber } from '../../calc/format';
 import { groupRankings, rankAll, type Goal, type Marginal } from '../../calc/optimize';
 import type { ArcanistInput } from '../../calc/types';
-import { Icon, Section } from '../components';
+import { Fold, Icon, Section } from '../components';
 import { RESOURCE_ICONS } from '../icons';
 
 /**
  * What to buy next.
  *
- * Two lists rather than one, because the player has two goals and they do not
+ * Two lists rather than one, stacked and each folding away, because the player has two goals and they do not
  * always agree: altar throughput buys runes with essence, so an upgrade can
  * climb one list while falling down the other. Collapsing them into a single
  * score would need a weighting nobody can supply honestly.
@@ -45,34 +45,33 @@ function gainOf(entry: Marginal, goal: Goal): number {
 function Entry({ entry, goal, rank }: { entry: Marginal; goal: Goal; rank: number }) {
   const gain = gainOf(entry, goal);
   const other = goal === 'essence' ? entry.delta.runesPerHour : entry.delta.essencePerHour;
-  const otherUnit = goal === 'essence' ? 'rune/hr' : 'essence/hr';
+  const otherUnit = goal === 'essence' ? 'runes/hr' : 'essence/hr';
   const amount = entry.candidate.resource
     ? entry.candidate.stepCost[entry.candidate.resource]
     : undefined;
 
+  // Two rows: the name owns the first, the numbers share the second.
   return (
     <li className="opt-entry">
-      <span className="opt-rank num">{rank}</span>
-      <span className="opt-body">
-        <span className="opt-name">
-          {entry.candidate.label}
-          <span className="opt-level num">
-            {entry.candidate.level}→{entry.candidate.to}
-          </span>
-        </span>
-        {other < 0 ? (
-          <span className="opt-tradeoff num">
-            costs {formatNumber(Math.abs(other), 1)} {otherUnit}
-          </span>
-        ) : null}
+      <span className="opt-name">
+        <span className="opt-rank num">{rank}</span>
+        <span className="opt-label">{entry.candidate.label}</span>
       </span>
-      <span className="opt-gain">
-        <span className={`num${gain > 0 ? ' up' : gain < 0 ? ' down' : ''}`}>
+      <span className="opt-figures num">
+        <span className="opt-level">
+          {entry.candidate.level}→{entry.candidate.to}
+        </span>
+        <span className={`opt-gain${gain > 0 ? ' up' : gain < 0 ? ' down' : ''}`}>
           {gain > 0 ? '+' : ''}
           {formatNumber(gain, 1)}
         </span>
+        {other < 0 ? (
+          <span className="opt-tradeoff">
+            costs {formatNumber(Math.abs(other), 1)} {otherUnit}
+          </span>
+        ) : null}
         {amount !== undefined && entry.candidate.resource ? (
-          <span className="opt-cost num">
+          <span className="opt-cost">
             {formatCost(entry.candidate.resource, amount)}
             {/* Only rune costs carry a time: orb income is not modelled. */}
             {entry.hoursToAfford !== undefined ? (
@@ -110,45 +109,50 @@ function GoalList({
   const unpriced = ranked.unpriced.filter((e) => gainOf(e, goal) > 0).slice(0, PER_RESOURCE);
 
   return (
-    <div className="opt-goal">
-      <h3>{title}</h3>
+    <Fold id={`opt:${goal}`} className="opt-goal" summary={<h3>{title}</h3>}>
+      <div className="opt-goal-body">
+        {queues.length === 0 && unpriced.length === 0 ? (
+          <p className="opt-empty">Nothing available improves this goal right now.</p>
+        ) : (
+          queues.map((queue) => {
+            const icon = RESOURCE_ICONS[queue.resource];
+            return (
+              <Fold
+                key={queue.resource}
+                id={`opt:${goal}:${queue.resource}`}
+                className="opt-queue"
+                summary={
+                  <>
+                    {icon ? (
+                      <Icon src={icon} size={15} />
+                    ) : (
+                      <span className="dot" style={{ ['--dot' as string]: `var(--res-${queue.resource})` }} />
+                    )}
+                    {RESOURCE_LABELS[queue.resource]}
+                  </>
+                }
+              >
+                <ol className="opt-list">
+                  {queue.entries.map((entry, i) => (
+                    <Entry key={entry.candidate.key} entry={entry} goal={goal} rank={i + 1} />
+                  ))}
+                </ol>
+              </Fold>
+            );
+          })
+        )}
 
-      {queues.length === 0 && unpriced.length === 0 ? (
-        <p className="opt-empty">Nothing available moves this goal right now.</p>
-      ) : (
-        queues.map((queue) => {
-          const icon = RESOURCE_ICONS[queue.resource];
-          return (
-          <div className="opt-queue" key={queue.resource}>
-            <div className="opt-queue-head">
-              {icon ? (
-                <Icon src={icon} size={15} />
-              ) : (
-                <span className="dot" style={{ ['--dot' as string]: `var(--res-${queue.resource})` }} />
-              )}
-              {RESOURCE_LABELS[queue.resource]}
-            </div>
+        {unpriced.length > 0 ? (
+          <Fold id={`opt:${goal}:unpriced`} className="opt-queue" summary="No price">
             <ol className="opt-list">
-              {queue.entries.map((entry, i) => (
+              {unpriced.map((entry, i) => (
                 <Entry key={entry.candidate.key} entry={entry} goal={goal} rank={i + 1} />
               ))}
             </ol>
-          </div>
-          );
-        })
-      )}
-
-      {unpriced.length > 0 ? (
-        <div className="opt-queue">
-          <div className="opt-queue-head">No price</div>
-          <ol className="opt-list">
-            {unpriced.map((entry, i) => (
-              <Entry key={entry.candidate.key} entry={entry} goal={goal} rank={i + 1} />
-            ))}
-          </ol>
-        </div>
-      ) : null}
-    </div>
+          </Fold>
+        ) : null}
+      </div>
+    </Fold>
   );
 }
 
@@ -162,10 +166,8 @@ export function Optimizer({ input }: { input: ArcanistInput }) {
 
   return (
     <Section title="Optimizer" help="optimizer" eyebrow="best next buys · per hour gained">
-      <div className="opt-goals">
-        <GoalList scored={scored} goal="essence" title="For essence / hr" />
-        <GoalList scored={scored} goal="runes" title="For runes / hr" />
-      </div>
+      <GoalList scored={scored} goal="essence" title="For essence / hr" />
+      <GoalList scored={scored} goal="runes" title="For runes / hr" />
     </Section>
   );
 }

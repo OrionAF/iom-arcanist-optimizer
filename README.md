@@ -35,6 +35,14 @@ right column is read-only output.
   Owned. Other Unlocks also holds the Exchange upgrades that change an Arcanist
   number, with no cost: they are bought with resources from elsewhere in the
   game that this planner does not track.
+- **Wizard Exchange** — enter the wizards on screen and each offer gets a score
+  from 0 to 100; 50 is break-even. It weighs how many orbs of that colour your
+  remaining upgrades still need against how often cheaper offers of the colour
+  come along, judging essence and runes in hours of your own production and
+  every other currency by your Currency Preference order. Accept adds the orbs
+  to Orbs Traded; your satchel is Orbs Traded minus what your bought upgrades
+  cost. Offers stay in this browser; your settings,
+  tallies and preference travel with the build.
 - **?** — every derived number has one. It explains what the figure is and, where
   the shape of the calculation is the answer, how it is worked out.
 - **Show the math** — the full derivation: crit/shiny/brittle probability

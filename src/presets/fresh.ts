@@ -1,4 +1,4 @@
-import type { ArcanistInput, ExternalBonuses } from '../calc/types';
+import type { ArcanistInput, ExternalBonuses, WizardInput } from '../calc/types';
 
 const LOCKED_ALTAR = { unlocked: false, active: false, capacity: 0, travel: 0, craft: 0 };
 const LOCKED_SPELL = { unlocked: false, level: 0, rank: 0 };
@@ -53,6 +53,41 @@ export const FRESH_EXTERNAL: ExternalBonuses = {
     hydraStarLevel: 0,
   },
   contractRuneCraftLevel: 0,
+};
+
+const NO_ORBS = { white: 0, green: 0, purple: 0, orange: 0, red: 0, yellow: 0 };
+
+/**
+ * Wizard Exchange at its base stats. Disco and Flashbang start at 0.1%; the
+ * Currency Preference order is only a starting point for the player to drag.
+ */
+export const FRESH_WIZARD: WizardInput = {
+  lootMulti: 1,
+  partyChance: 0,
+  partyMulti: 3,
+  blindChance: 0,
+  discoChance: 0.1,
+  flashbangChance: 0.1,
+  wizardCount: 6,
+  exchangeTimerLevel: 0,
+  polyOrbLevel: 0,
+  comfortHours: 1,
+  ppPer100Packs: 0,
+  preference: [
+    'stars',
+    'bars',
+    'veins',
+    'fish',
+    'commonItems',
+    'food',
+    'gems',
+    'fragments',
+    'rareItems',
+  ],
+  // Both bars start out of the way, so the order alone spaces the rows evenly.
+  negligibleBar: 0,
+  gapBar: 9,
+  traded: { ...NO_ORBS },
 };
 
 /** A freshly unlocked Arcanist: nothing bought, nothing unlocked. */
@@ -125,4 +160,5 @@ export const FRESH_INPUT: ArcanistInput = {
   external: FRESH_EXTERNAL,
   // Soft is the only essence a fresh Arcanist can actually break.
   mining: 'soft',
+  wizard: FRESH_WIZARD,
 };
