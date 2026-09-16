@@ -1,4 +1,4 @@
-import { Children, type ReactNode } from 'react';
+import { Children, useState, type ReactNode } from 'react';
 
 import {
   ALTARS,
@@ -11,6 +11,7 @@ import {
 } from '../../calc/constants';
 import { formatDuration, formatNumber, formatPercent } from '../../calc/format';
 import type { AltarId, ArcanistInput, ArcanistResult, UpgradeCost } from '../../calc/types';
+import { loadViewFlags, saveViewFlag } from '../../state/storage';
 import {
   BundleAmount,
   CostPair,
@@ -138,32 +139,61 @@ function CostRow({
 
 // ---------------------------------------------------------------- essence --
 
+const HIDE_MAXED = 'essence.hideMaxed';
+
 export function EssenceUpgrades({ result, update }: Props) {
+  const [hideMaxed, setHideMaxed] = useState(() => loadViewFlags()[HIDE_MAXED] ?? false);
+
+  // Paired with their definitions before filtering, since rows and
+  // definitions are matched by position.
+  const rows = result.rows.essence.map((row, i) => ({ row, def: ESSENCE_UPGRADES[i]! }));
+  const maxed = rows.filter(({ row, def }) => row.level >= def.max).length;
+  const shown = hideMaxed ? rows.filter(({ row, def }) => row.level < def.max) : rows;
+
   return (
-    <TabBody eyebrow="orbs · runes" flush>
-      <div className="scroll-x">
-        <table className="rows" role="table">
-          <RowsHead />
-          <tbody role="rowgroup">
-            {result.rows.essence.map((row, i) => {
-              const def = ESSENCE_UPGRADES[i]!;
-              return (
-                <CostRow
-                  key={row.id}
-                  row={row}
-                  max={def.max}
-                  icon={ESSENCE_UPGRADE_ICONS[def.id]}
-                  onChange={(next) =>
-                    update((draft) => {
-                      draft.essence[def.id] = next;
-                    })
-                  }
-                />
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <TabBody
+      eyebrow="orbs · runes"
+      actions={
+        <Switch
+          checked={hideMaxed}
+          onChange={(next) => {
+            setHideMaxed(next);
+            saveViewFlag(HIDE_MAXED, next);
+          }}
+        >
+          Hide maxed{maxed > 0 ? ` (${maxed})` : ''}
+        </Switch>
+      }
+      flush
+    >
+      {shown.length === 0 ? (
+        <p className="note" style={{ padding: '10px 16px 14px' }}>
+          All essence upgrades are maxed.
+        </p>
+      ) : (
+        <div className="scroll-x">
+          <table className="rows" role="table">
+            <RowsHead />
+            <tbody role="rowgroup">
+              {shown.map(({ row, def }) => {
+                return (
+                  <CostRow
+                    key={row.id}
+                    row={row}
+                    max={def.max}
+                    icon={ESSENCE_UPGRADE_ICONS[def.id]}
+                    onChange={(next) =>
+                      update((draft) => {
+                        draft.essence[def.id] = next;
+                      })
+                    }
+                  />
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </TabBody>
   );
 }

@@ -814,6 +814,13 @@
   padding: 8px 16px 0;
 }
 
+.tab-meta .tab-actions {
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .tab-meta .eyebrow {
   font-family: var(--mono);
   font-size: var(--fs-micro);

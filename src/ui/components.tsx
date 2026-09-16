@@ -520,18 +520,22 @@ export function TabbedPanel({ id, label, tabs }: { id: string; label: string; ta
 export function TabBody({
   help,
   eyebrow,
+  actions,
   flush,
   children,
 }: {
   help?: HelpId;
   eyebrow?: ReactNode;
+  /** Controls for this tab's view, set on the left of the strip. */
+  actions?: ReactNode;
   flush?: boolean;
   children: ReactNode;
 }) {
   return (
     <>
-      {help || eyebrow ? (
+      {help || eyebrow || actions ? (
         <div className="tab-meta">
+          {actions ? <div className="tab-actions">{actions}</div> : null}
           {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
           {help ? <Help id={help} /> : null}
         </div>

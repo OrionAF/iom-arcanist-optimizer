@@ -7,9 +7,11 @@ import {
   loadOffers,
   loadPanels,
   loadTabs,
+  loadViewFlags,
   pickTab,
   savePanel,
   saveTab,
+  saveViewFlag,
   untradeOffers,
 } from './storage';
 
@@ -47,6 +49,13 @@ describe('tab state', () => {
     savePanel('Optimizer', true);
     savePanel('tabs:upgrades', false);
     expect(loadPanels()).toEqual({ Optimizer: true, 'tabs:upgrades': false });
+  });
+
+  it('keeps display filters apart from folded panels', () => {
+    saveViewFlag('essence.hideMaxed', true);
+    savePanel('Optimizer', false);
+    expect(loadViewFlags()).toEqual({ 'essence.hideMaxed': true });
+    expect(loadPanels()).toEqual({ Optimizer: false });
   });
 
   it('ignores saved entries that are not tab ids', () => {

@@ -12,6 +12,7 @@ const STORAGE_KEY = 'iom-arcanist-optimizer:build';
 const BACKUP_KEY = 'iom-arcanist-optimizer:build.previous';
 const PANELS_KEY = 'iom-arcanist-optimizer:panels';
 const TABS_KEY = 'iom-arcanist-optimizer:tabs';
+const VIEW_KEY = 'iom-arcanist-optimizer:view';
 const OFFERS_KEY = 'iom-arcanist-optimizer:wizard-offers';
 
 export function loadBuild(): ArcanistInput | null {
@@ -76,14 +77,34 @@ export function loadBackup(): ArcanistInput | null {
  * panel does not need a migration.
  */
 export function loadPanels(): Record<string, boolean> {
+  return loadFlags(PANELS_KEY);
+}
+
+export function savePanel(id: string, open: boolean): void {
+  saveFlag(PANELS_KEY, id, open);
+}
+
+/**
+ * Display filters, such as hiding maxed upgrades. Same bargain as
+ * `loadPanels`: how a screen is filtered is not part of the build.
+ */
+export function loadViewFlags(): Record<string, boolean> {
+  return loadFlags(VIEW_KEY);
+}
+
+export function saveViewFlag(id: string, on: boolean): void {
+  saveFlag(VIEW_KEY, id, on);
+}
+
+function loadFlags(key: string): Record<string, boolean> {
   try {
-    const raw = localStorage.getItem(PANELS_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return {};
     const out: Record<string, boolean> = {};
-    for (const [key, value] of Object.entries(parsed)) {
-      if (typeof value === 'boolean') out[key] = value;
+    for (const [id, value] of Object.entries(parsed)) {
+      if (typeof value === 'boolean') out[id] = value;
     }
     return out;
   } catch {
@@ -91,9 +112,9 @@ export function loadPanels(): Record<string, boolean> {
   }
 }
 
-export function savePanel(id: string, open: boolean): void {
+function saveFlag(key: string, id: string, on: boolean): void {
   try {
-    localStorage.setItem(PANELS_KEY, JSON.stringify({ ...loadPanels(), [id]: open }));
+    localStorage.setItem(key, JSON.stringify({ ...loadFlags(key), [id]: on }));
   } catch {
     // Same bargain as the build autosave: a convenience, not a requirement.
   }
