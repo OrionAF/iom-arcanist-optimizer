@@ -78,7 +78,7 @@ describe('packed round trip', () => {
     // v4 + 19 essence + 2 exchange + Spellslinger Bundle + Infernal Rhino value.
     const V5_FIELD_COUNT = 104;
     // v6: 2 altars ×5, 2 rune cards, 7 spells ×3, Necrotic card, 7 spell cards.
-    // v7: Black Hole Level 30, Hydra Star level, Divine Challenge 23.
+    // v7: Black Hole Level 30, Hydra Star level, Divine Challenge 24.
     // v8: 11 wizard settings, 9 preference positions, 6 traded, 2 bars.
     expect(PACKED_FIELD_COUNT).toBe(
       V5_FIELD_COUNT + 2 * 5 + 2 + 7 * 3 + 1 + 7 + 3 + (11 + 9 + 6 + 2),
@@ -104,7 +104,7 @@ describe('packed round trip', () => {
     build.external.cards.spell.bugMagnet = 'polychrome';
     build.external.unlocks.blackHole30 = true;
     build.external.unlocks.hydraStarLevel = 33;
-    build.external.unlocks.divineChallenge23 = true;
+    build.external.unlocks.divineChallenge24 = true;
     expect(decodeBuild(encodeBuild(build))).toEqual(build);
   });
 

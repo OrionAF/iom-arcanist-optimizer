@@ -120,7 +120,7 @@ function deriveBonuses(input: ArcanistInput): DerivedBonuses {
         petSpellPower,
         unlocks.spellslingerBundle ? UNLOCKS.spellslingerSpellPower : 0,
         unlocks.blackHole30 ? UNLOCKS.blackHole30SpellPower : 0,
-        unlocks.divineChallenge23 ? UNLOCKS.divineChallenge23SpellPower : 0,
+        unlocks.divineChallenge24 ? UNLOCKS.divineChallenge24SpellPower : 0,
         clampLevel(unlocks.hydraStarLevel, UNLOCKS.maxHydraStarLevel) *
           UNLOCKS.hydraStarSpellPowerPerLevel,
         exchangeEffect(input, 'spellPower'),

@@ -589,7 +589,7 @@ describe('derived external bonuses', () => {
     input.external.unlocks.blackHole30 = true;
     expect(compute(input).derived.spellPower).toBeCloseTo(0.1, 12);
 
-    input.external.unlocks.divineChallenge23 = true;
+    input.external.unlocks.divineChallenge24 = true;
     expect(compute(input).derived.spellPower).toBeCloseTo(1.1 * 1.04 - 1, 12);
 
     // Hydra Star levels add among themselves: level 33 is one +8.25% factor.

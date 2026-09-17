@@ -325,11 +325,11 @@ export function OtherUnlocks({ input, result, update }: Props) {
 
         <Subhead>Challenges</Subhead>
         <UnlockRow
-          icon={UNLOCK_ICONS.divineChallenge23}
-          label="Divine Challenge 23"
-          effects={`+${pct(UNLOCKS.divineChallenge23SpellPower)} Arcanist Spell Power`}
-          checked={unlocks.divineChallenge23}
-          onChange={(v) => set('divineChallenge23', v)}
+          icon={UNLOCK_ICONS.divineChallenge24}
+          label="Divine Challenge 24"
+          effects={`+${pct(UNLOCKS.divineChallenge24SpellPower)} Arcanist Spell Power`}
+          checked={unlocks.divineChallenge24}
+          onChange={(v) => set('divineChallenge24', v)}
         />
 
         <Subhead>Contracts</Subhead>

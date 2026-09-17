@@ -401,8 +401,8 @@ export interface UnlockBonuses {
   w4GildedStatues: number;
   /** Black Hole Level 30 — +10% Arcanist Spell Power. */
   blackHole30: boolean;
-  /** Divine Challenge 23 — +4% Arcanist Spell Power. */
-  divineChallenge23: boolean;
+  /** Divine Challenge 24 — +4% Arcanist Spell Power. */
+  divineChallenge24: boolean;
   /** Hydra Star level, max 50 — +0.25% Arcanist Spell Power per level. */
   hydraStarLevel: number;
 }
@@ -773,7 +773,7 @@ export interface DerivedBonuses {
   petSpellPower: number;
   /**
    * Arcanist Spell Power from every source — the quest skin, the Spellslinger
-   * Bundle, Black Hole Level 30, Divine Challenge 23, the Hydra Star and the
+   * Bundle, Black Hole Level 30, Divine Challenge 24, the Hydra Star and the
    * Exchange. They multiply: this is `∏(1 + source) − 1`.
    */
   spellPower: number;

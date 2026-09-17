@@ -58,7 +58,7 @@ import { FRESH_INPUT, FRESH_WIZARD } from '../presets/fresh';
  *     Infernal Rhino card with its typed-in ultra shiny chance.
  * 6 — the Drift and Echo altars with their rune cards, seven batch 2 spells,
  *     and cards for Necrotic Essence and the batch 2 spells.
- * 7 — Black Hole Level 30, the Hydra Star and Divine Challenge 23, all
+ * 7 — Black Hole Level 30, the Hydra Star and Divine Challenge 24, all
  *     Arcanist Spell Power.
  * 8 — the Wizard Exchange: wizard stats and levels, comfort hours, PP per 100
  *     Large Resource Packs, the Currency Preference order, Orbs Traded per
@@ -222,7 +222,7 @@ function coerceExternal(raw: unknown): ExternalBonuses {
       statueOfNatureGilded: bool(unlocks.statueOfNatureGilded, false),
       w4GildedStatues: clamp(int(unlocks.w4GildedStatues, 0), UNLOCKS.maxW4GildedStatues),
       blackHole30: bool(unlocks.blackHole30, false),
-      divineChallenge23: bool(unlocks.divineChallenge23, false),
+      divineChallenge24: bool(unlocks.divineChallenge24, false),
       hydraStarLevel: clamp(int(unlocks.hydraStarLevel, 0), UNLOCKS.maxHydraStarLevel),
     },
     contractRuneCraftLevel: clamp(
@@ -611,7 +611,7 @@ const FIELD_ORDER: Field[] = [
   // ---- v7: more Arcanist Spell Power sources. Appended, as above. ----
   unlockField('blackHole30'),
   unlockField('hydraStarLevel'),
-  unlockField('divineChallenge23'),
+  unlockField('divineChallenge24'),
   // ---- v8: the Wizard Exchange. Appended, as above. ----
   wizardField('lootMulti'),
   wizardField('partyChance'),

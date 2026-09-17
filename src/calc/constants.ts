@@ -1007,8 +1007,8 @@ export const UNLOCKS = {
   maxW4GildedStatues: 9,
   /** Black Hole Level 30. */
   blackHole30SpellPower: 0.1,
-  /** Divine Challenge 23. */
-  divineChallenge23SpellPower: 0.04,
+  /** Divine Challenge 24. */
+  divineChallenge24SpellPower: 0.04,
   /** Hydra Star, per level. */
   hydraStarSpellPowerPerLevel: 0.0025,
   maxHydraStarLevel: 50,

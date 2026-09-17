@@ -75,7 +75,7 @@ which is awkward in a URL. That is the only renamed file.
 ## Batch 2 art
 
 The batch 2 essence upgrades, Exchange upgrades, Draconic Hoard
-(`Draconic_Hoard*.png`), Black Hole Level 30 (`BlackHole.png`), Divine Challenge 23
+(`Draconic_Hoard*.png`), Black Hole Level 30 (`BlackHole.png`), Divine Challenge 24
 (`Divine_Challenge_Coin.png`, the wiki's 16px thumbnail) and the Hydra Star
 (`Hydra_Full.png`) use the art listed in `Icon-ref-links.txt`. The wiki gives
 many batch 2 essence upgrades `Hourglass.png`. Only the Spellslinger Bundle

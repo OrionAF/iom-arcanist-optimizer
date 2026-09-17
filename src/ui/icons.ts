@@ -267,6 +267,6 @@ export const UNLOCK_ICONS = {
   spellslingerBundle: icon('Spell_Duration_Multi.png'),
   statueOfNature: icon('22_Statue_Nature_Gilded.png'),
   blackHole30: icon('BlackHole.png'),
-  divineChallenge23: icon('Divine_Challenge_Coin.png'),
+  divineChallenge24: icon('Divine_Challenge_Coin.png'),
   hydraStar: icon('Hydra_Full.png'),
 } as const;

@@ -49,7 +49,7 @@ export const FRESH_EXTERNAL: ExternalBonuses = {
     statueOfNatureGilded: false,
     w4GildedStatues: 0,
     blackHole30: false,
-    divineChallenge23: false,
+    divineChallenge24: false,
     hydraStarLevel: 0,
   },
   contractRuneCraftLevel: 0,
