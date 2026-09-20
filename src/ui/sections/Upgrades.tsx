@@ -139,10 +139,10 @@ function CostRow({
 
 // ---------------------------------------------------------------- essence --
 
-const HIDE_MAXED = 'essence.hideMaxed';
+const HIDE_MAXED_ESSENCE = 'essence.hideMaxed';
 
 export function EssenceUpgrades({ result, update }: Props) {
-  const [hideMaxed, setHideMaxed] = useState(() => loadViewFlags()[HIDE_MAXED] ?? false);
+  const [hideMaxed, setHideMaxed] = useState(() => loadViewFlags()[HIDE_MAXED_ESSENCE] ?? false);
 
   // Paired with their definitions before filtering, since rows and
   // definitions are matched by position.
@@ -158,7 +158,7 @@ export function EssenceUpgrades({ result, update }: Props) {
           checked={hideMaxed}
           onChange={(next) => {
             setHideMaxed(next);
-            saveViewFlag(HIDE_MAXED, next);
+            saveViewFlag(HIDE_MAXED_ESSENCE, next);
           }}
         >
           Hide maxed{maxed > 0 ? ` (${maxed})` : ''}
@@ -200,11 +200,20 @@ export function EssenceUpgrades({ result, update }: Props) {
 
 // ----------------------------------------------------------------- altars --
 
-function Altar({ id, input, result, update }: Props & { id: AltarId }) {
+function Altar({
+  id,
+  input,
+  result,
+  update,
+  hideMaxed,
+}: Props & { id: AltarId; hideMaxed: boolean }) {
   const def = ALTARS[id];
   const state = input.altars[id];
   const outcome = result.altars[id];
-  const rows = result.rows.altars[id];
+  // Paired with their definitions before filtering, since rows and definitions
+  // are matched by position.
+  const rows = result.rows.altars[id].map((row, i) => ({ row, up: def.upgrades[i]! }));
+  const shown = hideMaxed ? rows.filter(({ row, up }) => row.level < up.max) : rows;
   const unlockRow = result.rows.altarUnlocks.find((r) => r.id === `${id}.unlock`);
   const needsUnlock = Object.keys(def.unlockCost).length > 0;
   const running = state.active && state.unlocked;
@@ -249,35 +258,40 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
         ) : null}
       </div>
 
-      <div className="scroll-x">
-        <table className="rows" role="table" aria-label={`${def.label} upgrades`}>
-          {/* The altar grids repeat the same four columns as the essence table
-              directly above them, so drawing the header three more times is
-              noise — but without one the columns are unlabelled to anyone who
-              cannot see that. Present for screen readers only. */}
-          <thead className="sr-only" role="rowgroup">
-            <tr role="row">
-              <th role="columnheader" scope="col">
-                Upgrade
-              </th>
-              <th role="columnheader" scope="col">
-                Level
-              </th>
-              {/* Classed like the visible headers so the narrow-screen rule drops
-                  it too — otherwise the header count stops matching the body and
-                  a screen reader announces each cost cell as "Effect". */}
-              <th role="columnheader" scope="col" className="effect">
-                Effect
-              </th>
-              <th role="columnheader" scope="col">
-                Next / Remaining
-              </th>
-            </tr>
-          </thead>
-          <tbody role="rowgroup" className={state.unlocked ? undefined : 'locked'}>
-            {rows.map((row, i) => {
-              const up = def.upgrades[i]!;
-              return (
+      {shown.length === 0 ? (
+        // The altar itself stays: its switches and stats are still worth
+        // reading once every upgrade on it is bought.
+        <p className="note" style={{ padding: '0 16px 8px' }}>
+          All {def.label} upgrades are maxed.
+        </p>
+      ) : (
+        <div className="scroll-x">
+          <table className="rows" role="table" aria-label={`${def.label} upgrades`}>
+            {/* The altar grids repeat the same four columns as the essence table
+                directly above them, so drawing the header three more times is
+                noise — but without one the columns are unlabelled to anyone who
+                cannot see that. Present for screen readers only. */}
+            <thead className="sr-only" role="rowgroup">
+              <tr role="row">
+                <th role="columnheader" scope="col">
+                  Upgrade
+                </th>
+                <th role="columnheader" scope="col">
+                  Level
+                </th>
+                {/* Classed like the visible headers so the narrow-screen rule drops
+                    it too — otherwise the header count stops matching the body and
+                    a screen reader announces each cost cell as "Effect". */}
+                <th role="columnheader" scope="col" className="effect">
+                  Effect
+                </th>
+                <th role="columnheader" scope="col">
+                  Next / Remaining
+                </th>
+              </tr>
+            </thead>
+            <tbody role="rowgroup" className={state.unlocked ? undefined : 'locked'}>
+              {shown.map(({ row, up }) => (
                 <CostRow
                   key={row.id}
                   row={row}
@@ -289,11 +303,11 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
                     })
                   }
                 />
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <dl className="stats">
         <Stat label="Cycle" help="altarCycle" value={formatDuration(outcome.cycleTime)} />
@@ -338,15 +352,39 @@ function Altar({ id, input, result, update }: Props & { id: AltarId }) {
   );
 }
 
+const HIDE_MAXED_ALTARS = 'altars.hideMaxed';
+
 export function Altars(props: Props) {
+  const [hideMaxed, setHideMaxed] = useState(() => loadViewFlags()[HIDE_MAXED_ALTARS] ?? false);
+
+  // Counted across every altar, since the switch covers the whole tab.
+  const maxed = ALTAR_IDS.reduce(
+    (total, id) =>
+      total +
+      props.result.rows.altars[id].filter((row, i) => row.level >= ALTARS[id].upgrades[i]!.max)
+        .length,
+    0,
+  );
+
   return (
     <TabBody
       help="runeCraftMulti"
       eyebrow={`rune craft ×${formatNumber(props.result.runeCraftMulti, 4)}`}
+      actions={
+        <Switch
+          checked={hideMaxed}
+          onChange={(next) => {
+            setHideMaxed(next);
+            saveViewFlag(HIDE_MAXED_ALTARS, next);
+          }}
+        >
+          Hide maxed{maxed > 0 ? ` (${maxed})` : ''}
+        </Switch>
+      }
       flush
     >
       {ALTAR_IDS.map((id) => (
-        <Altar key={id} id={id} {...props} />
+        <Altar key={id} id={id} hideMaxed={hideMaxed} {...props} />
       ))}
     </TabBody>
   );
