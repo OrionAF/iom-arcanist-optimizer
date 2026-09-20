@@ -76,12 +76,15 @@ which is awkward in a URL. That is the only renamed file.
 
 The batch 2 essence upgrades, Exchange upgrades, Draconic Hoard
 (`Draconic_Hoard*.png`), Black Hole Level 30 (`BlackHole.png`), Divine Challenge 24
-(`Divine_Challenge_Coin.png`, the wiki's 16px thumbnail) and the Hydra Star
-(`Hydra_Full.png`) use the art listed in `Icon-ref-links.txt`. The wiki gives
-many batch 2 essence upgrades `Hourglass.png`. Only the Spellslinger Bundle
-still borrows an icon (`Spell_Duration_Multi.png`).
-`Necrotic_Essence.png` and `Card_Backing_Infernal.png` (the Rhino card's Infernal
-frame) are the real thing.
+(`Divine_Challenge_Coin.png`, the wiki's 16px thumbnail), the Hydra Star
+(`Hydra_Full.png`) and the Spellslinger Bundle (`Spellslinger_VP.png`) use the art
+listed in `Icon-ref-links.txt`. Every batch 2 essence upgrade now has its own art:
+`Essence_Regeneration_Reduction.png`, `Super_Shiny_Essence_Chance.png` (two rows),
+`Weaken_Negate_Chance.png`, `All_Essence_Max_Loot.png`, `Super_Shiny_Essence_Multi.png`,
+`All_Essence_Min_Loot.png`, `All_Debuff_Negate_Chance.png`, `Dazed_Negate_Chance.png`,
+`Ultra_Shiny_Essence_Chance.png`, `All_Shiny_Essence_Loot.png` and
+`Stun_Negate_Chance.png`. `Necrotic_Essence.png` and `Card_Backing_Infernal.png`
+(the Rhino card's Infernal frame) are the real thing.
 
 `src/ui/icons.test.ts` checks every path the catalog exports against a real file
 in `public/icons/`, gathering the paths from the module rather than a list, so a
