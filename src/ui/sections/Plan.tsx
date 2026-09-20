@@ -93,7 +93,7 @@ export function Plan({ input, result }: { input: ArcanistInput; result: Arcanist
   const runeIcon = target.kind === 'rune' ? RESOURCE_ICONS[ALTARS[target.altar].rune] : undefined;
 
   return (
-    <Section title="Gathering Plan" help="gatheringPlan" eyebrow="how long a pile takes">
+    <Section title="Gathering Plan" help="gatheringPlan" eyebrow="how long a goal takes">
       <div className="plan-ask">
         <label className="plan-field wide">
           <span>Goal</span>
