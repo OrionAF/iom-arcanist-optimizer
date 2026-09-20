@@ -9,7 +9,7 @@ import { AmountInput, Help, Icon, Section, Switch } from '../components';
 import { ESSENCE_ICONS, RESOURCE_ICONS } from '../icons';
 
 /**
- * How long a pile takes, and what it costs to get there.
+ * How long a goal takes, and what it costs to get there.
  *
  * Every other panel reports a rate. This one turns a rate into a time, which is
  * the form the question is actually asked in: not "what is my Ash Rune output"
