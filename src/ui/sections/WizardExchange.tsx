@@ -18,7 +18,7 @@ import {
 } from 'react';
 
 import { WIZARD, WIZARD_ITEMS, type WizardItemTier } from '../../calc/constants';
-import { formatCompact, formatHours, formatShortScale, parseAmount } from '../../calc/format';
+import { formatCompact, formatHours, formatShortScale } from '../../calc/format';
 import { wizardOutlook, type ColourOutlook } from '../../calc/wizard/need';
 import { sampleInputsFor, sampleOffers, unusualCosts } from '../../calc/wizard/offers';
 import {
@@ -41,7 +41,18 @@ import type {
 import { ORB_CARD_IDS } from '../../calc/types';
 import { coerceOffers } from '../../state/schema';
 import { loadOffers, loadPanels, saveOffers, savePanel } from '../../state/storage';
-import { Fold, Help, Icon, LevelInput, NumberField, Popover, Subhead, Switch, TabBody } from '../components';
+import {
+  AmountInput,
+  Fold,
+  Help,
+  Icon,
+  LevelInput,
+  NumberField,
+  Popover,
+  Subhead,
+  Switch,
+  TabBody,
+} from '../components';
 import type { HelpId } from '../help';
 import { CATEGORY_ICONS, ESSENCE_ICONS, ITEM_ICONS, ORB_CARD_ICONS, RESOURCE_ICONS, WIZARD_ICONS } from '../icons';
 
@@ -94,50 +105,6 @@ const amountCounts = (category: OfferCategory) => category === 'gems' || categor
 const scoreBand = (score: number) => (score >= 50 ? 'good' : score >= 30 ? 'fair' : 'poor');
 
 const newId = () => `offer-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-
-// ------------------------------------------------------------------ inputs --
-
-/**
- * A number typed the way the game prints it. Keeps what was typed while it is
- * being edited and commits only a value it can read, flagging the rest.
- */
-function AmountInput({
-  value,
-  onChange,
-  label,
-  placeholder = '0',
-  className = 'wx-amount',
-}: {
-  value: number;
-  onChange: (next: number) => void;
-  label: string;
-  placeholder?: string;
-  className?: string;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const shown = draft ?? (value === 0 ? '' : formatCompact(value));
-  const invalid = draft !== null && draft.trim() !== '' && Number.isNaN(parseAmount(draft));
-
-  return (
-    <input
-      className={invalid ? `${className} invalid` : className}
-      type="text"
-      inputMode="decimal"
-      value={shown}
-      placeholder={placeholder}
-      aria-label={label}
-      aria-invalid={invalid || undefined}
-      onChange={(e) => {
-        setDraft(e.target.value);
-        const next = e.target.value.trim() === '' ? 0 : parseAmount(e.target.value);
-        if (!Number.isNaN(next)) onChange(Math.max(next, 0));
-      }}
-      onBlur={() => {
-        if (!invalid) setDraft(null);
-      }}
-    />
-  );
-}
 
 // ---------------------------------------------------------------- colours --
 

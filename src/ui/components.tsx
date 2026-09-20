@@ -11,11 +11,12 @@ import {
 import { createPortal } from 'react-dom';
 
 import { RESOURCE_LABELS } from '../calc/constants';
-import { formatCost } from '../calc/format';
+import { formatCompact, formatCost, parseAmount } from '../calc/format';
 import type { Resource, ResourceBundle } from '../calc/types';
 import { loadPanels, loadTabs, pickTab, savePanel, saveTab } from '../state/storage';
 import { HELP, type HelpEntry, type HelpId } from './help';
 import { RESOURCE_ICONS } from './icons';
+import { PIN_EVENT } from './pin';
 
 // ----------------------------------------------------------------- icons ---
 
@@ -321,6 +322,13 @@ export function Section({
   );
 }
 
+/**
+ * How far above the pin line a panel's end starts the fade, in pixels. Enough
+ * for the strip to be gone before sticky shoves it, and short enough that it is
+ * read as the panel ending rather than as the strip vanishing on its own.
+ */
+const TAB_FADE_LEAD = 56;
+
 export interface PanelTab {
   id: string;
   title: string;
@@ -348,12 +356,62 @@ export function TabbedPanel({ id, label, tabs }: { id: string; label: string; ta
   const [open, setOpen] = useState(() => loadPanels()[foldKey] ?? true);
   const [active, setActive] = useState(() => pickTab(loadTabs()[id], tabIds));
   const [edges, setEdges] = useState({ start: false, end: false });
+  const [leaving, setLeaving] = useState(false);
   const base = useId();
+  const shell = useRef<HTMLElement>(null);
+  const head = useRef<HTMLDivElement>(null);
   const strip = useRef<HTMLDivElement>(null);
   const tabEls = useRef(new Map<string, HTMLButtonElement>());
   const panelEls = useRef(new Map<string, HTMLDivElement>());
 
   const current = pickTab(active, tabIds);
+
+  /*
+   * Fade the strip out as its own panel runs out.
+   *
+   * The handing over between two stacked panels needs no code at all: a sticky
+   * strip can only travel as far as its own section, so the upper one is pushed
+   * out by the end of that section at the same moment the lower one arrives at
+   * the same line. What is left is the fade, which wants a little warning — so
+   * this watches for the section's bottom edge crossing a line set one strip
+   * plus a lead above the pin, and by the time sticky pushes the strip out it
+   * has already gone.
+   *
+   * The pin offset is read back off the strip's own computed `top` rather than
+   * duplicated here, so the CSS stays the one place it is decided; PIN_EVENT is
+   * what says it has moved.
+   */
+  useEffect(() => {
+    const panel = shell.current;
+    const bar = head.current;
+    if (!panel || !bar) return;
+
+    let observer: IntersectionObserver | undefined;
+
+    const watch = () => {
+      observer?.disconnect();
+      const pin = Number.parseFloat(getComputedStyle(bar).top) || 0;
+      const line = pin + bar.offsetHeight + TAB_FADE_LEAD;
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          // The bottom edge, not `isIntersecting`: a panel below the fold is
+          // not intersecting either, and its strip is simply waiting its turn.
+          if (entry) setLeaving(entry.boundingClientRect.bottom < line);
+        },
+        { rootMargin: `-${line}px 0px 0px 0px`, threshold: 0 },
+      );
+      observer.observe(panel);
+    };
+
+    watch();
+    window.addEventListener(PIN_EVENT, watch);
+    window.addEventListener('resize', watch);
+    return () => {
+      window.removeEventListener(PIN_EVENT, watch);
+      window.removeEventListener('resize', watch);
+      observer?.disconnect();
+    };
+  }, []);
 
   const fold = useCallback(
     (next: boolean) => {
@@ -439,8 +497,12 @@ export function TabbedPanel({ id, label, tabs }: { id: string; label: string; ta
   };
 
   return (
-    <section className={open ? 'section tabbed open' : 'section tabbed'} aria-label={label}>
-      <div className="tab-head">
+    <section
+      ref={shell}
+      className={open ? 'section tabbed open' : 'section tabbed'}
+      aria-label={label}
+    >
+      <div ref={head} className="tab-head" data-leaving={leaving ? '' : undefined}>
         <div className="tab-scroller" data-start={edges.start} data-end={edges.end}>
           <div
             ref={strip}
@@ -822,6 +884,57 @@ export function NumberField({
       aria-label={label}
       onChange={(e) => field.onInput(e.target.value)}
       onBlur={field.onBlur}
+    />
+  );
+}
+
+/**
+ * A number typed the way the game prints it: "82.717Sp", "1.2k", "37,500".
+ *
+ * Keeps what was typed while it is being edited and commits only a value it can
+ * read, flagging the rest — a quantity here runs to the trillions, and a field
+ * that only takes digits would have the player counting zeroes.
+ */
+export function AmountInput({
+  value,
+  onChange,
+  label,
+  placeholder = '0',
+  className = 'wx-amount',
+  id,
+  describedBy,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+  label: string;
+  placeholder?: string;
+  className?: string;
+  id?: string;
+  describedBy?: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? (value === 0 ? '' : formatCompact(value));
+  const invalid = draft !== null && draft.trim() !== '' && Number.isNaN(parseAmount(draft));
+
+  return (
+    <input
+      className={invalid ? `${className} invalid` : className}
+      type="text"
+      id={id}
+      aria-describedby={describedBy}
+      inputMode="decimal"
+      value={shown}
+      placeholder={placeholder}
+      aria-label={label}
+      aria-invalid={invalid || undefined}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const next = e.target.value.trim() === '' ? 0 : parseAmount(e.target.value);
+        if (!Number.isNaN(next)) onChange(Math.max(next, 0));
+      }}
+      onBlur={() => {
+        if (!invalid) setDraft(null);
+      }}
     />
   );
 }

@@ -7,6 +7,21 @@
   margin: 0 auto;
   padding: 0 max(24px, env(safe-area-inset-right)) calc(80px + env(safe-area-inset-bottom))
     max(24px, env(safe-area-inset-left));
+
+  /*
+   * How far down the page the pinned chrome reaches, and so where anything else
+   * that pins itself has to start. On a wide screen that is the sticky ledger;
+   * where the ledger cannot be pinned it is the rail that stands in for it, and
+   * the media query below makes that swap. Both heights are measured and
+   * published by Ledger.tsx, since it owns the elements.
+   */
+  --pin-top: var(--ledger-h, 0px);
+}
+
+@media (max-width: 720px), (max-height: 620px) {
+  .app {
+    --pin-top: var(--rail-h, 0px);
+  }
 }
 
 .masthead {
@@ -575,6 +590,34 @@
   min-width: 0;
 }
 
+/*
+ * The read-only column follows the page.
+ *
+ * Everything in it answers "what did that change do", and every control that
+ * changes anything is in the column beside it — so it was the one part of the
+ * page you had to scroll away from in order to use it. Only where there are two
+ * columns to begin with: stacked, it is already directly under the inputs and
+ * pinning it would cover them.
+ *
+ * It carries its own scrollbar because the five panels are taller than most
+ * screens, and pinning something taller than the viewport would leave its lower
+ * half permanently out of reach. Scroll chaining is left alone, so a wheel that
+ * reaches the end of the column carries on down the page.
+ */
+@media (min-width: 1340px) {
+  .columns > .stack.pinned {
+    position: sticky;
+    top: calc(var(--pin-top, 0px) + var(--gap));
+    max-height: calc(100vh - var(--pin-top, 0px) - var(--gap) * 2);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--seam-bright) transparent;
+    /* Room inside the scroller for the panels' own focus rings. */
+    padding: 2px;
+    margin: -2px;
+  }
+}
+
 /* -------------------------------------------------------------- section -- */
 
 .section {
@@ -662,9 +705,43 @@
 
 /* ---------------------------------------------------------- tabbed panel -- */
 
+/*
+ * The tab strip follows the page.
+ *
+ * Pinned under the ledger rather than at the top of the viewport, so it lands
+ * below the figures it is being edited against instead of over them. Sticky is
+ * scoped to its own panel by definition — a strip cannot travel past the end of
+ * the section that holds it — so the handover between the two stacked panels
+ * costs nothing: the Upgrades strip is pushed out by the end of its own section
+ * at the moment the Account strip arrives at the same line. The fade before
+ * that push is the only part JavaScript is needed for, and a browser that never
+ * ran it would still get the handover.
+ */
 .tab-head {
   display: flex;
   align-items: stretch;
+}
+
+.tabbed > .tab-head {
+  position: sticky;
+  top: var(--pin-top, 0px);
+  z-index: 12;
+  /* Opaque, because the panel's own content now scrolls underneath it. */
+  background: var(--stratum);
+  border-radius: var(--r) var(--r) 0 0;
+  transition: opacity 160ms ease;
+}
+
+/* Out of the way, and out of reach, before its panel shoves it. */
+.tabbed > .tab-head[data-leaving] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabbed > .tab-head {
+    transition: none;
+  }
 }
 
 .tabbed.open > .tab-head {
@@ -1861,6 +1938,338 @@ button.action.primary:hover {
   margin: 0 0 8px;
   font-size: var(--fs-tiny);
   color: var(--text-faint);
+}
+
+/* --------------------------------------------------------- gathering plan -- */
+
+/*
+ * A question at the top, an answer underneath.
+ *
+ * Two columns, with the goal across both: what you want and what you already
+ * have are a pair and read as one line, while the goal names the unit both of
+ * them are counted in and belongs above them.
+ */
+.plan-ask {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.plan-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.plan-field.wide {
+  grid-column: 1 / -1;
+}
+
+.plan-field > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-tiny);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.plan-field .wx-amount,
+.plan-field select {
+  width: 100%;
+}
+
+/*
+ * Icons in the goal list.
+ *
+ * A native option renders text and nothing else, so the only way to get the
+ * game's own art in front of each name is `appearance: base-select` — which
+ * hands the control and its drop-down over to be styled as ordinary elements.
+ * That is all-or-nothing: taking the browser's styling off means putting the
+ * app's own back, hence the block below. Everywhere the feature is missing,
+ * the `@supports` gate leaves a plain native select carrying the same labels.
+ */
+@supports (appearance: base-select) {
+  .plan-select,
+  .plan-select::picker(select) {
+    appearance: base-select;
+  }
+
+  .plan-select {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 7px;
+    background: var(--void);
+    border: 1px solid var(--seam-bright);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: var(--fs-body);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .plan-select:focus-visible {
+    outline: 2px solid var(--brine);
+    outline-offset: -1px;
+  }
+
+  .plan-select::picker-icon {
+    margin-left: auto;
+    color: var(--text-faint);
+    transition: rotate 140ms ease;
+  }
+
+  .plan-select:open::picker-icon {
+    rotate: 180deg;
+  }
+
+  .plan-select::picker(select) {
+    border: 1px solid var(--seam-bright);
+    border-radius: var(--r);
+    padding: 4px;
+    background: var(--stratum);
+    box-shadow: 0 18px 42px -16px #000;
+  }
+
+  /*
+   * The art in front of a name, on the closed control and on every row of the
+   * open list. A background rather than an image element: see the note in
+   * Plan.tsx for why that is the difference between this working everywhere and
+   * being invalid HTML.
+   */
+  .plan-select::before,
+  .plan-select option::before {
+    content: '';
+    flex: none;
+    width: 17px;
+    height: 17px;
+    background: var(--art, none) center / contain no-repeat;
+    /* Source art is 32px pixel art, as in `.icon`. */
+    image-rendering: -webkit-optimize-contrast;
+  }
+
+  /*
+   * The group heading has no pseudo-element of its own to aim at — base-select
+   * still draws an optgroup's `label` attribute itself — so it is styled here
+   * and the options inside put back what they need of their own.
+   */
+  .plan-select optgroup {
+    padding: 8px 8px 2px;
+    font-family: var(--mono);
+    font-size: var(--fs-tiny);
+    font-weight: var(--w-strong);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .plan-select option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+    padding: 6px 8px;
+    border-radius: 3px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: var(--fs-body);
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+
+  .plan-select option:hover,
+  .plan-select option:focus {
+    background: var(--stratum-2);
+    outline: none;
+  }
+
+  /* The tick beside the current choice, pushed to the far edge. */
+  .plan-select option::checkmark {
+    order: 1;
+    margin-left: auto;
+    color: var(--brine);
+  }
+
+  .plan-select option:checked {
+    color: var(--brine);
+  }
+}
+
+.plan-options {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+/* The answer. One figure, at the size of the thing you came to read. */
+.plan-headline {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 9px;
+}
+
+.plan-headline .value {
+  font-size: 30px;
+  line-height: 1.05;
+  font-weight: var(--w-strong);
+  color: var(--brine);
+}
+
+.plan-headline .unit {
+  font-size: var(--fs-small);
+  color: var(--text-dim);
+}
+
+/*
+ * The essence bill for a rune order.
+ *
+ * Second only to the time, and often the figure that decides whether the plan
+ * is worth starting at all, so it gets a band of its own rather than a line in
+ * the list below.
+ */
+.plan-bill {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  margin-top: 12px;
+  padding: 9px 11px;
+  background: var(--void);
+  border: 1px solid var(--seam);
+  border-radius: var(--r);
+}
+
+.plan-bill .icon {
+  align-self: center;
+}
+
+.plan-bill .num {
+  font-size: var(--fs-lead);
+  font-weight: var(--w-strong);
+}
+
+.plan-bill .unit {
+  font-size: var(--fs-tiny);
+  color: var(--text-dim);
+}
+
+/* What is left once the pool comes off, on its own line under the bill. */
+.plan-bill-net {
+  flex-basis: 100%;
+  margin-top: 2px;
+  font-size: var(--fs-tiny);
+  line-height: 1.45;
+  color: var(--brine);
+}
+
+.plan-inhand {
+  margin: 5px 0 0;
+  font-size: var(--fs-tiny);
+  color: var(--text-faint);
+}
+
+.plan-lines {
+  margin-top: 12px;
+  font-size: var(--fs-small);
+}
+
+.plan-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  color: var(--text-dim);
+  border-top: 1px solid var(--seam);
+}
+
+.plan-line:first-child {
+  border-top: 0;
+}
+
+.plan-line .num {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.plan-line.drain .num {
+  color: var(--ember);
+}
+
+/*
+ * The walk-away point.
+ *
+ * Called out rather than listed, because it is the one line here that changes
+ * what the player does with the next hour rather than merely telling them how
+ * long it is.
+ */
+.plan-surplus {
+  margin-top: 14px;
+  padding: 11px 12px;
+  background: color-mix(in srgb, var(--brine) 8%, var(--void));
+  border: 1px solid color-mix(in srgb, var(--brine) 34%, var(--seam));
+  border-radius: var(--r);
+}
+
+.plan-surplus-lead {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 1.45;
+}
+
+.plan-surplus-lead strong {
+  color: var(--brine);
+  font-family: var(--mono);
+  font-weight: var(--w-strong);
+}
+
+.plan-surplus-why {
+  margin: 7px 0 0;
+  font-size: var(--fs-tiny);
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.plan-pace {
+  margin: 14px 0 0;
+  font-size: var(--fs-small);
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+/* What the plan quietly takes for granted, where the build says otherwise. */
+.plan-assumes {
+  margin: 9px 0 0;
+  padding-left: 9px;
+  border-left: 2px solid var(--seam-bright);
+  font-size: var(--fs-tiny);
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.plan-assumes strong {
+  color: var(--text-dim);
+  font-weight: var(--w-strong);
+}
+
+.plan-empty,
+.plan-blocked,
+.plan-done {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 1.45;
+  color: var(--text-faint);
+}
+
+.plan-blocked,
+.plan-done {
+  color: var(--text-dim);
 }
 
 /* ------------------------------------------------------------------ help -- */

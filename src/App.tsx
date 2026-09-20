@@ -22,6 +22,7 @@ import { Breakdown } from './ui/sections/Breakdown';
 import { Cards } from './ui/sections/Cards';
 import { Ledger } from './ui/sections/Ledger';
 import { Optimizer } from './ui/sections/Optimizer';
+import { Plan } from './ui/sections/Plan';
 import { Totals } from './ui/sections/Totals';
 import { Altars, EssenceUpgrades, Spells, Stats } from './ui/sections/Upgrades';
 import { WizardExchange } from './ui/sections/WizardExchange';
@@ -267,8 +268,12 @@ export default function App() {
           />
         </div>
 
-        <div className="stack">
+        {/* Pinned on a wide screen: it is the answer to every edit made in the
+            column beside it, so scrolling away from it to reach a control was
+            the one thing the layout got wrong. */}
+        <div className="stack pinned">
           <Optimizer input={input} />
+          <Plan input={input} result={result} />
           <Stats result={result} />
           <Breakdown result={result} />
           <Totals result={result} />

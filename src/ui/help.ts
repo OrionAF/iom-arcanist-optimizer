@@ -325,6 +325,22 @@ export const HELP = {
     title: 'PP per 100 Large Resource Packs',
     body: 'The PP you receive from buying 100 Large Resource Packs, which always cost 37,500 gems. It turns a wizard\'s PP cost into the gems it really takes, so a PP offer is scored as a gem offer of that size.\n\nType it as the game shows it, such as 82.717Sp. Leave it at 0 and PP costs count as a typical gem cost.',
   },
+  gatheringPlan: {
+    title: 'Gathering Plan',
+    body: 'Pick something you are saving up for, say how many you want, and this turns your rates into a time.\n\nAn essence goal is one division — how much you still need, over what you mine an hour.\n\nA rune goal is two sums, because two things have to happen at different speeds: the altar crafts the runes, and your mining feeds it the essence. The panel prices both and reports the slower one, along with the essence the whole order costs.\n\nThe owned figures are typed in, because this planner tracks your upgrades and not your satchel. A rune goal asks for two of them: runes you already have come off the order, and essence already in the pool comes off the mining. Essence in hand is the more useful of the two — enough of it can carry the altar through a shortfall your mining alone could not, and hand the pacing back to the altar.\n\nEvery figure assumes you mine the essence involved for as long as the plan needs it, and that the altar is switched on. It says so where that is not what your build currently does.',
+    see: ['planDrain', 'planSurplus'],
+  },
+  planDrain: {
+    title: 'Include altar drain',
+    body: 'Counts the essence your running altars take out of the pool you are mining, so the plan uses what you actually bank rather than what you dig up.\n\nFor an essence goal that is every altar on it. For a rune goal it is every altar except the one you are planning for — that one is priced in full, since crafting the runes is the point.\n\nClear it to plan as though the altars were switched off, which is a real choice: an altar you turn off for the evening stops drinking the pool.',
+    formula: 'banked/hr = mined/hr − altar drain/hr',
+    see: ['ledgerDrain'],
+  },
+  planSurplus: {
+    title: 'When you can stop mining',
+    body: 'Where your mining outruns the altar, you do not have to stand over it for the whole run. Essence piles up behind the altar, and once that pile covers what the altar still owes you, the altar can finish alone while you go and mine something else.\n\nThe panel names that moment as two numbers you can read off your own screen — essence banked and runes held — rather than as a time, because a stopwatch is the one thing the game does not show you. Both are totals, so runes you already had are counted in.\n\nIt is the same finish either way: walking away at that point completes the order at exactly the moment standing there would have. With enough essence already in the pool the moment is now, and the panel says so instead.',
+    formula: 'stop when banked essence = runes still owed × essence per rune',
+  },
   totalsPanel: {
     title: 'Total Resources',
     body: 'Everything still owed to max every priced upgrade on the page, and what those upgrades cost end to end.\n\nOnly resources something on the page actually costs appear, so nothing sits at a misleading zero.',

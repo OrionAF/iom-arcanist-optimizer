@@ -6,6 +6,7 @@ import type { ArcanistInput, ArcanistResult, EssenceType } from '../../calc/type
 import { ESSENCE_TYPES } from '../../calc/types';
 import { Help, Icon, useFlashOnChange } from '../components';
 import { ESSENCE_ICONS } from '../icons';
+import { trackPinHeight } from '../pin';
 
 /**
  * Every essence, and which one you are mining.
@@ -168,6 +169,12 @@ function LedgerRail({
   const mining = input.mining;
   const headline = headlineOf(result, mining, true);
   const flash = useFlashOnChange(headline ?? 0);
+  const bar = useRef<HTMLDivElement>(null);
+
+  // Where this is the pinned chrome — a narrow or short screen — it is what
+  // everything below pins underneath. Zero-height while it is display:none,
+  // which is exactly right on the screens where the ledger itself is sticky.
+  useEffect(() => (bar.current ? trackPinHeight(bar.current, '--rail-h') : undefined), []);
 
   const toLedger = () => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -175,7 +182,7 @@ function LedgerRail({
   };
 
   return (
-    <div className={shown ? 'ledger-rail is-shown' : 'ledger-rail'} data-type={mining}>
+    <div ref={bar} className={shown ? 'ledger-rail is-shown' : 'ledger-rail'} data-type={mining}>
       <button type="button" className="rail-current" onClick={toLedger}>
         <Icon src={ESSENCE_ICONS[mining]} size={18} />
         <span className="rail-name">{ESSENCE_LABELS[mining]}</span>
@@ -225,7 +232,14 @@ export function Ledger({
   update: (mutate: (draft: ArcanistInput) => void) => void;
 }) {
   const sentinel = useRef<HTMLDivElement>(null);
+  const board = useRef<HTMLDivElement>(null);
   const [past, setPast] = useState(false);
+
+  // Its own height is how far down the page the pinned chrome reaches, and the
+  // tab strips and the read-only column both pin themselves underneath it. It
+  // changes with the build — a "can't mine" cell is a different size — so it is
+  // measured rather than assumed.
+  useEffect(() => (board.current ? trackPinHeight(board.current, '--ledger-h') : undefined), []);
 
   /*
    * An observer rather than a scroll handler: this fires twice per visit to the
@@ -251,7 +265,7 @@ export function Ledger({
 
   return (
     <>
-      <div className="ledger" role="group" aria-label="Essence being mined">
+      <div ref={board} className="ledger" role="group" aria-label="Essence being mined">
         {ESSENCE_TYPES.map((type) => (
           <LedgerCell
             key={type}
