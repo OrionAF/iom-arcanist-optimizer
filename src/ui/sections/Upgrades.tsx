@@ -20,7 +20,6 @@ import {
   LevelInput,
   Section,
   Stat,
-  Subhead,
   Switch,
   TabBody,
 } from '../components';
@@ -221,49 +220,66 @@ function Altar({
   const overdrawn = running && pool.altarDrain > pool.essencePerHour;
 
   return (
-    <>
-      <Subhead>
-        <Icon src={ALTAR_ICONS[id]} size={18} />
-        {def.label}
-      </Subhead>
-
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', padding: '0 16px 8px' }}>
-        {needsUnlock ? (
+    /*
+     * One card per altar, tinted with the rune it crafts.
+     *
+     * Flat on the panel, five altars ran together: the stats under one altar
+     * sat against the subhead of the next with nothing but a hairline between
+     * them, and which figures belonged to which altar was a matter of counting
+     * down from the last name you read. Boxed, the name band, the upgrades and
+     * the four figures are visibly one object, and the rune colour on the edge
+     * and the name repeats the colour the runes-per-hour figure already used.
+     */
+    <section
+      className="altar-card"
+      aria-label={def.label}
+      style={{ ['--altar' as string]: `var(--res-${def.rune})` }}
+    >
+      <header className="altar-head">
+        <h3 className="altar-name">
+          <Icon src={ALTAR_ICONS[id]} size={20} />
+          {def.label}
+        </h3>
+        <div className="altar-switches">
+          {needsUnlock ? (
+            <Switch
+              checked={state.unlocked}
+              onChange={(next) =>
+                update((draft) => {
+                  draft.altars[id].unlocked = next;
+                  if (!next) draft.altars[id].active = false;
+                })
+              }
+            >
+              Unlocked
+            </Switch>
+          ) : null}
           <Switch
-            checked={state.unlocked}
+            checked={state.active}
             onChange={(next) =>
               update((draft) => {
-                draft.altars[id].unlocked = next;
-                if (!next) draft.altars[id].active = false;
+                draft.altars[id].active = next;
               })
             }
           >
-            Unlocked
+            Running
           </Switch>
-        ) : null}
-        <Switch
-          checked={state.active}
-          onChange={(next) =>
-            update((draft) => {
-              draft.altars[id].active = next;
-            })
-          }
-        >
-          Running
-        </Switch>
-        {needsUnlock && !state.unlocked && unlockRow ? (
-          <span className="note">
-            Unlock costs <BundleAmount bundle={unlockRow.remaining} />
-          </span>
-        ) : null}
-      </div>
+        </div>
+      </header>
+
+      {needsUnlock && !state.unlocked && unlockRow ? (
+        // Its own line rather than a third item beside the switches: the bundle
+        // runs to several resources and wrapping it into the header pushed the
+        // switches around as the cost changed.
+        <p className="note altar-line">
+          Unlock costs <BundleAmount bundle={unlockRow.remaining} />
+        </p>
+      ) : null}
 
       {shown.length === 0 ? (
         // The altar itself stays: its switches and stats are still worth
         // reading once every upgrade on it is bought.
-        <p className="note" style={{ padding: '0 16px 8px' }}>
-          All {def.label} upgrades are maxed.
-        </p>
+        <p className="note altar-line">All {def.label} upgrades are maxed.</p>
       ) : (
         <div className="scroll-x">
           <table className="rows" role="table" aria-label={`${def.label} upgrades`}>
@@ -348,7 +364,7 @@ function Altar({
           }
         />
       </dl>
-    </>
+    </section>
   );
 }
 
@@ -383,9 +399,11 @@ export function Altars(props: Props) {
       }
       flush
     >
-      {ALTAR_IDS.map((id) => (
-        <Altar key={id} id={id} hideMaxed={hideMaxed} {...props} />
-      ))}
+      <div className="altar-list">
+        {ALTAR_IDS.map((id) => (
+          <Altar key={id} id={id} hideMaxed={hideMaxed} {...props} />
+        ))}
+      </div>
     </TabBody>
   );
 }

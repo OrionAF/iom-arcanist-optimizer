@@ -940,6 +940,102 @@
   background: var(--seam);
 }
 
+/* --------------------------------------------------------------- altars -- */
+
+/*
+ * One card per altar, with real space between them.
+ *
+ * Flat on the panel, the five altars ran together: the four figures under one
+ * altar sat a hairline away from the name of the next, and telling which set
+ * belonged to which meant counting back up to the last name you read. Boxed,
+ * the name band, the upgrades and the figures are visibly one object.
+ */
+.altar-list {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.altar-card {
+  /* Overridden per card with the rune that altar crafts. */
+  --altar: var(--seam-bright);
+  background: var(--stratum-2);
+  border: 1px solid var(--seam);
+  /* The rune colour runs the full height, so it is still there to identify the
+     card once its name band has scrolled out of view. Mixed rather than solid:
+     at 3px wide the raw accents are loud enough to pull the eye off the
+     figures they are labelling. */
+  border-left: 3px solid color-mix(in srgb, var(--altar) 65%, var(--seam));
+  border-radius: var(--r);
+  /* So the name band and the stats grid take the card's corners with it. The
+     help popovers are portalled to the body, so nothing needed here escapes. */
+  overflow: hidden;
+  /* Tables inside set a wide min-content width; without this the card grows to
+     fit one instead of letting it scroll. */
+  min-width: 0;
+}
+
+/* Darker than the card and tinted with the altar's rune, so the name reads as
+   a label on the block below it rather than another row of it. */
+.altar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--altar) 10%, var(--stratum));
+  border-bottom: 1px solid var(--seam);
+}
+
+/* Same treatment the subheads had, now in the altar's own colour — which is
+   the colour its runes-per-hour figure below already uses. */
+.altar-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-tiny);
+  font-weight: var(--w-strong);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--altar);
+}
+
+.altar-switches {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+/* The unlock cost, or the note that stands in for an emptied table. */
+.altar-line {
+  margin: 0;
+  padding: 8px 12px;
+}
+
+/* The tiles are part of the card, not of the panel behind it. */
+.altar-card .stat {
+  background: var(--stratum-2);
+}
+
+/* Where the rows have already become small grids, the gutters around the cards
+   are width the upgrade names need more. The gap between cards stays: it is
+   what the cards are for. */
+@media (max-width: 900px) {
+  .altar-list {
+    gap: 10px;
+    padding: 8px;
+  }
+
+  .altar-head,
+  .altar-line {
+    padding-inline: 10px;
+  }
+}
+
 /* ---------------------------------------------------------------- table -- */
 
 .rows {
