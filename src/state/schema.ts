@@ -63,6 +63,7 @@ import { FRESH_INPUT, FRESH_WIZARD } from '../presets/fresh';
  * 8 — the Wizard Exchange: wizard stats and levels, comfort hours, PP per 100
  *     Large Resource Packs, the Currency Preference order, Orbs Traded per
  *     colour, and the two Currency Preference bars.
+ * 9 — Divine Challenge 25, All Shiny Essence Loot.
  *
  * JSON needs no migration for any of these: parsing walks the definitions it
  * knows and defaults anything absent, so an older export loads with `mining`
@@ -70,7 +71,7 @@ import { FRESH_INPUT, FRESH_WIZARD } from '../presets/fresh';
  * packed share format is positional; v3 and v4 had to move PACK_FORMAT, but v5
  * and v6 only append fields, so v4 links still decode.
  */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export interface SavedBuild {
   version: number;
