@@ -680,7 +680,7 @@ export const ALTARS: Record<AltarId, AltarDef> = {
     rune: 'chasmRune',
     consumes: 'dense',
     unlockCost: { ashRune: 5000, brineRune: 2500 },
-    upgrades: altarUpgrades('whiteOrb', 5, 'greenOrb', 5, 'purpleOrb', 10, 3),
+    upgrades: altarUpgrades('whiteOrb', 5, 'greenOrb', 6, 'purpleOrb', 10, 3),
   },
   drift: {
     id: 'drift',
